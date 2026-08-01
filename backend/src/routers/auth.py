@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta, timezone
 
 
@@ -31,10 +32,11 @@ from ..schemas import (
     UserResponse,
     VerifyCodeRequest,
 )
-from ..utils import validate_password, with_rate_limit
+from ..utils import PasswordValidationError, validate_password, with_rate_limit
 
 router = APIRouter(tags=["Auth"])
 post = with_rate_limit(router.post, RateLimiter(100, 1))
+logger = logging.getLogger(__name__)
 
 
 def _utcnow_naive() -> datetime:
@@ -111,7 +113,7 @@ async def verify_code(body: VerifyCodeRequest, db: AsyncSession = Depends(get_db
         # Validate password
         try:
             validate_password(body.password)
-        except Exception as e:
+        except PasswordValidationError as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(e),
@@ -128,7 +130,7 @@ async def verify_code(body: VerifyCodeRequest, db: AsyncSession = Depends(get_db
             # Validate password
             try:
                 validate_password(body.password)
-            except Exception as e:
+            except PasswordValidationError as e:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=str(e),
@@ -139,9 +141,7 @@ async def verify_code(body: VerifyCodeRequest, db: AsyncSession = Depends(get_db
     access_token = create_access_token(user.id)
     refresh_token_str = create_refresh_token()
 
-    expires_at = datetime.now(timezone.utc) + timedelta(
-        minutes=REFRESH_TOKEN_EXPIRE_MINUTES
-    )
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
 
     rt = RefreshToken(token=refresh_token_str, user_id=user.id, expires_at=expires_at)
     db.add(rt)
@@ -174,9 +174,7 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
     access_token = create_access_token(user.id)
     refresh_token_str = create_refresh_token()
 
-    expires_at = datetime.now(timezone.utc) + timedelta(
-        minutes=REFRESH_TOKEN_EXPIRE_MINUTES
-    )
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
 
     rt = RefreshToken(token=refresh_token_str, user_id=user.id, expires_at=expires_at)
     db.add(rt)
@@ -209,7 +207,7 @@ async def forgot_password_send_code(
 
     if not user:
         # Don't reveal if email exists or not
-        print("not user")
+        logger.info("Password reset requested")
         return {"message": "If the email exists, a reset code has been sent"}
 
     # Check rate limiting — count codes created in the last N minutes
@@ -229,7 +227,6 @@ async def forgot_password_send_code(
 
     # Generate and store code
     code = _email_code()
-    print(code)
     code_id = _uuid()
 
     storage = EmailCodesStorage(
@@ -281,7 +278,7 @@ async def forgot_password_verify_code(
     # Validate new password
     try:
         validate_password(body.new_password)
-    except Exception as e:
+    except PasswordValidationError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
@@ -305,9 +302,7 @@ async def forgot_password_verify_code(
 
 @post("/auth/refresh", response_model=AuthResponse)
 async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(RefreshToken).where(RefreshToken.token == body.refreshToken)
-    )
+    result = await db.execute(select(RefreshToken).where(RefreshToken.token == body.refreshToken))
     rt = result.scalar_one_or_none()
     if not rt:
         raise HTTPException(
@@ -337,13 +332,9 @@ async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
     access_token = create_access_token(user.id)
     refresh_token_str = create_refresh_token()
 
-    expires_at = datetime.now(timezone.utc) + timedelta(
-        minutes=REFRESH_TOKEN_EXPIRE_MINUTES
-    )
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
 
-    new_rt = RefreshToken(
-        token=refresh_token_str, user_id=user.id, expires_at=expires_at
-    )
+    new_rt = RefreshToken(token=refresh_token_str, user_id=user.id, expires_at=expires_at)
     db.add(new_rt)
     await db.commit()
 

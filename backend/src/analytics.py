@@ -34,6 +34,7 @@ from src.utils import parse_date
 
 logger = logging.getLogger("analytics")
 
+
 def _utcnow() -> datetime:
     """Timezone-safe UTC now."""
     return datetime.now(timezone.utc)
@@ -51,11 +52,7 @@ async def get_spending_summary(
     to_date: str | None = None,
 ) -> dict[str, Any]:
     """Агрегация трат пользователя за период."""
-    query = (
-        select(Receipt)
-        .where(Receipt.user_id == user_id)
-        .options(selectinload(Receipt.items))
-    )
+    query = select(Receipt).where(Receipt.user_id == user_id).options(selectinload(Receipt.items))
     if from_date:
         query = query.where(Receipt.date >= from_date)
     if to_date:
@@ -92,9 +89,7 @@ async def get_spending_summary(
         "receipt_count": count,
         "total_spent": round(total, 2),
         "avg_receipt": round(total / count, 2) if count else 0,
-        "by_month": [
-            {"month": k, "total": round(v, 2)} for k, v in sorted(monthly.items())
-        ],
+        "by_month": [{"month": k, "total": round(v, 2)} for k, v in sorted(monthly.items())],
         "by_store": [
             {"store": k, "total": round(v, 2)}
             for k, v in sorted(by_store.items(), key=lambda x: -x[1])
@@ -328,7 +323,9 @@ async def get_fridge_status(
                     intervals.append(abs((d1 - d2).days))
                 except (ValueError, TypeError):
                     continue
-            avg_interval = sum(intervals) / len(intervals) if intervals else DEFAULT_CONSUMPTION_DAYS
+            avg_interval = (
+                sum(intervals) / len(intervals) if intervals else DEFAULT_CONSUMPTION_DAYS
+            )
         else:
             avg_interval = DEFAULT_CONSUMPTION_DAYS
 
@@ -339,12 +336,8 @@ async def get_fridge_status(
             consumption_rate = last_qty / DEFAULT_CONSUMPTION_DAYS
 
         # Прогноз остатка
-        estimated_remaining = max(
-            0, last_qty - (consumption_rate * days_since_purchase)
-        )
-        days_until_empty = (
-            estimated_remaining / consumption_rate if consumption_rate > 0 else 0
-        )
+        estimated_remaining = max(0, last_qty - (consumption_rate * days_since_purchase))
+        days_until_empty = estimated_remaining / consumption_rate if consumption_rate > 0 else 0
 
         # Срок годности — используем прямой SQL запрос
         expiry_days = DEFAULT_EXPIRY_DAYS.get("бакалея", 30)  # default
@@ -376,11 +369,7 @@ async def get_fridge_status(
         )
 
     # Сортируем: сначала те, что скоро закончатся
-    fridge.sort(
-        key=lambda x: (
-            x["days_until_empty"] if x["days_until_empty"] is not None else 999
-        )
-    )
+    fridge.sort(key=lambda x: x["days_until_empty"] if x["days_until_empty"] is not None else 999)
     return fridge
 
 
@@ -400,18 +389,16 @@ async def suggest_recipes(
     """
     # Получаем продукты пользователя (из холодильника)
     fridge = await get_fridge_status(db, user_id)
-    available_product_ids = {
-        p["product_id"] for p in fridge if p["estimated_quantity"] > 0
-    }
+    available_product_ids = {p["product_id"] for p in fridge if p["estimated_quantity"] > 0}
 
     if not available_product_ids:
         return []
 
     # Получаем рецепты с ингредиентами (лимит 50, чтобы не грузить всё)
     result = await db.execute(
-        select(Recipe).options(
-            selectinload(Recipe.ingredients).selectinload(RecipeIngredient.product)
-        ).limit(50)
+        select(Recipe)
+        .options(selectinload(Recipe.ingredients).selectinload(RecipeIngredient.product))
+        .limit(50)
     )
     recipes = result.scalars().all()
 
@@ -419,7 +406,7 @@ async def suggest_recipes(
     # Collect all ingredient product_ids that need substitute checking
     all_ingredient_ids = set()
     for recipe in recipes:
-        for ing in (recipe.ingredients or []):
+        for ing in recipe.ingredients or []:
             if ing.product_id and ing.product_id not in available_product_ids:
                 all_ingredient_ids.add(ing.product_id)
 
@@ -444,11 +431,13 @@ async def suggest_recipes(
                 sub_products_map[p.id] = p.name
 
         for sub in all_subs:
-            substitute_map.setdefault(sub.product_id, []).append({
-                "substitute_product_id": sub.substitute_product_id,
-                "substitute_name": sub_products_map.get(sub.substitute_product_id, "?"),
-                "similarity_score": sub.similarity_score,
-            })
+            substitute_map.setdefault(sub.product_id, []).append(
+                {
+                    "substitute_product_id": sub.substitute_product_id,
+                    "substitute_name": sub_products_map.get(sub.substitute_product_id, "?"),
+                    "similarity_score": sub.similarity_score,
+                }
+            )
 
     suggestions: list[dict[str, Any]] = []
 
@@ -469,22 +458,26 @@ async def suggest_recipes(
                 subs = substitute_map.get(ing.product_id, [])
                 if subs:
                     for sub in subs[:3]:
-                        substitutes_available.append({
-                            "original_product_id": ing.product_id,
-                            "original_name": ing.product.name if ing.product else "?",
-                            "substitute_product_id": sub["substitute_product_id"],
-                            "substitute_name": sub["substitute_name"],
-                            "similarity_score": sub["similarity_score"],
-                        })
+                        substitutes_available.append(
+                            {
+                                "original_product_id": ing.product_id,
+                                "original_name": ing.product.name if ing.product else "?",
+                                "substitute_product_id": sub["substitute_product_id"],
+                                "substitute_name": sub["substitute_name"],
+                                "similarity_score": sub["similarity_score"],
+                            }
+                        )
                     matched += 0.5  # частичное совпадение через замену
                 else:
-                    missing.append({
-                        "product_id": ing.product_id,
-                        "product_name": ing.product.name if ing.product else "?",
-                        "quantity": ing.quantity,
-                        "unit": ing.unit,
-                        "importance_score": ing.importance_score,
-                    })
+                    missing.append(
+                        {
+                            "product_id": ing.product_id,
+                            "product_name": ing.product.name if ing.product else "?",
+                            "quantity": ing.quantity,
+                            "unit": ing.unit,
+                            "importance_score": ing.importance_score,
+                        }
+                    )
 
         match_score = matched / total_ingredients if total_ingredients > 0 else 0
 
@@ -499,29 +492,31 @@ async def suggest_recipes(
             # Парсим теги
             recipe_tags = json.loads(recipe.tags) if recipe.tags else []
 
-            suggestions.append({
-                "recipe": {
-                    "id": recipe.id,
-                    "name": recipe.name,
-                    "instructions": recipe.instructions,
-                    "cooking_time_minutes": recipe.cooking_time_minutes,
-                    "tags": recipe_tags,
-                    "ingredients": [
-                        {
-                            "product_id": ing.product_id,
-                            "product_name": ing.product.name if ing.product else "?",
-                            "quantity": ing.quantity,
-                            "unit": ing.unit,
-                            "importance_score": ing.importance_score,
-                        }
-                        for ing in ingredients_list
-                    ],
-                    "created_at": recipe.created_at.isoformat() if recipe.created_at else "",
-                },
-                "match_score": round(match_score, 2),
-                "missing_products": missing,
-                "available_substitutes": substitutes_available,
-            })
+            suggestions.append(
+                {
+                    "recipe": {
+                        "id": recipe.id,
+                        "name": recipe.name,
+                        "instructions": recipe.instructions,
+                        "cooking_time_minutes": recipe.cooking_time_minutes,
+                        "tags": recipe_tags,
+                        "ingredients": [
+                            {
+                                "product_id": ing.product_id,
+                                "product_name": ing.product.name if ing.product else "?",
+                                "quantity": ing.quantity,
+                                "unit": ing.unit,
+                                "importance_score": ing.importance_score,
+                            }
+                            for ing in ingredients_list
+                        ],
+                        "created_at": recipe.created_at.isoformat() if recipe.created_at else "",
+                    },
+                    "match_score": round(match_score, 2),
+                    "missing_products": missing,
+                    "available_substitutes": substitutes_available,
+                }
+            )
 
     # Сортируем по убыванию match_score
     suggestions.sort(key=lambda x: -x["match_score"])

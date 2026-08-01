@@ -28,6 +28,7 @@ def with_rate_limit(fastapi_decorator: Callable, rate_limiter):
     Оборачивает APIRouter.get/post/... и автоматически
     добавляет RateLimiter в dependencies.
     """
+
     @wraps(fastapi_decorator)
     def decorator(*args, **kwargs):
         dependencies = list(kwargs.pop("dependencies", []))
@@ -104,22 +105,16 @@ def validate_password(password: str) -> None:
         )
 
     if PASSWORD_REQUIRE_UPPERCASE and not re.search(r"[A-Z]", password):
-        raise PasswordValidationError(
-            "Пароль должен содержать хотя бы одну заглавную букву"
-        )
+        raise PasswordValidationError("Пароль должен содержать хотя бы одну заглавную букву")
 
     if PASSWORD_REQUIRE_LOWERCASE and not re.search(r"[a-z]", password):
-        raise PasswordValidationError(
-            "Пароль должен содержать хотя бы одну строчную букву"
-        )
+        raise PasswordValidationError("Пароль должен содержать хотя бы одну строчную букву")
 
     if PASSWORD_REQUIRE_DIGIT and not re.search(r"\d", password):
         raise PasswordValidationError("Пароль должен содержать хотя бы одну цифру")
 
     if PASSWORD_REQUIRE_SPECIAL and not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
-        raise PasswordValidationError(
-            "Пароль должен содержать хотя бы один специальный символ"
-        )
+        raise PasswordValidationError("Пароль должен содержать хотя бы один специальный символ")
 
 
 def get_password_requirements() -> dict:

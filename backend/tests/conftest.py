@@ -4,9 +4,11 @@ Uses aiosqlite with SQLAlchemy async, in-memory SQLite for tests.
 """
 
 from datetime import datetime, timedelta, timezone
+import socket
 from typing import AsyncGenerator
 import uuid
 
+import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import (
@@ -29,6 +31,24 @@ from src.models import (
     RefreshToken,
 )
 from src.auth import hash_password, create_access_token
+
+
+class ExternalNetworkBlocked(RuntimeError):
+    pass
+
+
+@pytest.fixture(autouse=True)
+def block_external_network(monkeypatch):
+    """Every external service used by a test must be explicitly mocked."""
+
+    original_connect = socket.socket.connect
+
+    def guarded_connect(sock, address):
+        if sock.family == socket.AF_UNIX:
+            return original_connect(sock, address)
+        raise ExternalNetworkBlocked("External network is disabled in tests")
+
+    monkeypatch.setattr(socket.socket, "connect", guarded_connect)
 
 
 # ============================================================
@@ -64,6 +84,7 @@ async def async_session(async_engine) -> AsyncGenerator[AsyncSession, None]:
 @pytest_asyncio.fixture
 async def db(async_session: AsyncSession) -> AsyncGenerator[AsyncSession, None]:
     """Override FastAPI's get_db dependency."""
+
     async def _get_db():
         yield async_session
 
@@ -196,21 +217,25 @@ async def test_products(async_session: AsyncSession) -> list[Product]:
     await async_session.flush()
 
     # Aliases
-    async_session.add_all([
-        ProductAlias(product_id=milk.id, alias="молоко 2.5"),
-        ProductAlias(product_id=kefir.id, alias="кефир"),
-        ProductAlias(product_id=chicken.id, alias="курица"),
-        ProductAlias(product_id=carrot.id, alias="морковка"),
-    ])
+    async_session.add_all(
+        [
+            ProductAlias(product_id=milk.id, alias="молоко 2.5"),
+            ProductAlias(product_id=kefir.id, alias="кефир"),
+            ProductAlias(product_id=chicken.id, alias="курица"),
+            ProductAlias(product_id=carrot.id, alias="морковка"),
+        ]
+    )
 
     # Tags
-    async_session.add_all([
-        ProductTagMember(product_id=milk.id, tag_id=tag_milk.id, weight=1.0),
-        ProductTagMember(product_id=milk.id, tag_id=tag_drink.id, weight=0.5),
-        ProductTagMember(product_id=kefir.id, tag_id=tag_milk.id, weight=1.0),
-        ProductTagMember(product_id=chicken.id, tag_id=tag_meat.id, weight=1.0),
-        ProductTagMember(product_id=carrot.id, tag_id=tag_veggie.id, weight=1.0),
-    ])
+    async_session.add_all(
+        [
+            ProductTagMember(product_id=milk.id, tag_id=tag_milk.id, weight=1.0),
+            ProductTagMember(product_id=milk.id, tag_id=tag_drink.id, weight=0.5),
+            ProductTagMember(product_id=kefir.id, tag_id=tag_milk.id, weight=1.0),
+            ProductTagMember(product_id=chicken.id, tag_id=tag_meat.id, weight=1.0),
+            ProductTagMember(product_id=carrot.id, tag_id=tag_veggie.id, weight=1.0),
+        ]
+    )
 
     await async_session.commit()
     return [milk, kefir, chicken, carrot]
@@ -230,11 +255,31 @@ async def test_recipe(async_session: AsyncSession, test_products: list[Product])
     async_session.add(recipe)
     await async_session.flush()
 
-    async_session.add_all([
-        RecipeIngredient(recipe_id=recipe.id, product_id=chicken.id, quantity=0.5, unit="кг", importance_score=1.0),
-        RecipeIngredient(recipe_id=recipe.id, product_id=carrot.id, quantity=2, unit="шт", importance_score=0.8),
-        RecipeIngredient(recipe_id=recipe.id, product_id=milk.id, quantity=0.2, unit="л", importance_score=0.3),
-    ])
+    async_session.add_all(
+        [
+            RecipeIngredient(
+                recipe_id=recipe.id,
+                product_id=chicken.id,
+                quantity=0.5,
+                unit="кг",
+                importance_score=1.0,
+            ),
+            RecipeIngredient(
+                recipe_id=recipe.id,
+                product_id=carrot.id,
+                quantity=2,
+                unit="шт",
+                importance_score=0.8,
+            ),
+            RecipeIngredient(
+                recipe_id=recipe.id,
+                product_id=milk.id,
+                quantity=0.2,
+                unit="л",
+                importance_score=0.3,
+            ),
+        ]
+    )
 
     await async_session.commit()
     await async_session.refresh(recipe)
@@ -266,11 +311,27 @@ async def test_receipt(
     async_session.add(receipt)
     await async_session.flush()
 
-    async_session.add_all([
-        ReceiptItem(receipt_id=receipt.id, name="Молоко 2.5%", quantity=1, price=75.0, product_id=milk.id),
-        ReceiptItem(receipt_id=receipt.id, name="Кефир 1%", quantity=2, price=60.0, product_id=kefir.id),
-        ReceiptItem(receipt_id=receipt.id, name="Куриная грудка", quantity=0.5, price=250.0, product_id=chicken.id),
-    ])
+    async_session.add_all(
+        [
+            ReceiptItem(
+                receipt_id=receipt.id,
+                name="Молоко 2.5%",
+                quantity=1,
+                price=75.0,
+                product_id=milk.id,
+            ),
+            ReceiptItem(
+                receipt_id=receipt.id, name="Кефир 1%", quantity=2, price=60.0, product_id=kefir.id
+            ),
+            ReceiptItem(
+                receipt_id=receipt.id,
+                name="Куриная грудка",
+                quantity=0.5,
+                price=250.0,
+                product_id=chicken.id,
+            ),
+        ]
+    )
 
     await async_session.commit()
     await async_session.refresh(receipt)
@@ -287,17 +348,32 @@ async def test_receipts(
     milk, kefir, chicken, carrot = test_products
 
     receipts_data = [
-        ("2024-01-05", "Пятёрочка", 1200.0, [
-            ("Молоко 2.5%", 2, 150.0, milk.id),
-            ("Куриная грудка", 1, 500.0, chicken.id),
-        ]),
-        ("2024-01-15", "Магнит", 850.0, [
-            ("Кефир 1%", 2, 120.0, kefir.id),
-            ("Морковь", 1, 30.0, carrot.id),
-        ]),
-        ("2024-02-01", "Пятёрочка", 300.0, [
-            ("Молоко 2.5%", 1, 75.0, milk.id),
-        ]),
+        (
+            "2024-01-05",
+            "Пятёрочка",
+            1200.0,
+            [
+                ("Молоко 2.5%", 2, 150.0, milk.id),
+                ("Куриная грудка", 1, 500.0, chicken.id),
+            ],
+        ),
+        (
+            "2024-01-15",
+            "Магнит",
+            850.0,
+            [
+                ("Кефир 1%", 2, 120.0, kefir.id),
+                ("Морковь", 1, 30.0, carrot.id),
+            ],
+        ),
+        (
+            "2024-02-01",
+            "Пятёрочка",
+            300.0,
+            [
+                ("Молоко 2.5%", 1, 75.0, milk.id),
+            ],
+        ),
     ]
 
     receipts = []
@@ -314,9 +390,11 @@ async def test_receipts(
         await async_session.flush()
 
         for name, qty, price, pid in items:
-            async_session.add(ReceiptItem(
-                receipt_id=receipt.id, name=name, quantity=qty, price=price, product_id=pid
-            ))
+            async_session.add(
+                ReceiptItem(
+                    receipt_id=receipt.id, name=name, quantity=qty, price=price, product_id=pid
+                )
+            )
 
         receipts.append(receipt)
 

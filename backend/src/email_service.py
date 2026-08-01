@@ -1,7 +1,13 @@
+import asyncio
+import base64
+import binascii
+import logging
 import os
 import smtplib
 from email.message import EmailMessage
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 class _EmailService:
@@ -11,15 +17,7 @@ class _EmailService:
         self.smtp_user = os.getenv("SMTP_USER", "")
         self.smtp_password = os.getenv("SMTP_PASSWORD", "")
         self.from_email = os.getenv("FROM_EMAIL", self.smtp_user)
-
-        if not self.smtp_user or not self.smtp_password:
-            # Fallback to file-based auth for development
-            gmail_code_path = Path.home() / ".gmail_code"
-            if gmail_code_path.exists():
-                self.smtp_user = self.smtp_user or "loh228putin@gmail.com"
-                self.smtp_password = (
-                    self.smtp_password or gmail_code_path.read_text().strip()
-                )
+        self.timeout_seconds = float(os.getenv("SMTP_TIMEOUT_SECONDS", "10"))
 
     async def send_code(
         self,
@@ -33,16 +31,21 @@ class _EmailService:
         msg["From"] = self.from_email
         msg["To"] = to_email
 
-        msg.set_content(Path("index.html").read_text().replace("^^^", code[:4]).replace("***", code[4:]), subtype='html')
+        msg.set_content(
+            Path("index.html").read_text().replace("^^^", code[:4]).replace("***", code[4:]),
+            subtype="html",
+        )
+
+        if not self.smtp_user or not self.smtp_password or not self.from_email:
+            logger.warning("SMTP is not configured", extra={"provider": "smtp"})
+            return False
 
         try:
-            with smtplib.SMTP_SSL(self.smtp_host, self.smtp_port) as smtp:
-                smtp.login(self.smtp_user, self.smtp_password)
-                smtp.send_message(msg)
+            async with asyncio.timeout(self.timeout_seconds + 1):
+                await asyncio.to_thread(self._send_message, msg)
             return True
-        except Exception as e:
-            print(f"Failed to send email: {e}")
-            print(f"DEV MODE: Verification code for {to_email}: {code}")
+        except (OSError, smtplib.SMTPException, TimeoutError):
+            logger.warning("Email delivery failed", extra={"provider": "smtp"})
             return False
 
     async def send_feedback(
@@ -60,7 +63,6 @@ class _EmailService:
 
         if images:
             for i, img_b64 in enumerate(images):
-                import base64
                 try:
                     img_data = base64.b64decode(img_b64)
                     maintype = "image"
@@ -71,17 +73,24 @@ class _EmailService:
                         subtype=subtype,
                         filename=f"image_{i}.{subtype}",
                     )
-                except Exception:
-                    pass
+                except (binascii.Error, ValueError):
+                    logger.warning("Feedback attachment rejected")
 
-        try:
-            with smtplib.SMTP_SSL(self.smtp_host, self.smtp_port) as smtp:
-                smtp.login(self.smtp_user, self.smtp_password)
-                smtp.send_message(msg)
-            return True
-        except Exception as e:
-            print(f"Failed to send feedback: {e}")
+        if not self.smtp_user or not self.smtp_password or not self.from_email:
+            logger.warning("SMTP is not configured", extra={"provider": "smtp"})
             return False
+        try:
+            async with asyncio.timeout(self.timeout_seconds + 1):
+                await asyncio.to_thread(self._send_message, msg)
+            return True
+        except (OSError, smtplib.SMTPException, TimeoutError):
+            logger.warning("Feedback delivery failed", extra={"provider": "smtp"})
+            return False
+
+    def _send_message(self, message: EmailMessage) -> None:
+        with smtplib.SMTP_SSL(self.smtp_host, self.smtp_port, timeout=self.timeout_seconds) as smtp:
+            smtp.login(self.smtp_user, self.smtp_password)
+            smtp.send_message(message)
 
 
 # Global instance

@@ -196,6 +196,10 @@ export type CreditsInfo = {
    */
   remaining: number;
   /**
+   * Subscription
+   */
+  subscription: boolean;
+  /**
    * Weekly Limit
    */
   weekly_limit: number;
@@ -1042,6 +1046,24 @@ export type StatusResponse = {
 };
 
 /**
+ * SubscriptionStatusResponse
+ */
+export type SubscriptionStatusResponse = {
+  /**
+   * Active
+   */
+  active: boolean;
+  /**
+   * Expiresat
+   */
+  expiresAt: string | null;
+  /**
+   * Platform
+   */
+  platform: "yookassa" | "google" | null;
+};
+
+/**
  * UserResponse
  */
 export type UserResponse = {
@@ -1107,6 +1129,31 @@ export type VerifyCodeRequest = {
    * Password
    */
   password?: string | null;
+};
+
+/**
+ * YooKassaWebhookObject
+ */
+export type YooKassaWebhookObject = {
+  /**
+   * Id
+   */
+  id: string;
+};
+
+/**
+ * YooKassaWebhookRequest
+ */
+export type YooKassaWebhookRequest = {
+  /**
+   * Event
+   */
+  event: "payment.succeeded" | "payment.canceled";
+  object: YooKassaWebhookObject;
+  /**
+   * Type
+   */
+  type: "notification";
 };
 
 export type GetActionsApiAiActionsGetData = {
@@ -2150,8 +2197,11 @@ export type GetSubscriptionApiSubscriptionGetResponses = {
   /**
    * Successful Response
    */
-  200: unknown;
+  200: SubscriptionStatusResponse;
 };
+
+export type GetSubscriptionApiSubscriptionGetResponse =
+  GetSubscriptionApiSubscriptionGetResponses[keyof GetSubscriptionApiSubscriptionGetResponses];
 
 export type IsPremiumApiSubscriptionIsPremiumGetData = {
   body?: never;
@@ -2201,7 +2251,7 @@ export type CreatePaymentApiSubscriptionPaymentPostResponse =
   CreatePaymentApiSubscriptionPaymentPostResponses[keyof CreatePaymentApiSubscriptionPaymentPostResponses];
 
 export type WebhookApiSubscriptionYookassaWebhookPostData = {
-  body?: never;
+  body: YooKassaWebhookRequest;
   path?: never;
   query?: never;
   url: "/api/subscription/yookassa/webhook";
@@ -2209,10 +2259,23 @@ export type WebhookApiSubscriptionYookassaWebhookPostData = {
 
 export type WebhookApiSubscriptionYookassaWebhookPostErrors = {
   /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type WebhookApiSubscriptionYookassaWebhookPostError =
+  WebhookApiSubscriptionYookassaWebhookPostErrors[keyof WebhookApiSubscriptionYookassaWebhookPostErrors];
+
+export type WebhookApiSubscriptionYookassaWebhookPostResponses = {
+  /**
    * Successful Response
    */
-  404: unknown;
+  200: StatusResponse;
 };
+
+export type WebhookApiSubscriptionYookassaWebhookPostResponse =
+  WebhookApiSubscriptionYookassaWebhookPostResponses[keyof WebhookApiSubscriptionYookassaWebhookPostResponses];
 
 export type ListTagsApiTagsGetData = {
   body?: never;
@@ -2288,5 +2351,8 @@ export type HealthHealthGetResponses = {
   /**
    * Successful Response
    */
-  200: unknown;
+  200: StatusResponse;
 };
+
+export type HealthHealthGetResponse =
+  HealthHealthGetResponses[keyof HealthHealthGetResponses];

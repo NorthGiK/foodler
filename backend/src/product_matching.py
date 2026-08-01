@@ -15,11 +15,12 @@ import json
 import re
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import inspect, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.models import Product, ProductAlias, ProductTag, ProductTagMember
+from src.ai_service import AiServiceError, generate_ai_response
 
 
 # Минимальный порог схожести для fuzzy matching
@@ -49,9 +50,7 @@ def compute_context_hash(user_id: str, action: str, data: dict[str, Any]) -> str
 
 async def find_product_by_alias(db: AsyncSession, normalized: str) -> Product | None:
     """Поиск по алиасам (точное совпадение)."""
-    result = await db.execute(
-        select(ProductAlias).where(ProductAlias.alias == normalized).limit(1)
-    )
+    result = await db.execute(select(ProductAlias).where(ProductAlias.alias == normalized).limit(1))
     alias = result.scalar_one_or_none()
     if not alias:
         return None
@@ -82,9 +81,7 @@ async def find_product_by_name(db: AsyncSession, normalized: str) -> Product | N
     return result.scalar_one_or_none()
 
 
-async def find_products_fuzzy(
-    db: AsyncSession, normalized: str, limit: int = 5
-) -> list[Product]:
+async def find_products_fuzzy(db: AsyncSession, normalized: str, limit: int = 5) -> list[Product]:
     """
     Нечеткий поиск продуктов.
     Использует SQL LIKE для первичной фильтрации + thefuzz для ранжирования.
@@ -133,15 +130,10 @@ async def find_products_fuzzy(
 async def _ensure_product_relations(db: AsyncSession, product: Product) -> None:
     """Загрузка необходимых связей для Product."""
 
-    # Проверяем, загружены ли связи
-    try:
-        _ = product.aliases
-    except Exception:
-        await db.refresh(product, ["aliases"])
-    try:
-        _ = product.tags
-    except Exception:
-        await db.refresh(product, ["tags"])
+    unloaded = inspect(product).unloaded
+    relations = [name for name in ("aliases", "tags") if name in unloaded]
+    if relations:
+        await db.refresh(product, relations)
 
 
 async def _ai_match_product(
@@ -152,11 +144,6 @@ async def _ai_match_product(
     AI fallback для продукта.
     Возвращает nutrition_data и tags, или None, если AI недоступен.
     """
-    try:
-        from src.ai_service import generate_ai_response
-    except Exception:
-        return None
-
     system = (
         "Ты — эксперт по пищевой ценности. "
         "Верни JSON с полями: product_name, calories, proteins, fats, carbs, tags (массив строк). "
@@ -170,7 +157,7 @@ async def _ai_match_product(
             parameters=None,
             context={"system": system, "user": user},
         )
-    except Exception:
+    except AiServiceError:
         return None
 
     data = _try_parse_ai_json(raw)

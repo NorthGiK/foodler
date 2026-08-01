@@ -16,9 +16,8 @@ import asyncio
 import json
 import logging
 from typing import Any
-from pprint import pprint
 
-from aiohttp import ClientSession, ClientTimeout
+from aiohttp import ClientSession, ClientTimeout, ContentTypeError
 
 from src.config import AI_API_KEY, AI_BASE_URL, AI_LIGHT_MODEL, AI_STRONG_MODEL
 from src.analytics import (
@@ -28,12 +27,14 @@ from src.analytics import (
     suggest_recipes,
 )
 from src.ai_sections import _coerce_sections
+from src.utils import normalize_date
 
-logger = logging.getLogger("ai_service")
+logger = logging.getLogger(__name__)
 
 
 class AiServiceError(Exception):
     """Raised when the AI API returns an error or cannot be reached."""
+
     def __init__(self, message: str, status_code: int = 500):
         self.message = message
         self.status_code = status_code
@@ -44,26 +45,32 @@ class AiServiceError(Exception):
 #  Tier constants
 # ---------------------------------------------------------------------------
 # Actions that can be answered without any AI — pure local computation.
-LOCAL_ACTIONS = frozenset({
-    "overall-analysis",
-    "expiring-products",
-    "recipes",
-    "ingredients",
-})
+LOCAL_ACTIONS = frozenset(
+    {
+        "overall-analysis",
+        "expiring-products",
+        "recipes",
+        "ingredients",
+    }
+)
 
 # Actions best served by a cheap, fast LLM.
-LIGHT_ACTIONS = frozenset({
-    "save-money",
-    "healthy-food",
-    "habits",
-    "shopping-cart",
-})
+LIGHT_ACTIONS = frozenset(
+    {
+        "save-money",
+        "healthy-food",
+        "habits",
+        "shopping-cart",
+    }
+)
 
 # Actions that benefit from a more capable LLM.
-STRONG_ACTIONS = frozenset({
-    "diet",
-    "ask",
-})
+STRONG_ACTIONS = frozenset(
+    {
+        "diet",
+        "ask",
+    }
+)
 
 ALL_ACTIONS = LOCAL_ACTIONS | LIGHT_ACTIONS | STRONG_ACTIONS
 
@@ -71,6 +78,7 @@ ALL_ACTIONS = LOCAL_ACTIONS | LIGHT_ACTIONS | STRONG_ACTIONS
 # ---------------------------------------------------------------------------
 #  Helpers
 # ---------------------------------------------------------------------------
+
 
 def _truncate(text: str, limit: int = 12000) -> str:
     if len(text) <= limit:
@@ -87,21 +95,25 @@ def _build_user_prompt(action: str, parameters: dict | None, context: dict) -> s
     return _truncate("\n---\n".join(parts), 12000)
 
 
-async def _call_llm(model: str, action: str, prompt: str, max_tokens: int = 500, temperature: float = 0.2) -> str:
+async def _call_llm(
+    model: str, action: str, prompt: str, max_tokens: int = 500, temperature: float = 0.2
+) -> str:
     """Call the OpenAI-compatible API and return the raw response text."""
-    system_prompt = "\n".join((
-        "# Ты — helpful nutrition assistant.",
-        "Отвечай **кратко** и **по делу**. Используй **только контекст пользователя**.",
-        "Упоминай в конце какая информация может помочь ответить лучше в следующий раз.",
-        "Если нужен список — возвращай JSON-массив секций. Каждая секция: { \"type\": \"text\"|\"score\"|\"list\"|\"products\"|\"chart\", ... }.",
-        "",
-        "\n---\n",
-    ))
+    system_prompt = "\n".join(
+        (
+            "# Ты — helpful nutrition assistant.",
+            "Отвечай **кратко** и **по делу**. Используй **только контекст пользователя**.",
+            "Упоминай в конце какая информация может помочь ответить лучше в следующий раз.",
+            'Если нужен список — возвращай JSON-массив секций. Каждая секция: { "type": "text"|"score"|"list"|"products"|"chart", ... }.',
+            "",
+            "\n---\n",
+        )
+    )
 
     headers = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': f'Bearer {AI_API_KEY}'
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Authorization": f"Bearer {AI_API_KEY}",
     }
 
     body = {
@@ -115,49 +127,37 @@ async def _call_llm(model: str, action: str, prompt: str, max_tokens: int = 500,
     }
 
     url = AI_BASE_URL + model
-    logger.info("Calling AI API", extra={"url": url, "model": model, "action": action})
+    logger.info("Calling AI provider", extra={"provider": "ai", "action": action})
 
     timeout = ClientTimeout(total=60 * 1.5)
     async with ClientSession(timeout=timeout) as session:
         resp = await session.post(url, json=body, headers=headers)
         if not resp.ok:
-            error_text = await resp.text()
-            logger.error("AI API returned non-200", extra={
-                "status": resp.status, "body": error_text[:500], "action": action,
-            })
+            logger.warning(
+                "AI provider returned non-success",
+                extra={"status_code": resp.status, "action": action},
+            )
             raise AiServiceError(
-                f"AI API returned {resp.status}: {error_text[:200]}",
+                f"AI API returned {resp.status}",
                 status_code=resp.status,
             )
 
         resp_data: dict[str, Any]
         try:
             resp_data = await resp.json()
-        except Exception as e:
-            print("error while reading respose body:")
-            print(e)
-            raise AiServiceError("Failed to parse AI API response")
-
-        pprint(resp_data)
+        except (ContentTypeError, ValueError) as exc:
+            raise AiServiceError("Failed to parse AI API response") from exc
 
         if resp_data.get("error"):
-            error_detail = resp_data.get("error_description", "unknown error")
-            logger.error("AI API returned error=true", extra={
-                "error": error_detail, "action": action,
-            })
-            raise AiServiceError(f"AI API error: {error_detail}")
+            logger.warning("AI provider returned an error", extra={"action": action})
+            raise AiServiceError("AI API returned an error")
 
         try:
-            return resp_data["response"][0]['message']['content']
+            return resp_data["response"][0]["message"]["content"]
         except (KeyError, IndexError, TypeError):
             pass
 
-        # Log the actual response structure for debugging
-        logger.error("AI API response structure not recognized" + json.dumps({
-            "action": action,
-            "top_keys": list(resp_data.keys()),
-            "response_preview": str(resp_data)[:500],
-        }))
+        logger.warning("AI provider response structure not recognized", extra={"action": action})
 
         raise AiServiceError("Unexpected AI API response structure")
 
@@ -165,6 +165,7 @@ async def _call_llm(model: str, action: str, prompt: str, max_tokens: int = 500,
 # ---------------------------------------------------------------------------
 #  Tier-0 helpers — local AiSection builders
 # ---------------------------------------------------------------------------
+
 
 def _section_text(title: str, text: str) -> dict[str, Any]:
     return {"type": "text", "title": title, "text": text}
@@ -178,13 +179,16 @@ def _section_list(title: str, items: list[str]) -> dict[str, Any]:
     return {"type": "list", "title": title, "items": items}
 
 
-def _section_chart(title: str, labels: list[str], values: list[float], kind: str = "bar") -> dict[str, Any]:
+def _section_chart(
+    title: str, labels: list[str], values: list[float], kind: str = "bar"
+) -> dict[str, Any]:
     return {"type": "chart", "title": title, "labels": labels, "values": values, "kind": kind}
 
 
 # ---------------------------------------------------------------------------
 #  Tier-0 actions
 # ---------------------------------------------------------------------------
+
 
 async def _local_overall_analysis(db, user_id, period_from, period_to) -> list[dict[str, Any]]:
     # Parallel execution of independent queries
@@ -195,12 +199,14 @@ async def _local_overall_analysis(db, user_id, period_from, period_to) -> list[d
     sections: list[dict[str, Any]] = []
 
     if spending["receipt_count"] > 0:
-        sections.append(_section_text(
-            "Сводка по тратам",
-            f"Всего чеков: {spending['receipt_count']}\n"
-            f"Средний чек: {spending['avg_receipt']} ₽\n"
-            f"Потрачено всего: {spending['total_spent']} ₽"
-        ))
+        sections.append(
+            _section_text(
+                "Сводка по тратам",
+                f"Всего чеков: {spending['receipt_count']}\n"
+                f"Средний чек: {spending['avg_receipt']} ₽\n"
+                f"Потрачено всего: {spending['total_spent']} ₽",
+            )
+        )
 
         if spending["by_month"]:
             labels = [m["month"] for m in spending["by_month"]]
@@ -208,24 +214,30 @@ async def _local_overall_analysis(db, user_id, period_from, period_to) -> list[d
             sections.append(_section_chart("Траты по месяцам", labels, values))
 
         if spending["by_store"]:
-            sections.append(_section_list(
-                "Траты по магазинам",
-                [f"{s['store']}: {s['total']} ₽" for s in spending["by_store"]]
-            ))
+            sections.append(
+                _section_list(
+                    "Траты по магазинам",
+                    [f"{s['store']}: {s['total']} ₽" for s in spending["by_store"]],
+                )
+            )
 
     if nutrition["total_calories"] > 0:
-        sections.append(_section_text(
-            "КБЖУ",
-            f"Калории: {nutrition['total_calories']} ккал\n"
-            f"Белки: {nutrition['total_proteins']} г\n"
-            f"Жиры: {nutrition['total_fats']} г\n"
-            f"Углеводы: {nutrition['total_carbs']} г"
-        ))
+        sections.append(
+            _section_text(
+                "КБЖУ",
+                f"Калории: {nutrition['total_calories']} ккал\n"
+                f"Белки: {nutrition['total_proteins']} г\n"
+                f"Жиры: {nutrition['total_fats']} г\n"
+                f"Углеводы: {nutrition['total_carbs']} г",
+            )
+        )
         if nutrition.get("by_tag"):
-            sections.append(_section_list(
-                "По категориям",
-                [f"{t['tag']}: {t['calories']} ккал" for t in nutrition["by_tag"]]
-            ))
+            sections.append(
+                _section_list(
+                    "По категориям",
+                    [f"{t['tag']}: {t['calories']} ккал" for t in nutrition["by_tag"]],
+                )
+            )
 
     if not sections:
         sections.append(_section_text("Нет данных", "За выбранный период нет информации."))
@@ -233,30 +245,42 @@ async def _local_overall_analysis(db, user_id, period_from, period_to) -> list[d
     return sections
 
 
-async def _local_expiring_products(db, user_id, period_from=None, period_to=None) -> list[dict[str, Any]]:
+async def _local_expiring_products(
+    db, user_id, period_from=None, period_to=None
+) -> list[dict[str, Any]]:
     fridge = await get_fridge_status(db, user_id)
     if not fridge:
         return [_section_text("Холодильник", "Пока нет информации о продуктах.")]
 
     # Filter expiring — days_until_empty is small or already negative
-    expiring = [p for p in fridge if p["days_until_empty"] is not None and p["days_until_empty"] <= 3]
+    expiring = [
+        p for p in fridge if p["days_until_empty"] is not None and p["days_until_empty"] <= 3
+    ]
     ok = [p for p in fridge if p["days_until_empty"] is None or p["days_until_empty"] > 3]
 
     sections: list[dict[str, Any]] = []
 
     if expiring:
-        sections.append(_section_list(
-            "Скоро закончится",
-            [f"{p['product_name']} — осталось ~{p['estimated_quantity']} кг (~{p['days_until_empty']} дн.)"
-             for p in expiring]
-        ))
+        sections.append(
+            _section_list(
+                "Скоро закончится",
+                [
+                    f"{p['product_name']} — осталось ~{p['estimated_quantity']} кг (~{p['days_until_empty']} дн.)"
+                    for p in expiring
+                ],
+            )
+        )
 
     if ok:
-        sections.append(_section_list(
-            "В наличии",
-            [f"{p['product_name']} — {p['estimated_quantity']} кг (до {p['expected_expiry']})"
-             for p in ok[:10]]
-        ))
+        sections.append(
+            _section_list(
+                "В наличии",
+                [
+                    f"{p['product_name']} — {p['estimated_quantity']} кг (до {p['expected_expiry']})"
+                    for p in ok[:10]
+                ],
+            )
+        )
 
     return sections
 
@@ -270,7 +294,7 @@ async def _local_recipes(db, user_id, period_from=None, period_to=None) -> list[
     for s in suggestions:
         recipe = s["recipe"]
         parts = [
-            f"**{recipe['name']}** (совпадение: {s['match_score']*100:.0f}%)",
+            f"**{recipe['name']}** (совпадение: {s['match_score'] * 100:.0f}%)",
         ]
         if recipe.get("cooking_time_minutes"):
             parts.append(f"⏱ {recipe['cooking_time_minutes']} мин.")
@@ -300,16 +324,20 @@ async def _local_ingredients(db, user_id, period_from=None, period_to=None) -> l
             f"Клетчатка: {nutrition.get('total_fiber', '—')} г\n"
             f"Сахар: {nutrition.get('total_sugar', '—')} г\n"
             f"Насыщенные жиры: {nutrition.get('total_saturated_fats', '—')} г\n"
-            f"Натрий: {nutrition.get('total_sodium', '—')} мг"
+            f"Натрий: {nutrition.get('total_sodium', '—')} мг",
         ),
     ]
 
     if nutrition.get("by_tag"):
-        sections.append(_section_list(
-            "По категориям",
-            [f"{t['tag']}: {t['calories']} ккал, {t['proteins']} г белков"
-             for t in nutrition["by_tag"]]
-        ))
+        sections.append(
+            _section_list(
+                "По категориям",
+                [
+                    f"{t['tag']}: {t['calories']} ккал, {t['proteins']} г белков"
+                    for t in nutrition["by_tag"]
+                ],
+            )
+        )
 
     return sections
 
@@ -317,6 +345,7 @@ async def _local_ingredients(db, user_id, period_from=None, period_to=None) -> l
 # ---------------------------------------------------------------------------
 #  Public interface
 # ---------------------------------------------------------------------------
+
 
 class TaskRouter:
     """
@@ -343,9 +372,15 @@ class TaskRouter:
         if action not in ALL_ACTIONS:
             return [_section_text("Ошибка", f"Неизвестное действие: {action}")]
 
-        # Extract period filters from parameters
-        # period_from = parameters.get("periodFrom")
-        # period_to = parameters.get("periodTo")
+        values = parameters or {}
+        period_from = (
+            normalize_date(values["periodFrom"])
+            if values.get("periodFrom")
+            else None
+        )
+        period_to = (
+            normalize_date(values["periodTo"]) if values.get("periodTo") else None
+        )
 
         # ---- Tier 0: Local ----
         if action in LOCAL_ACTIONS:
@@ -358,7 +393,7 @@ class TaskRouter:
                 "ingredients": _local_ingredients,
             }
             handler = local_handlers[action]
-            return await handler(db, user_id)
+            return await handler(db, user_id, period_from, period_to)
 
         # ---- Tier 1/2: LLM calls ----
         if action in LIGHT_ACTIONS:
@@ -370,23 +405,7 @@ class TaskRouter:
             max_tokens = 800
             temperature = 0.3
 
-        # Enrich context with local analytics data for LLM tiers
-        # if db and user_id:
-        #     try:
-        #         enriched = dict(context)
-        #         enriched["nutrition_summary"] = await get_nutrition_summary(db, user_id, period_from, period_to)
-        #         if action in ("save-money", "habits", "shopping-cart"):
-        #             spending = await get_spending_summary(db, user_id, period_from, period_to)
-        #             enriched["spending_summary"] = spending
-        #         if action in ("diet",):
-        #             enriched["fridge"] = await get_fridge_status(db, user_id)
-        #     except Exception:
-        #         logger.warning("Failed to enrich context for action %s", action, exc_info=True)
-        # else:
-        #     enriched = context
-
-        enriched = context
-        prompt = _build_user_prompt(action, parameters, enriched)
+        prompt = _build_user_prompt(action, parameters, context)
         raw = await _call_llm(model, action, prompt, max_tokens=max_tokens, temperature=temperature)
         return _coerce_sections(raw)
 
@@ -394,6 +413,7 @@ class TaskRouter:
 # ---------------------------------------------------------------------------
 #  Backward-compatible top-level function
 # ---------------------------------------------------------------------------
+
 
 async def generate_ai_response(
     action: str,

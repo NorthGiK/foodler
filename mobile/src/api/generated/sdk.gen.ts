@@ -131,6 +131,7 @@ import type {
   VerifyCodeApiAuthVerifyCodePostResponses,
   WebhookApiSubscriptionYookassaWebhookPostData,
   WebhookApiSubscriptionYookassaWebhookPostErrors,
+  WebhookApiSubscriptionYookassaWebhookPostResponses,
 } from "./types.gen";
 
 export type Options<
@@ -1140,25 +1141,32 @@ export class Sdk extends HeyApiClient {
   /**
    * Webhook
    *
-   * Fail closed until YooKassa event authenticity is implemented.
+   * Verify the current payment at YooKassa, then apply the event once.
    */
   public webhookApiSubscriptionYookassaWebhookPost<
     ThrowOnError extends boolean = false,
   >(
-    options?: Options<
+    options: Options<
       WebhookApiSubscriptionYookassaWebhookPostData,
       ThrowOnError
     >,
   ): RequestResult<
-    unknown,
+    WebhookApiSubscriptionYookassaWebhookPostResponses,
     WebhookApiSubscriptionYookassaWebhookPostErrors,
     ThrowOnError
   > {
-    return (options?.client ?? this.client).post<
-      unknown,
+    return (options.client ?? this.client).post<
+      WebhookApiSubscriptionYookassaWebhookPostResponses,
       WebhookApiSubscriptionYookassaWebhookPostErrors,
       ThrowOnError
-    >({ url: "/api/subscription/yookassa/webhook", ...options });
+    >({
+      url: "/api/subscription/yookassa/webhook",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
   }
 
   /**

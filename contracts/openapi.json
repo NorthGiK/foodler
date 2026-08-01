@@ -339,6 +339,10 @@
             "title": "Remaining",
             "type": "number"
           },
+          "subscription": {
+            "title": "Subscription",
+            "type": "boolean"
+          },
           "weekly_limit": {
             "title": "Weekly Limit",
             "type": "number"
@@ -349,7 +353,8 @@
           "period_limit",
           "weekly_limit",
           "monthly_limit",
-          "period"
+          "period",
+          "subscription"
         ],
         "title": "CreditsInfo",
         "type": "object"
@@ -1786,6 +1791,48 @@
         "title": "StatusResponse",
         "type": "object"
       },
+      "SubscriptionStatusResponse": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "expiresAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expiresat"
+          },
+          "platform": {
+            "anyOf": [
+              {
+                "enum": [
+                  "yookassa",
+                  "google"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform"
+          }
+        },
+        "required": [
+          "active",
+          "platform",
+          "expiresAt"
+        ],
+        "title": "SubscriptionStatusResponse",
+        "type": "object"
+      },
       "UserResponse": {
         "properties": {
           "email": {
@@ -1889,6 +1936,46 @@
           "code"
         ],
         "title": "VerifyCodeRequest",
+        "type": "object"
+      },
+      "YooKassaWebhookObject": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "YooKassaWebhookObject",
+        "type": "object"
+      },
+      "YooKassaWebhookRequest": {
+        "properties": {
+          "event": {
+            "enum": [
+              "payment.succeeded",
+              "payment.canceled"
+            ],
+            "title": "Event",
+            "type": "string"
+          },
+          "object": {
+            "$ref": "#/components/schemas/YooKassaWebhookObject"
+          },
+          "type": {
+            "const": "notification",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "event",
+          "object"
+        ],
+        "title": "YooKassaWebhookRequest",
         "type": "object"
       }
     },
@@ -3527,7 +3614,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionStatusResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -3627,16 +3716,38 @@
     },
     "/api/subscription/yookassa/webhook": {
       "post": {
-        "description": "Fail closed until YooKassa event authenticity is implemented.",
+        "description": "Verify the current payment at YooKassa, then apply the event once.",
         "operationId": "webhook_api_subscription_yookassa_webhook_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/YooKassaWebhookRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
-          "404": {
+          "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Webhook",
@@ -3746,7 +3857,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
               }
             },
             "description": "Successful Response"

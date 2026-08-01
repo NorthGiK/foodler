@@ -157,15 +157,11 @@ async def get_product(
     result = await db.execute(select(Product).where(Product.id == product_id).limit(1))
     product = result.scalar_one_or_none()
     if not product:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Product not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
     return await _product_to_schema(product, db)
 
 
-@post(
-    "/products", response_model=ProductSchema, status_code=status.HTTP_201_CREATED
-)
+@post("/products", response_model=ProductSchema, status_code=status.HTTP_201_CREATED)
 async def create_product(
     body: ProductCreateSchema,
     db: AsyncSession = Depends(get_db),
@@ -253,9 +249,7 @@ async def match_product_endpoint(
 # ============================================================
 
 
-@get(
-    "/products/{product_id}/substitutes", response_model=list[ProductSubstituteSchema]
-)
+@get("/products/{product_id}/substitutes", response_model=list[ProductSubstituteSchema])
 async def get_substitutes(
     product_id: str,
     db: AsyncSession = Depends(get_db),
@@ -273,9 +267,7 @@ async def get_substitutes(
         ProductSubstituteSchema(
             product_id=sub.product_id,
             substitute_product_id=sub.substitute_product_id,
-            substitute_name=sub.substitute_product.name
-            if sub.substitute_product
-            else "?",
+            substitute_name=sub.substitute_product.name if sub.substitute_product else "?",
             similarity_score=sub.similarity_score,
             ratio=sub.ratio,
             notes=sub.notes,
@@ -298,9 +290,7 @@ async def list_recipes(
     """Список рецептов."""
     query = (
         select(Recipe)
-        .options(
-            selectinload(Recipe.ingredients).selectinload(RecipeIngredient.product)
-        )
+        .options(selectinload(Recipe.ingredients).selectinload(RecipeIngredient.product))
         .order_by(Recipe.name)
     )
 
@@ -321,21 +311,15 @@ async def get_recipe(
     result = await db.execute(
         select(Recipe)
         .where(Recipe.id == recipe_id)
-        .options(
-            selectinload(Recipe.ingredients).selectinload(RecipeIngredient.product)
-        )
+        .options(selectinload(Recipe.ingredients).selectinload(RecipeIngredient.product))
     )
     recipe = result.scalar_one_or_none()
     if not recipe:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Recipe not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recipe not found")
     return _recipe_to_schema(recipe)
 
 
-@post(
-    "/recipes", response_model=RecipeSchema, status_code=status.HTTP_201_CREATED
-)
+@post("/recipes", response_model=RecipeSchema, status_code=status.HTTP_201_CREATED)
 async def create_recipe(
     body: RecipeCreateSchema,
     db: AsyncSession = Depends(get_db),
@@ -357,9 +341,7 @@ async def create_recipe(
             quantity=ing.quantity,
             unit=ing.unit,
             importance_score=ing.importance_score,
-            substitute_ids=json.dumps(ing.substitute_ids)
-            if ing.substitute_ids
-            else None,
+            substitute_ids=json.dumps(ing.substitute_ids) if ing.substitute_ids else None,
         )
         db.add(ingredient)
 
@@ -432,9 +414,7 @@ async def list_tags(
 ):
     """Список всех тегов (только корневые, без вложенности)."""
     result = await db.execute(
-        select(ProductTag)
-        .where(ProductTag.parent_id.is_(None))
-        .order_by(ProductTag.name)
+        select(ProductTag).where(ProductTag.parent_id.is_(None)).order_by(ProductTag.name)
     )
     tags = result.scalars().all()
     return [_tag_to_schema(t) for t in tags]
@@ -463,9 +443,7 @@ def _recipe_to_schema(recipe: Recipe) -> RecipeSchema:
                 quantity=ing.quantity,
                 unit=ing.unit,
                 importance_score=ing.importance_score,
-                substitute_ids=json.loads(ing.substitute_ids)
-                if ing.substitute_ids
-                else [],
+                substitute_ids=json.loads(ing.substitute_ids) if ing.substitute_ids else [],
             )
             for ing in (recipe.ingredients or [])
         ],

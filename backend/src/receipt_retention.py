@@ -4,6 +4,7 @@
 - Пользователи с активной подпиской: чеки хранятся бесконечно
 - Если подписка закончилась, старые чеки остаются, новые — с лимитом 30 дней
 """
+
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -46,8 +47,6 @@ async def cleanup_expired_receipts(db: AsyncSession) -> int:
     if not expired_ids:
         return 0
 
-    await db.execute(
-        delete(Receipt).where(Receipt.id.in_(expired_ids))
-    )
+    await db.execute(delete(Receipt).where(Receipt.id.in_(expired_ids)))
     await db.commit()
     return len(expired_ids)

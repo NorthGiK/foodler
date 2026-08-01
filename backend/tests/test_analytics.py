@@ -151,7 +151,11 @@ class TestGetFridgeStatus:
         fridge = await get_fridge_status(async_session, test_user.id)
         for i in range(len(fridge) - 1):
             d1 = fridge[i]["days_until_empty"] if fridge[i]["days_until_empty"] is not None else 999
-            d2 = fridge[i + 1]["days_until_empty"] if fridge[i + 1]["days_until_empty"] is not None else 999
+            d2 = (
+                fridge[i + 1]["days_until_empty"]
+                if fridge[i + 1]["days_until_empty"] is not None
+                else 999
+            )
             assert d1 <= d2
 
 

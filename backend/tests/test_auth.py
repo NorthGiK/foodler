@@ -141,9 +141,7 @@ class TestGetCurrentUser:
     """Tests for get_current_user and get_current_user_optional."""
 
     @pytest.mark.asyncio
-    async def test_get_current_user_valid_token(
-        self, async_session, test_user, auth_headers
-    ):
+    async def test_get_current_user_valid_token(self, async_session, test_user, auth_headers):
         """Should return user for valid token."""
         from fastapi.security import HTTPAuthorizationCredentials
 
@@ -183,9 +181,7 @@ class TestGetCurrentUser:
     @pytest.mark.asyncio
     async def test_get_current_user_optional_no_token(self, async_session):
         """Should return None when no token provided."""
-        user = await get_current_user_optional(
-            credentials=None, db=async_session
-        )
+        user = await get_current_user_optional(credentials=None, db=async_session)
         assert user is None
 
     @pytest.mark.asyncio
@@ -193,8 +189,6 @@ class TestGetCurrentUser:
         """Should return None when invalid token provided."""
         from fastapi.security import HTTPAuthorizationCredentials
 
-        credentials = HTTPAuthorizationCredentials(
-            scheme="Bearer", credentials="invalid_token"
-        )
+        credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="invalid_token")
         user = await get_current_user_optional(credentials=credentials, db=async_session)
         assert user is None

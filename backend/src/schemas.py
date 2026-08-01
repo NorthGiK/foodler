@@ -130,9 +130,11 @@ class ReceiptSchema(BaseModel):
 class ReceiptSchemaArray(BaseModel):
     receipts: list[ReceiptSchema] | None = None
 
+
 # ====
 #  AI
 # ====
+
 
 class AiResponse(BaseModel):
     request_id: int
@@ -169,6 +171,7 @@ class AiSection(BaseModel):
     - products: products
     - chart: labels, values, kind
     """
+
     model_config = {"extra": "ignore"}
 
     type: str  # text, score, list, products, chart
@@ -196,6 +199,7 @@ class CreditsInfo(BaseModel):
     weekly_limit: float
     monthly_limit: float
     period: str  # "2day" | "month" | "week" | "subscription"
+    subscription: bool
 
 
 # --- Subscription ---
@@ -212,7 +216,10 @@ class CreatePaymentRequest(BaseModel):
     paymentMethod values: bank_card, sbp, sberbank, tinkoff_bank, yoo_money
     If None, YooKassa will show all available payment methods.
     """
-    paymentMethod: Literal["bank_card", "sbp", "sberbank", "tinkoff_bank", "yoo_money"] | None = None
+
+    paymentMethod: Literal["bank_card", "sbp", "sberbank", "tinkoff_bank", "yoo_money"] | None = (
+        None
+    )
 
 
 class PremiumStatusResponse(BaseModel):
@@ -221,6 +228,22 @@ class PremiumStatusResponse(BaseModel):
 
 class PaymentConfirmationResponse(BaseModel):
     confirmationUrl: str
+
+
+class SubscriptionStatusResponse(BaseModel):
+    active: bool
+    platform: Literal["yookassa", "google"] | None
+    expiresAt: datetime | None
+
+
+class YooKassaWebhookObject(BaseModel):
+    id: str
+
+
+class YooKassaWebhookRequest(BaseModel):
+    type: Literal["notification"]
+    event: Literal["payment.succeeded", "payment.canceled"]
+    object: YooKassaWebhookObject
 
 
 # ============================================================

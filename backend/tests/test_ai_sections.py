@@ -82,7 +82,7 @@ class TestCoerceSections:
 
     def test_extract_json_from_text(self):
         """Should extract JSON array from surrounding text."""
-        text = "Here is the result:\n[{\"type\": \"text\", \"title\": \"T\", \"text\": \"C\"}]\nThat's all."
+        text = 'Here is the result:\n[{"type": "text", "title": "T", "text": "C"}]\nThat\'s all.'
         result = _coerce_sections(text)
         assert len(result) == 1
         assert result[0]["title"] == "T"

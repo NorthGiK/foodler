@@ -1,28 +1,25 @@
-"""
-Tests for src/email_service.py - Email sending.
-"""
+import logging
+
+import pytest
+
+from src.email_service import _EmailService
 
 
+@pytest.mark.asyncio
+async def test_unconfigured_email_fails_without_exposing_code(
+    monkeypatch, caplog, capsys
+):
+    for name in ("SMTP_USER", "SMTP_PASSWORD", "FROM_EMAIL"):
+        monkeypatch.setenv(name, "")
+    service = _EmailService()
 
-class TestEmailService:
-    """Tests for email service."""
+    with caplog.at_level(logging.WARNING):
+        delivered = await service.send_code(
+            "private@example.com", "SECRET42"
+        )
 
-    def test_send_code_prints_in_dev(self, capsys):
-        """In dev mode, send_code should print the code."""
-        from src.email_service import EmailService
-
-        async def mock_send_code(to_email, code, subject="Код подтверждения"):
-            print(f"code for {to_email} is {code}")
-            return True
-
-        original_send = EmailService.send_code
-        EmailService.send_code = mock_send_code
-
-        import asyncio
-        result = asyncio.run(EmailService.send_code("test@example.com", "ABC123"))
-
-        captured = capsys.readouterr()
-        assert "ABC123" in captured.out
-        assert result is True
-
-        EmailService.send_code = original_send
+    assert delivered is False
+    output = capsys.readouterr()
+    combined = output.out + output.err + caplog.text
+    assert "SECRET42" not in combined
+    assert "private@example.com" not in combined

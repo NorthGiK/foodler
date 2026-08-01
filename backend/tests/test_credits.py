@@ -2,12 +2,21 @@
 Tests for src/credits.py - AI credits management.
 """
 
+import asyncio
 from datetime import datetime
 
 import pytest
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from src.credits import get_user_credits_info, deduct_credits, _ip_hash
-from src.models import AiCreditUsage
+from src.auth import hash_password
+from src.credits import (
+    InsufficientCreditsError,
+    _ip_hash,
+    deduct_credits,
+    get_user_credits_info,
+)
+from src.database import Base
+from src.models import AiCreditUsage, User
 
 
 class TestGetUserCreditsInfo:
@@ -141,3 +150,57 @@ class TestDeductCredits:
 
         info = await get_user_credits_info(async_session, user=None, ip="127.0.0.1")
         assert info["remaining"] == 1.0  # 2 - 1
+
+    @pytest.mark.asyncio
+    async def test_ask_cannot_overdraw_one_remaining_credit(
+        self, async_session, test_user
+    ):
+        await deduct_credits(
+            async_session, test_user, ip=None, action="overall-analysis"
+        )
+
+        with pytest.raises(InsufficientCreditsError):
+            await deduct_credits(
+                async_session, test_user, ip=None, action="ask"
+            )
+
+        info = await get_user_credits_info(async_session, test_user)
+        assert info["remaining"] == 1.0
+
+    @pytest.mark.asyncio
+    async def test_concurrent_reservations_cannot_exceed_limit(self, tmp_path):
+        database = tmp_path / "credits.sqlite"
+        engine = create_async_engine(f"sqlite+aiosqlite:///{database}")
+        sessions = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        async with sessions() as session:
+            user = User(
+                email="concurrent@example.com",
+                password_hash=hash_password("TestPass123!"),
+                premium=False,
+            )
+            session.add(user)
+            await session.commit()
+
+        async def reserve_once():
+            async with sessions() as session:
+                return await deduct_credits(
+                    session, user, ip=None, action="diet"
+                )
+
+        results = await asyncio.gather(
+            reserve_once(),
+            reserve_once(),
+            reserve_once(),
+            return_exceptions=True,
+        )
+        assert sum(not isinstance(result, Exception) for result in results) == 2
+        assert sum(
+            isinstance(result, InsufficientCreditsError)
+            for result in results
+        ) == 1
+        async with sessions() as session:
+            info = await get_user_credits_info(session, user)
+            assert info["remaining"] == 0.0
+        await engine.dispose()

@@ -5,7 +5,7 @@ import random
 import string
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, Float, Text, Integer
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Float, Text, Integer
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.dialects.sqlite import JSON
 
@@ -23,6 +23,7 @@ def _uuid() -> str:
 
 def _email_code() -> str:
     return "".join(random.choice(CHAR_POOL) for _ in range(EMAIL_CODE_LENGTH))
+
 
 def _utcnow() -> datetime:
     """Return naive UTC for SQLite DateTime columns."""
@@ -116,9 +117,7 @@ class ReceiptItem(Base):
     quantity: Mapped[float] = mapped_column(insert_default=1)
     price: Mapped[float] = mapped_column(nullable=False)
     # Связь с продуктом (если распознан)
-    product_id: Mapped[str] = mapped_column(
-        ForeignKey("products.id"), nullable=True, index=True
-    )
+    product_id: Mapped[str] = mapped_column(ForeignKey("products.id"), nullable=True, index=True)
 
     receipt: Mapped[Receipt] = relationship("Receipt", back_populates="items")
     product: Mapped["Product"] = relationship("Product", back_populates="receipt_items")
@@ -143,16 +142,18 @@ class Payment(Base):
     id: Mapped[str] = mapped_column(primary_key=True)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
     created_at: Mapped[datetime] = mapped_column(default=_utcnow)
-    status: Mapped[str] = mapped_column() # in_progress | rejected | success
+    status: Mapped[str] = mapped_column()  # in_progress | rejected | success
 
     user: Mapped[User] = relationship("User")
+
 
 class Subscription(Base):
     __tablename__ = "subscriptions"
 
     id: Mapped[str] = mapped_column(primary_key=True, default=_uuid)
     user_id: Mapped[str] = mapped_column(
-        ForeignKey("users.id"), unique=True,
+        ForeignKey("users.id"),
+        unique=True,
     )
     purchase_token: Mapped[str] = mapped_column(nullable=False)
     product_id: Mapped[str] = mapped_column(nullable=False)
@@ -187,9 +188,7 @@ class Product(Base):
 
     id: Mapped[str] = mapped_column(primary_key=True, default=_uuid)
     name: Mapped[str] = mapped_column(unique=True, nullable=False, index=True)
-    parent_id: Mapped[str] = mapped_column(
-        ForeignKey("products.id"), nullable=True, index=True
-    )
+    parent_id: Mapped[str] = mapped_column(ForeignKey("products.id"), nullable=True, index=True)
 
     # КБЖУ на 100 г/мл
     calories: Mapped[float] = mapped_column(Float, nullable=False, default=0)
@@ -260,9 +259,7 @@ class ProductAlias(Base):
     __tablename__ = "product_aliases"
 
     id: Mapped[str] = mapped_column(primary_key=True, default=_uuid)
-    product_id: Mapped[str] = mapped_column(
-        ForeignKey("products.id"), nullable=False, index=True
-    )
+    product_id: Mapped[str] = mapped_column(ForeignKey("products.id"), nullable=False, index=True)
     alias: Mapped[str] = mapped_column(nullable=False, index=True)
     language: Mapped[str] = mapped_column(insert_default="ru")
 
@@ -299,12 +296,8 @@ class ProductTagMember(Base):
     __tablename__ = "product_tag_members"
 
     id: Mapped[str] = mapped_column(primary_key=True, default=_uuid)
-    product_id: Mapped[str] = mapped_column(
-        ForeignKey("products.id"), nullable=False, index=True
-    )
-    tag_id: Mapped[str] = mapped_column(
-        ForeignKey("product_tags.id"), nullable=False, index=True
-    )
+    product_id: Mapped[str] = mapped_column(ForeignKey("products.id"), nullable=False, index=True)
+    tag_id: Mapped[str] = mapped_column(ForeignKey("product_tags.id"), nullable=False, index=True)
     weight: Mapped[float] = mapped_column(Float, insert_default=1.0)  # 0.0-1.0
 
     product: Mapped["Product"] = relationship("Product", back_populates="tags")
@@ -320,18 +313,12 @@ class ProductSubstitute(Base):
     __tablename__ = "product_substitutes"
 
     id: Mapped[str] = mapped_column(primary_key=True, default=_uuid)
-    product_id: Mapped[str] = mapped_column(
-        ForeignKey("products.id"), nullable=False, index=True
-    )
+    product_id: Mapped[str] = mapped_column(ForeignKey("products.id"), nullable=False, index=True)
     substitute_product_id: Mapped[str] = mapped_column(
         ForeignKey("products.id"), nullable=False, index=True
     )
-    similarity_score: Mapped[float] = mapped_column(
-        Float, insert_default=0.5
-    )  # 0.0-1.0
-    ratio: Mapped[float] = mapped_column(
-        Float, insert_default=1.0
-    )  # коэффициент замены
+    similarity_score: Mapped[float] = mapped_column(Float, insert_default=0.5)  # 0.0-1.0
+    ratio: Mapped[float] = mapped_column(Float, insert_default=1.0)  # коэффициент замены
     notes: Mapped[str] = mapped_column(nullable=True)
 
     product: Mapped["Product"] = relationship(
@@ -370,25 +357,15 @@ class RecipeIngredient(Base):
     __tablename__ = "recipe_ingredients"
 
     id: Mapped[str] = mapped_column(primary_key=True, default=_uuid)
-    recipe_id: Mapped[str] = mapped_column(
-        ForeignKey("recipes.id"), nullable=False, index=True
-    )
-    product_id: Mapped[str] = mapped_column(
-        ForeignKey("products.id"), nullable=False, index=True
-    )
+    recipe_id: Mapped[str] = mapped_column(ForeignKey("recipes.id"), nullable=False, index=True)
+    product_id: Mapped[str] = mapped_column(ForeignKey("products.id"), nullable=False, index=True)
     quantity: Mapped[float] = mapped_column(Float, nullable=False)
     unit: Mapped[str] = mapped_column(nullable=False)  # "г", "мл", "шт", "ст.л", "ч.л"
-    importance_score: Mapped[float] = mapped_column(
-        Float, insert_default=1.0
-    )  # 0.0-1.0
-    substitute_ids: Mapped[str] = mapped_column(
-        nullable=True
-    )  # JSON array of Product IDs
+    importance_score: Mapped[float] = mapped_column(Float, insert_default=1.0)  # 0.0-1.0
+    substitute_ids: Mapped[str] = mapped_column(nullable=True)  # JSON array of Product IDs
 
     recipe: Mapped["Recipe"] = relationship("Recipe", back_populates="ingredients")
-    product: Mapped["Product"] = relationship(
-        "Product", back_populates="recipe_ingredients"
-    )
+    product: Mapped["Product"] = relationship("Product", back_populates="recipe_ingredients")
 
 
 class AiCache(Base):
@@ -400,9 +377,7 @@ class AiCache(Base):
     __tablename__ = "ai_cache"
 
     id: Mapped[str] = mapped_column(primary_key=True, default=_uuid)
-    user_id: Mapped[str] = mapped_column(
-        ForeignKey("users.id"), nullable=False, index=True
-    )
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     action: Mapped[str] = mapped_column(nullable=False, index=True)
     context_hash: Mapped[str] = mapped_column(nullable=False, index=True)
     question_hash: Mapped[str] = mapped_column(nullable=True)  # только для action="ask"
@@ -427,6 +402,25 @@ class AiCreditUsage(Base):
     action: Mapped[str] = mapped_column(nullable=False)
     credits: Mapped[float] = mapped_column(Float, nullable=False, insert_default=1.0)
     created_at: Mapped[datetime] = mapped_column(insert_default=_utcnow)
+
+
+class AiCreditBalance(Base):
+    """Atomic credit counter for one identity and billing period."""
+
+    __tablename__ = "ai_credit_balances"
+    __table_args__ = (
+        CheckConstraint("used >= 0", name="ck_ai_credit_balance_used_nonnegative"),
+        CheckConstraint("used <= period_limit", name="ck_ai_credit_balance_within_limit"),
+    )
+
+    bucket_key: Mapped[str] = mapped_column(primary_key=True)
+    user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    ip_hash: Mapped[str | None] = mapped_column(nullable=True, index=True)
+    period_start: Mapped[datetime] = mapped_column(nullable=False)
+    period_end: Mapped[datetime] = mapped_column(nullable=False)
+    period_limit: Mapped[float] = mapped_column(Float, nullable=False)
+    used: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    updated_at: Mapped[datetime] = mapped_column(nullable=False, default=_utcnow, onupdate=_utcnow)
 
 
 class AiResponse(Base):

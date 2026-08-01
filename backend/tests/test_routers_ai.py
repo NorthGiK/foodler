@@ -61,7 +61,9 @@ class TestRunAi:
         assert response.status_code == 401
 
     @pytest.mark.asyncio
-    async def test_credits_exhausted(self, client: AsyncClient, auth_headers, async_session, test_user):
+    async def test_credits_exhausted(
+        self, client: AsyncClient, auth_headers, async_session, test_user
+    ):
         """Should reject with 429 when credits exhausted."""
         from src.models import AiCreditUsage
         from datetime import datetime, timedelta
@@ -86,7 +88,9 @@ class TestRunAi:
         assert response.status_code == 429
 
     @pytest.mark.asyncio
-    async def test_credits_not_checked_for_local_actions(self, client: AsyncClient, auth_headers, async_session, test_user):
+    async def test_credits_not_checked_for_local_actions(
+        self, client: AsyncClient, auth_headers, async_session, test_user
+    ):
         """LOCAL actions should NOT check credits even if exhausted."""
         from src.models import AiCreditUsage
         from datetime import datetime, timedelta
@@ -104,7 +108,9 @@ class TestRunAi:
         await async_session.commit()
 
         with patch("src.routers.ai.task_router.route", new_callable=AsyncMock) as mock_route:
-            mock_route.return_value = [{"type": "text", "title": "Анализ", "text": "Локальный ответ"}]
+            mock_route.return_value = [
+                {"type": "text", "title": "Анализ", "text": "Локальный ответ"}
+            ]
 
             response = await client.post(
                 "/api/ai/run",
@@ -179,30 +185,27 @@ class TestRunAi:
                 assert data["sections"][1]["title"] == "Ответ"  # default fallback
 
     @pytest.mark.asyncio
-    async def test_ai_api_error(self, client: AsyncClient, auth_headers):
-        """Should raise HTTPException when AI API fails (error handling done upstream)."""
+    async def test_ai_api_error_refunds_reserved_credit(
+        self,
+        client: AsyncClient,
+        auth_headers,
+        async_session,
+        test_user,
+    ):
         from src.ai_service import AiServiceError
-
-        mock_sections = [{"type": "text", "title": "Анализ", "text": "OK"}]
+        from src.credits import get_user_credits_info
 
         with patch("src.routers.ai.task_router.route", new_callable=AsyncMock) as mock_route:
-            # Simulate AI API error - the endpoint should let it propagate
-            # (in production this results in 500, but tests handle it)
             mock_route.side_effect = AiServiceError("boom", status_code=500)
+            response = await client.post(
+                "/api/ai/run",
+                headers=auth_headers,
+                json={"action": "diet", "parameters": {}},
+            )
 
-            try:
-                response = await client.post(
-                    "/api/ai/run",
-                    headers=auth_headers,
-                    json={"action": "diet", "parameters": {}},
-                )
-                # If we get here, the error was handled gracefully
-                assert response.status_code == 200, f"Response: {response.text}"
-                data = response.json()
-                assert data["action"] == "diet"
-            except Exception:
-                # Error propagated - this is expected behavior
-                pass
+        assert response.status_code == 502
+        info = await get_user_credits_info(async_session, test_user)
+        assert info["remaining"] == 2.0
 
     @pytest.mark.asyncio
     async def test_invalid_json_response(self, client: AsyncClient, auth_headers):
@@ -221,7 +224,9 @@ class TestRunAi:
                 assert len(data["sections"]) == 1
 
     @pytest.mark.asyncio
-    async def test_cached_response_no_credits_deducted(self, client: AsyncClient, auth_headers, async_session, test_user):
+    async def test_cached_response_no_credits_deducted(
+        self, client: AsyncClient, auth_headers, async_session, test_user
+    ):
         """Should NOT deduct credits when response is from cache."""
         from src.models import AiCache, AiCreditUsage
         from datetime import datetime, timedelta, timezone
@@ -262,13 +267,16 @@ class TestRunAi:
 
                 # Verify no credits were deducted
                 from sqlalchemy import func, select
+
                 usage_count = await async_session.scalar(
                     select(func.count()).where(AiCreditUsage.user_id == test_user.id)
                 )
                 assert usage_count == 0, f"Expected 0 credit usages, got {usage_count}"
 
     @pytest.mark.asyncio
-    async def test_with_period_filter(self, client: AsyncClient, auth_headers, async_session, test_user, test_products):
+    async def test_with_period_filter(
+        self, client: AsyncClient, auth_headers, async_session, test_user, test_products
+    ):
         """Should filter receipts by period."""
         from src.models import Receipt, ReceiptItem
         import uuid
@@ -277,21 +285,31 @@ class TestRunAi:
 
         # Receipt inside period
         r1 = Receipt(
-            id=uuid.uuid4().hex, date="2026-07-14", store="Магнит",
-            total=100.0, user_id=test_user.id,
+            id=uuid.uuid4().hex,
+            date="2026-07-14",
+            store="Магнит",
+            total=100.0,
+            user_id=test_user.id,
         )
         async_session.add(r1)
         await async_session.flush()
 
         # Receipt outside period
         r2 = Receipt(
-            id=uuid.uuid4().hex, date="2026-05-01", store="Пятёрочка",
-            total=200.0, user_id=test_user.id,
+            id=uuid.uuid4().hex,
+            date="2026-05-01",
+            store="Пятёрочка",
+            total=200.0,
+            user_id=test_user.id,
         )
         async_session.add(r2)
         await async_session.flush()
 
-        async_session.add(ReceiptItem(receipt_id=r1.id, name="Молоко", quantity=1, price=100.0, product_id=milk.id))
+        async_session.add(
+            ReceiptItem(
+                receipt_id=r1.id, name="Молоко", quantity=1, price=100.0, product_id=milk.id
+            )
+        )
         async_session.add(ReceiptItem(receipt_id=r2.id, name="Кефир", quantity=1, price=50.0))
         await async_session.commit()
 
@@ -317,15 +335,21 @@ class TestRunAi:
                 call_args = mock_route.call_args
                 assert call_args is not None
                 context = call_args[1]["context"]
-                assert context["receipt_count"] == 1, f"Expected 1 receipt, got {context['receipt_count']}"
+                assert context["receipt_count"] == 1, (
+                    f"Expected 1 receipt, got {context['receipt_count']}"
+                )
 
     # ---- LOCAL action tests (no AI, no credits) ----
 
     @pytest.mark.asyncio
-    async def test_local_action_no_credits_needed(self, client: AsyncClient, auth_headers, async_session, test_user):
+    async def test_local_action_no_credits_needed(
+        self, client: AsyncClient, auth_headers, async_session, test_user
+    ):
         """LOCAL actions should not check credits."""
         with patch("src.routers.ai.task_router.route", new_callable=AsyncMock) as mock_route:
-            mock_route.return_value = [{"type": "text", "title": "Анализ", "text": "Локальный ответ"}]
+            mock_route.return_value = [
+                {"type": "text", "title": "Анализ", "text": "Локальный ответ"}
+            ]
 
             response = await client.post(
                 "/api/ai/run",
@@ -357,7 +381,9 @@ class TestRunAi:
     async def test_local_action_expiring(self, client: AsyncClient, auth_headers):
         """LOCAL expiring-products action should work without AI."""
         with patch("src.routers.ai.task_router.route", new_callable=AsyncMock) as mock_route:
-            mock_route.return_value = [{"type": "list", "title": "Скоро закончится", "items": ["Молоко"]}]
+            mock_route.return_value = [
+                {"type": "list", "title": "Скоро закончится", "items": ["Молоко"]}
+            ]
 
             response = await client.post(
                 "/api/ai/run",
@@ -386,21 +412,28 @@ class TestRunAi:
             assert data["sections"][0]["type"] == "text"
 
     @pytest.mark.asyncio
-    async def test_local_action_does_not_load_receipts(self, client: AsyncClient, auth_headers, async_session, test_user):
+    async def test_local_action_does_not_load_receipts(
+        self, client: AsyncClient, auth_headers, async_session, test_user
+    ):
         """LOCAL actions should NOT load receipts (they query DB themselves)."""
         from src.models import Receipt
         import uuid
 
         # Create a receipt — LOCAL action should NOT load it
         r = Receipt(
-            id=uuid.uuid4().hex, date="2026-07-14", store="Магнит",
-            total=100.0, user_id=test_user.id,
+            id=uuid.uuid4().hex,
+            date="2026-07-14",
+            store="Магнит",
+            total=100.0,
+            user_id=test_user.id,
         )
         async_session.add(r)
         await async_session.commit()
 
         with patch("src.routers.ai.task_router.route", new_callable=AsyncMock) as mock_route:
-            mock_route.return_value = [{"type": "text", "title": "Анализ", "text": "Локальный ответ"}]
+            mock_route.return_value = [
+                {"type": "text", "title": "Анализ", "text": "Локальный ответ"}
+            ]
 
             response = await client.post(
                 "/api/ai/run",
@@ -416,6 +449,35 @@ class TestRunAi:
             assert context["receipt_count"] == 0, (
                 f"Expected 0 receipts for LOCAL action, got {context['receipt_count']}"
             )
+
+    @pytest.mark.asyncio
+    async def test_real_local_action_never_calls_llm_or_uses_credits(
+        self,
+        client: AsyncClient,
+        auth_headers,
+        async_session,
+        test_user,
+    ):
+        from sqlalchemy import func, select
+
+        from src.models import AiCreditUsage
+
+        with patch(
+            "src.ai_service._call_llm",
+            new=AsyncMock(side_effect=AssertionError("LLM must not be called")),
+        ):
+            response = await client.post(
+                "/api/ai/run",
+                headers=auth_headers,
+                json={"action": "overall-analysis", "parameters": {}},
+            )
+
+        assert response.status_code == 200
+        assert response.json()["sections"]
+        usage_count = await async_session.scalar(
+            select(func.count()).where(AiCreditUsage.user_id == test_user.id)
+        )
+        assert usage_count == 0
 
 
 class TestGetHistory:
@@ -435,7 +497,9 @@ class TestGetHistory:
         assert response.json() == []
 
     @pytest.mark.asyncio
-    async def test_history_with_reports(self, client: AsyncClient, auth_headers, async_session, test_user):
+    async def test_history_with_reports(
+        self, client: AsyncClient, auth_headers, async_session, test_user
+    ):
         """Should return report history."""
         from src.models import AiReport
         from datetime import datetime
@@ -459,7 +523,9 @@ class TestGetHistory:
         assert data[0]["action"] == "diet"
 
     @pytest.mark.asyncio
-    async def test_history_ignore_other_users(self, client: AsyncClient, auth_headers, async_session):
+    async def test_history_ignore_other_users(
+        self, client: AsyncClient, auth_headers, async_session
+    ):
         """Should not return other users' reports."""
         from src.models import AiReport, User
         from datetime import datetime
@@ -472,8 +538,8 @@ class TestGetHistory:
             id="other_report",
             action="diet",
             user_id=other_user.id,
-            snapshot='{}',
-            response='[]',
+            snapshot="{}",
+            response="[]",
             created_at=datetime.now(),
         )
         async_session.add(report)
@@ -484,7 +550,9 @@ class TestGetHistory:
         assert response.json() == []  # other user's report should not appear
 
     @pytest.mark.asyncio
-    async def test_history_pagination(self, client: AsyncClient, auth_headers, async_session, test_user):
+    async def test_history_pagination(
+        self, client: AsyncClient, auth_headers, async_session, test_user
+    ):
         """Should support skip/limit pagination."""
         from src.models import AiReport
         from datetime import datetime
@@ -494,8 +562,8 @@ class TestGetHistory:
                 id=f"report_{i}",
                 action="diet",
                 user_id=test_user.id,
-                snapshot='{}',
-                response='[]',
+                snapshot="{}",
+                response="[]",
                 created_at=datetime.now(),
             )
             async_session.add(report)
@@ -530,7 +598,9 @@ class TestGetReport:
         assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_get_report_success(self, client: AsyncClient, auth_headers, async_session, test_user):
+    async def test_get_report_success(
+        self, client: AsyncClient, auth_headers, async_session, test_user
+    ):
         """Should return report by ID."""
         from src.models import AiReport
         from datetime import datetime
@@ -558,7 +628,9 @@ class TestDeleteReport:
     """Tests for DELETE /api/ai/history/{report_id}"""
 
     @pytest.mark.asyncio
-    async def test_delete_report_success(self, client: AsyncClient, auth_headers, async_session, test_user):
+    async def test_delete_report_success(
+        self, client: AsyncClient, auth_headers, async_session, test_user
+    ):
         """Should delete a report."""
         from src.models import AiReport
         from datetime import datetime
@@ -567,8 +639,8 @@ class TestDeleteReport:
             id="delete_me",
             action="diet",
             user_id=test_user.id,
-            snapshot='{}',
-            response='[]',
+            snapshot="{}",
+            response="[]",
             created_at=datetime.now(),
         )
         async_session.add(report)

@@ -79,7 +79,9 @@ class TestRemoveDevice:
     """Tests for DELETE /api/devices/{device_id}"""
 
     @pytest.mark.asyncio
-    async def test_remove_existing_device(self, client: AsyncClient, auth_headers, async_session, test_user):
+    async def test_remove_existing_device(
+        self, client: AsyncClient, auth_headers, async_session, test_user
+    ):
         """Should remove an existing device."""
         from src.models import Device
 
@@ -97,7 +99,9 @@ class TestRemoveDevice:
         assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_remove_other_users_device(self, client: AsyncClient, auth_headers, async_session):
+    async def test_remove_other_users_device(
+        self, client: AsyncClient, auth_headers, async_session
+    ):
         """Should not be able to remove another user's device."""
         from src.models import Device, User
 

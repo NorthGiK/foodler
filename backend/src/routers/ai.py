@@ -1,28 +1,32 @@
 import json
 import logging
+import time
 import uuid
 from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.ai_sections import _coerce_sections
-from src.config import AI_LIGHT_MODEL
-
 from ..analytics import get_cached_response, set_cached_response
 from ..auth import get_current_user, get_current_user_optional
-from ..ai_service import TaskRouter, AiServiceError, _build_user_prompt, _call_llm
+from ..ai_service import ALL_ACTIONS, LOCAL_ACTIONS, AiServiceError, TaskRouter
+from ..credits import (
+    InsufficientCreditsError,
+    get_user_credits_info,
+    refund_credits,
+    reserve_credits,
+)
 from ..database import get_db
 from ..models import AiReport, Receipt, ReceiptItem, User
-from ..schemas import AiRequest, AiResult, AiSection, CreditsInfo
 from ..product_matching import compute_context_hash
-from ..credits import get_user_credits_info, deduct_credits
+from ..schemas import AiRequest, AiResult, AiSection, CreditsInfo
 from ..utils import with_rate_limit, LIMIT_DEFAULT, LIMIT_DELETE, normalize_date
 
-logger = logging.getLogger("ai_router")
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["AI"])
 task_router = TaskRouter()
@@ -74,13 +78,9 @@ async def run_ai(
     # ============================================================
     # LOG: начало запроса
     # ============================================================
-    log_ctx = {
-        "action": body.action,
-        "user_id": user.id if user else None,
-        "params": body.parameters.model_dump(exclude_none=True) if body.parameters else None,
-    }
+    log_ctx = {"action": body.action}
     logger.info("AI request started", extra=log_ctx)
-    start_time = datetime.now()
+    start_time = time.monotonic()
 
     # ============================================================
     # Проверка: пользователь обязателен
@@ -92,24 +92,14 @@ async def run_ai(
             detail="Authentication required",
         )
 
-    # ============================================================
-    # Проверка кредитов (только для LLM-уровней)
-    # ============================================================
+    if body.action not in ALL_ACTIONS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Unknown AI action",
+        )
+
     ip = request.client.host if request and request.client else None
-    is_llm_action = body.action in ("save-money", "healthy-food", "habits", "shopping-cart", "diet", "ask")
-
-    if is_llm_action:
-        credits_info = await get_user_credits_info(db=db, user=user, ip=ip)
-        required = 1.0
-
-        if credits_info.get("remaining", 0) < required and not credits_info.get("subscription"):
-            logger.warning("AI request rejected: credits exhausted", extra={
-                **log_ctx, "remaining": credits_info.get("remaining"),
-            })
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="AI credits exceeded",
-            )
+    is_llm_action = body.action not in LOCAL_ACTIONS
 
     # ============================================================
     # Получение чеков (только для LLM-действий, LOCAL сами ходят в БД)
@@ -134,9 +124,13 @@ async def run_ai(
     else:
         receipts = []
 
-    logger.info("Receipts loaded", extra={
-        **log_ctx, "receipt_count": len(receipts),
-    })
+    logger.info(
+        "Receipts loaded",
+        extra={
+            **log_ctx,
+            "receipt_count": len(receipts),
+        },
+    )
 
     receipts_info = [
         {
@@ -175,7 +169,7 @@ async def run_ai(
     # ============================================================
     # LOCAL actions — без AI, без кредитов, без кэша
     # ============================================================
-    if body.action in ("overall-analysis", "expiring-products", "recipes", "ingredients"):
+    if body.action in LOCAL_ACTIONS:
         logger.info("Processing local action (no AI)", extra=log_ctx)
         values = body.parameters.model_dump(exclude_none=True) if body.parameters else {}
         sections_raw = await task_router.route(
@@ -188,10 +182,8 @@ async def run_ai(
 
         try:
             sections_parsed = [AiSection(**s) for s in sections_raw]
-        except Exception as e:
-            logger.error("Failed to parse local sections", extra={
-                **log_ctx, "error": str(e),
-            })
+        except (TypeError, ValidationError):
+            logger.warning("Failed to parse local sections", extra=log_ctx)
             sections_parsed = [AiSection(type="text", text=str(sections_raw))]
 
         report_id = uuid.uuid4().hex
@@ -214,10 +206,14 @@ async def run_ai(
         db.add(ai_report)
         await db.commit()
 
-        total_duration = (datetime.now() - start_time).total_seconds()
-        logger.info("Local AI request completed", extra={
-            **log_ctx, "duration_sec": total_duration, "section_count": len(sections_parsed),
-        })
+        logger.info(
+            "Local AI request completed",
+            extra={
+                **log_ctx,
+                "duration_ms": round((time.monotonic() - start_time) * 1000, 2),
+                "section_count": len(sections_parsed),
+            },
+        )
 
         return AiResult(
             id=report_id,
@@ -253,22 +249,43 @@ async def run_ai(
         sections_raw = cached
         # Не списываем кредиты при cache-hit
     else:
-        # ============================================================
-        # Вызов TaskRouter (он сам выберет LIGHT или STRONG модель)
-        # ============================================================
-        parameters = body.parameters.model_dump(exclude_none=True) if body.parameters else None
-        sections_raw = await task_router.route(
-            action=body.action,
-            parameters=parameters,
-            context=context,
-            db=db,
-            user_id=user.id,
-        )
+        try:
+            reservation = await reserve_credits(db=db, user=user, ip=ip, action=body.action)
+        except InsufficientCreditsError as exc:
+            logger.warning("AI request rejected: credits exhausted", extra=log_ctx)
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="AI credits exceeded",
+            ) from exc
 
-        ai_duration = (datetime.now() - start_time).total_seconds()
-        logger.info("AI API response received", extra={
-            **log_ctx, "duration_sec": ai_duration,
-        })
+        parameters = body.parameters.model_dump(exclude_none=True) if body.parameters else None
+        route_completed = False
+        try:
+            sections_raw = await task_router.route(
+                action=body.action,
+                parameters=parameters,
+                context=context,
+                db=db,
+                user_id=user.id,
+            )
+            route_completed = True
+        except AiServiceError as exc:
+            logger.warning("AI provider request failed", extra=log_ctx)
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="AI provider unavailable",
+            ) from exc
+        finally:
+            if not route_completed:
+                await refund_credits(db, reservation)
+
+        logger.info(
+            "AI API response received",
+            extra={
+                **log_ctx,
+                "duration_ms": round((time.monotonic() - start_time) * 1000, 2),
+            },
+        )
 
         # Кэшируем ответ
         await set_cached_response(
@@ -281,9 +298,7 @@ async def run_ai(
             ttl_hours=24,
         )
 
-        # Списание кредитов — только при реальном вызове AI (не из кэша)
-        await deduct_credits(db=db, user=user, ip=ip, action=body.action)
-        logger.info("Credits deducted", extra=log_ctx)
+        logger.info("Credits reserved", extra=log_ctx)
 
     # ============================================================
     # Парсинг ответа в секции
@@ -299,10 +314,8 @@ async def run_ai(
                 sections_parsed = [AiSection(type="text", title="Ответ", text=sections_raw)]
         else:
             sections_parsed = [AiSection(**s) for s in sections_raw]
-    except Exception as e:
-        logger.error("Failed to parse AI sections", extra={
-            **log_ctx, "error": str(e),
-        })
+    except (TypeError, ValidationError):
+        logger.warning("Failed to parse AI sections", extra=log_ctx)
         sections_parsed = [AiSection(type="text", text=str(sections_raw) if sections_raw else "")]
 
     # ============================================================
@@ -328,197 +341,14 @@ async def run_ai(
     db.add(ai_report)
     await db.commit()
 
-    total_duration = (datetime.now() - start_time).total_seconds()
-    logger.info("AI request completed", extra={
-        **log_ctx, "duration_sec": total_duration, "section_count": len(sections_parsed),
-    })
-
-    return AiResult(
-        id=report_id,
-        action=body.action,
-        createdAt=now,
-        sections=sections_parsed,
+    logger.info(
+        "AI request completed",
+        extra={
+            **log_ctx,
+            "duration_ms": round((time.monotonic() - start_time) * 1000, 2),
+            "section_count": len(sections_parsed),
+        },
     )
-
-
-@post("/internal/legacy-ai-run", response_model=AiResult, include_in_schema=False)
-async def legacy_run_ai(
-    body: AiRequest,
-    request: Request,
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    # ============================================================
-    # Проверка кредитов (только для LLM-действий)
-    # ============================================================
-    ip = request.client.host if request and request.client else None
-
-    credits_info = await get_user_credits_info(db=db, user=user, ip=ip)
-    required = 1.0
-
-    if credits_info.get("remaining", 0) < required and not credits_info.get("subscription"):
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="AI credits exceeded",
-        )
-
-    # ===============
-    # Получение чеков
-    # ===============
-    period_from = body.parameters.periodFrom if body.parameters else None
-    period_to = body.parameters.periodTo if body.parameters else None
-
-    query = select(Receipt).where(Receipt.user_id == user.id)
-
-    if period_from:
-        query = query.where(Receipt.date >= normalize_date(period_from))
-    if period_to:
-        query = query.where(Receipt.date <= normalize_date(period_to))
-
-    result = await db.execute(
-        query.options(selectinload(Receipt.items).selectinload(ReceiptItem.product))
-        .order_by(Receipt.date.desc())
-        .limit(MAX_RECEIPTS)
-    )
-    receipts = result.scalars().all()
-
-    receipts_info = [
-        {
-            "id": r.id,
-            "date": r.date,
-            "store": r.store,
-            "total": r.total,
-            "items": [
-                {
-                    "name": it.name,
-                    "quantity": it.quantity,
-                    "price": it.price,
-                    "product_id": it.product_id,
-                }
-                for it in (r.items or [])
-            ],
-        }
-        for r in receipts
-    ]
-
-    context: dict[str, Any] = {}
-
-    # Важные поля — в начало, чтобы не обрезались _truncate
-    context["receipt_count"] = len(receipts)
-    context["total_spent"] = sum(r.total for r in receipts)
-
-    if body.parameters and body.parameters.members:
-        context["members"] = [m.model_dump() for m in body.parameters.members]
-
-    if body.parameters and body.parameters.history:
-        context["history"] = [h.model_dump() for h in body.parameters.history]
-
-    # Самый объёмный блок — в самый конец
-    context["receipts"] = receipts_info
-
-    # ============================================================
-    # LLM actions (LIGHT / STRONG)
-    # ============================================================
-
-    context_hash = compute_context_hash(user.id, body.action, context)
-
-    question_hash = None
-    if body.action == "ask" and body.parameters and body.parameters.question:
-        question_hash = compute_context_hash(
-            user.id, body.action, {"question": body.parameters.question}
-        )
-
-    # ============================================================
-    # Проверка кэша
-    # ============================================================
-    cached = await get_cached_response(
-        db=db,
-        user_id=user.id,
-        action=body.action,
-        context_hash=context_hash,
-        question_hash=question_hash,
-    )
-    if cached:
-        sections_raw = cached
-        # Не списываем кредиты при cache-hit
-    else:
-        # ============================================================
-        # Вызов TaskRouter (используем модульный экземпляр для тестируемости)
-        # ============================================================
-        parameters = body.parameters.model_dump(exclude_none=True) if body.parameters else None
-        try:
-            prompt: str = _build_user_prompt(body.action, parameters, context)
-            raw: str = await _call_llm(AI_LIGHT_MODEL, body.action, prompt)
-            sections_raw: list[dict[str, Any]] = _coerce_sections(raw)
-        except AiServiceError as e:
-            sections_parsed = [AiSection(type="text", title="Ошибка AI", text=f"Ошибка получения ответа от сервера: {e.message}")]
-            ai_report = AiReport(
-                id=uuid.uuid4().hex,
-                action=body.action,
-                user_id=user.id,
-                snapshot=json.dumps(
-                    {
-                        "receiptCount": len(receipts),
-                        "totalSpent": sum(r.total for r in receipts),
-                        "receiptIds": [r.id for r in receipts],
-                    },
-                    ensure_ascii=False,
-                ),
-                response=json.dumps([s.model_dump() for s in sections_parsed], ensure_ascii=False),
-            )
-            db.add(ai_report)
-            await db.commit()
-            return AiResult(
-                id=ai_report.id,
-                action=body.action,
-                createdAt=datetime.now().isoformat(),
-                sections=sections_parsed,
-            )
-
-        # Кэшируем ответ
-        await set_cached_response(
-            db=db,
-            user_id=user.id,
-            action=body.action,
-            context_hash=context_hash,
-            response=json.dumps(sections_raw, ensure_ascii=False),
-            question_hash=question_hash,
-            ttl_hours=24,
-        )
-
-    # Списание кредитов
-    await deduct_credits(db=db, user=user, ip=ip, action=body.action)
-
-    # ============================================================
-    # Парсинг ответа AI в секции
-    # ============================================================
-    try:
-        sections_parsed = [AiSection(**s) for s in sections_raw]
-    except Exception:
-        sections_parsed = [AiSection(type="text", text=str(sections_raw) if sections_raw else "")]
-
-    # ============================================================
-    # Сохранение отчёта
-    # ============================================================
-    report_id = uuid.uuid4().hex
-    now = datetime.now().isoformat()
-
-    ai_report = AiReport(
-        id=report_id,
-        action=body.action,
-        user_id=user.id,
-        snapshot=json.dumps(
-            {
-                "receiptCount": len(receipts),
-                "totalSpent": sum(r.total for r in receipts),
-                "receiptIds": [r.id for r in receipts],
-            },
-            ensure_ascii=False,
-        ),
-        response=json.dumps([s.model_dump() for s in sections_parsed], ensure_ascii=False),
-    )
-    db.add(ai_report)
-    await db.commit()
 
     return AiResult(
         id=report_id,
@@ -565,9 +395,7 @@ async def get_report(
     )
     r = result.scalar_one_or_none()
     if not r:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Report not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
     return AiResult(
         id=r.id,
         action=r.action,
@@ -587,9 +415,7 @@ async def delete_report(
     )
     r = result.scalar_one_or_none()
     if not r:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Report not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
     await db.delete(r)
     await db.commit()
 
@@ -600,6 +426,6 @@ def _parse_sections(response_json: str | None) -> list[AiSection]:
     try:
         data = json.loads(response_json)
         return [AiSection(**s) for s in data]
-    except (json.JSONDecodeError, TypeError, Exception) as e:
-        logger.warning("Failed to parse stored sections", extra={"error": str(e)})
+    except (json.JSONDecodeError, TypeError, ValidationError):
+        logger.warning("Failed to parse stored sections")
         return []

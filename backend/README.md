@@ -17,6 +17,7 @@ Swagger: `http://127.0.0.1:8000/docs`. Healthcheck: `/health`, остальны�
 ```bash
 uv run ruff check src tests scripts
 uv run pytest
+uv run alembic upgrade head
 ```
 
 ## Структура
@@ -26,6 +27,8 @@ uv run pytest
 - `src/models.py` — SQLAlchemy-модели.
 - `src/analytics.py` — локальная аналитика без LLM.
 - `src/ai_service.py` — маршрутизация LOCAL/LIGHT/STRONG.
+- `src/integrations/` — адаптеры внешних API с timeout.
+- `src/services/` — транзакционная бизнес-логика.
 - `alembic/` — миграции.
 - `tests/` — unit, route и integration tests.
 
@@ -35,6 +38,14 @@ Backend владеет API-контрактом. После изменения r
 ## Внешние сервисы
 
 QR receipt API, AI provider, SMTP и YooKassa конфигурируются только через
-environment. Тесты не должны обращаться к ним напрямую. YooKassa webhook сейчас
-намеренно fail-closed (404) до реализации официальной проверки подлинности;
-см. `docs/known-issues.md`.
+environment. Тесты не обращаются к ним напрямую: внешние TCP-соединения
+запрещены общей fixture.
+
+Для YooKassa зарегистрируйте уведомления `payment.succeeded` и
+`payment.canceled` на `/api/subscription/yookassa/webhook`. Входящий payload не
+считается доверенным: backend повторно получает платеж через YooKassa API и
+сверяет статус, сумму, валюту и владельца. Повторная доставка не продлевает
+подписку второй раз.
+
+Логи выводятся в JSON. Входной `X-Request-ID` принимается только в безопасном
+формате, иначе генерируется новый; итоговый ID возвращается в response header.

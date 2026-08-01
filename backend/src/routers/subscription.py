@@ -1,32 +1,34 @@
+import logging
 from datetime import datetime, timezone
 from uuid import uuid4
-import hmac
-import hashlib
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi_throttle import RateLimiter
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from yookassa import Configuration, Payment
 
 from ..auth import get_current_user
+from ..config import PAYMENT_AMOUNT_RUB, PAYMENT_RETURN_URL
 from ..database import get_db
-from ..models import Subscription, User, Payment as MPayment
-from ..config import PAYMENT_ACCOUNT_ID, PAYMENT_SECRET_KEY
-from ..utils import with_rate_limit
+from ..integrations.yookassa import YooKassaError, yookassa_gateway
+from ..models import Payment as MPayment
+from ..models import Subscription, User
 from ..schemas import (
     CreatePaymentRequest,
     PaymentConfirmationResponse,
     PremiumStatusResponse,
+    StatusResponse,
+    SubscriptionStatusResponse,
+    YooKassaWebhookRequest,
 )
+from ..services.subscriptions import PaymentVerificationError, apply_yookassa_event
+from ..utils import with_rate_limit
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Subscription"], prefix="/subscription")
 get = with_rate_limit(router.get, RateLimiter(100, 1))
 post = with_rate_limit(router.post, RateLimiter(100, 1))
-
-
-Configuration.account_id = PAYMENT_ACCOUNT_ID
-Configuration.secret_key = PAYMENT_SECRET_KEY
 
 
 def _utcnow() -> datetime:
@@ -34,30 +36,7 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _verify_yookassa_signature(request: Request, body_bytes: bytes) -> bool:
-    """Verify YooKassa webhook signature using HMAC-SHA256."""
-    signature = request.headers.get("X-Yookassa-Signature")
-    if not signature:
-        return False
-
-    # YooKassa sends signature as "sha256=<hash>"
-    if not signature.startswith("sha256="):
-        return False
-
-    expected_hash = signature[7:]  # Remove "sha256=" prefix
-
-    # Compute HMAC-SHA256 of body using secret key
-    computed = hmac.new(
-        PAYMENT_SECRET_KEY.encode("utf-8"),
-        body_bytes,
-        hashlib.sha256
-    ).hexdigest()
-
-    # Use compare_digest to prevent timing attacks
-    return hmac.compare_digest(expected_hash, computed)
-
-
-@get("")
+@get("", response_model=SubscriptionStatusResponse)
 async def get_subscription(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -76,7 +55,11 @@ async def get_subscription(
 
     return {
         "active": subscription.active,
-        "platform": "yookassa" if subscription.purchase_token is None else "google",
+        "platform": (
+            "yookassa"
+            if subscription.purchase_token.startswith("yookassa:")
+            else "google"
+        ),
         "expiresAt": subscription.expires_at.isoformat() if subscription.expires_at else None,
     }
 
@@ -98,9 +81,7 @@ async def is_premium(
         expires = expires.replace(tzinfo=timezone.utc) if expires.tzinfo is None else expires
         if expires < now:
             premium = False
-            await db.execute(
-                update(User).where(User.id == user.id).values(premium=False)
-            )
+            await db.execute(update(User).where(User.id == user.id).values(premium=False))
             await db.commit()
 
     return {"premium": premium}
@@ -114,12 +95,15 @@ async def create_payment(
 ):
     """Create YooKassa payment for premium subscription."""
     # Prevent abuse: limit pending payments to 3
-    q = select(MPayment).where(
-        MPayment.user_id == user.id,
-        MPayment.status == "in_progress",
+    q = (
+        select(func.count())
+        .select_from(MPayment)
+        .where(
+            MPayment.user_id == user.id,
+            MPayment.status == "in_progress",
+        )
     )
-    result = await db.execute(q)
-    pending_count = len(result.scalars().all())
+    pending_count = await db.scalar(q) or 0
     if pending_count >= 3:
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
@@ -131,18 +115,18 @@ async def create_payment(
     # Build payment with optional payment method
     payment_data = {
         "amount": {
-            "value": "5.00",
+            "value": PAYMENT_AMOUNT_RUB,
             "currency": "RUB",
         },
         "capture": True,
-        "description": f"Food Tracker Premium для {user.email}",
+        "description": "Foodler Premium",
         "confirmation": {
             "type": "redirect",
-            "return_url": "https://foodler.site/",
+            "return_url": PAYMENT_RETURN_URL,
         },
         "metadata": {
             "user_id": user.id,
-        }
+        },
     }
 
     # Add payment_method_data if specified
@@ -151,10 +135,31 @@ async def create_payment(
             "type": body.paymentMethod,
         }
 
-    payment = Payment.create(payment_data, hash(uuid4()))
+    idempotency_key = str(uuid4())
+    try:
+        payment = await yookassa_gateway.create_payment(payment_data, idempotency_key)
+    except YooKassaError as exc:
+        logger.warning(
+            "Payment provider request failed",
+            extra={"provider": "yookassa", "event": "payment.create"},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Payment provider unavailable",
+        ) from exc
+
     if payment.confirmation is None:
-        Payment.cancel(payment.id)
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR)
+        try:
+            await yookassa_gateway.cancel_payment(payment.id, str(uuid4()))
+        except YooKassaError:
+            logger.warning(
+                "Payment cancellation failed",
+                extra={"provider": "yookassa", "event": "payment.cancel"},
+            )
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            detail="Payment provider returned no confirmation",
+        )
 
     mpayment = MPayment(
         id=payment.id,
@@ -168,11 +173,43 @@ async def create_payment(
     return {"confirmationUrl": payment.confirmation.confirmation_url}
 
 
-# BUG: неправильно работает проверка сигнатуры от ответа юкассы, поэтому сейчас костыльная защита
-@router.post("/yookassa/webhook", status_code=status.HTTP_404_NOT_FOUND)
-async def webhook(request: Request, db: AsyncSession = Depends(get_db)):
-    """Fail closed until YooKassa event authenticity is implemented."""
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="YooKassa webhook is disabled",
+@router.post("/yookassa/webhook", response_model=StatusResponse)
+async def webhook(
+    body: YooKassaWebhookRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Verify the current payment at YooKassa, then apply the event once."""
+    try:
+        remote_payment = await yookassa_gateway.get_payment(body.object.id)
+    except YooKassaError as exc:
+        logger.warning(
+            "Payment verification unavailable",
+            extra={"provider": "yookassa", "event": body.event},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Payment verification unavailable",
+        ) from exc
+
+    try:
+        result = await apply_yookassa_event(
+            db,
+            event=body.event,
+            payment_id=body.object.id,
+            remote_payment=remote_payment,
+        )
+    except PaymentVerificationError as exc:
+        logger.warning(
+            "Payment notification rejected",
+            extra={"provider": "yookassa", "event": body.event},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Payment notification rejected",
+        ) from exc
+
+    logger.info(
+        "Payment notification processed",
+        extra={"provider": "yookassa", "event": body.event},
     )
+    return {"status": result}

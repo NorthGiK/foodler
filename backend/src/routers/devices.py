@@ -14,15 +14,14 @@ get = with_rate_limit(router.get, RateLimiter(100, 1))
 post = with_rate_limit(router.post, RateLimiter(100, 1))
 delete = with_rate_limit(router.delete, RateLimiter(50, 1))
 
+
 @get("/devices", response_model=list[DeviceResponse])
 async def list_devices(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Device)
-        .where(Device.user_id == user.id)
-        .order_by(Device.created_at.desc())
+        select(Device).where(Device.user_id == user.id).order_by(Device.created_at.desc())
     )
     devices = result.scalars().all()
     return [
@@ -69,8 +68,6 @@ async def remove_device(
     )
     device = result.scalar_one_or_none()
     if not device:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Device not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Device not found")
     await db.delete(device)
     await db.commit()

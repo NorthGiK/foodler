@@ -23,7 +23,8 @@ Generated-файлы коммитятся, чтобы изменение кон�
 
 - Backend unit: чистая бизнес-логика.
 - Backend route/integration: ASGI transport и in-memory SQLite, все внешние
-  сервисы замокированы.
+  сервисы замокированы; любые внешние TCP-соединения блокируются autouse
+  fixture.
 - Mobile unit: transport, storage и преобразование данных.
 - Mobile component: loading/empty/error/success и обновление после локальной
   записи.
@@ -32,6 +33,10 @@ Generated-файлы коммитятся, чтобы изменение кон�
 Тест не должен обращаться к production, ждать реальные таймеры или зависеть от
 порядка запуска. Для временного отключения теста требуется отдельная задача с
 причиной и сроком.
+
+Изменение SQLAlchemy-модели сопровождается Alembic migration и тестом перехода
+с предыдущей revision. Локально применить миграции: `uv run alembic upgrade
+head`.
 
 ## Конфигурация
 

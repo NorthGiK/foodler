@@ -2,6 +2,8 @@
 Tests for auth API endpoints - /api/auth/*
 """
 
+from unittest.mock import AsyncMock
+
 import pytest
 from httpx import AsyncClient
 
@@ -10,8 +12,10 @@ class TestSendCode:
     """Tests for POST /api/auth/send-code"""
 
     @pytest.mark.asyncio
-    async def test_send_code_success(self, client: AsyncClient):
+    async def test_send_code_success(self, client: AsyncClient, monkeypatch):
         """Should send verification code successfully."""
+        send_code = AsyncMock(return_value=True)
+        monkeypatch.setattr("src.routers.auth.EmailService.send_code", send_code)
         response = await client.post(
             "/api/auth/send-code",
             json={"email": "test@example.com", "password": "TestPass123!"},
@@ -19,6 +23,7 @@ class TestSendCode:
         assert response.status_code == 200
         data = response.json()
         assert data["message"] == "Verification code sent"
+        send_code.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_send_code_invalid_email(self, client: AsyncClient):

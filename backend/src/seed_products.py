@@ -4,6 +4,7 @@ Seed-скрипт для заполнения БД популярными про
 """
 
 import asyncio
+import logging
 import sys
 
 sys.path.insert(0, ".")
@@ -11,6 +12,8 @@ sys.path.insert(0, ".")
 from sqlalchemy import select
 from src.database import async_session, init_db
 from src.models import Product, ProductAlias, ProductTag, ProductTagMember
+
+logger = logging.getLogger(__name__)
 
 
 # Формат: (каноническое_имя, ккал, белки, жиры, углеводы, [алиасы], [теги], parent_name)
@@ -454,7 +457,7 @@ async def seed():
         # Проверяем, есть ли уже данные
         result = await db.execute(select(Product).limit(1))
         if result.scalar_one_or_none():
-            print("БД уже содержит продукты. Пропускаем seed.")
+            logger.info("Product seed skipped")
             return
 
         # Создаём теги (только категории, не алиасы)
@@ -530,7 +533,7 @@ async def seed():
                 smetana_variant.parent_id = smetana_parent.id
 
         await db.commit()
-        print(f"✅ Загружено {len(SEED_PRODUCTS)} продуктов, {len(tag_names)} тегов.")
+        logger.info("Product seed completed")
 
 
 if __name__ == "__main__":

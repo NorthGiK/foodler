@@ -1,18 +1,23 @@
+import io
+import logging
 from functools import wraps
-from pathlib import Path
-import tempfile
 
 from fastapi import APIRouter, Depends, Response, UploadFile, HTTPException, status
 from fastapi_throttle import RateLimiter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from aiohttp import ClientSession, FormData
+from aiohttp import ClientSession, ClientTimeout, ContentTypeError, FormData
 from aiohttp.web_exceptions import HTTPException as WebHTTPException
 from aiohttp.http_exceptions import HttpProcessingError
 from aiohttp.client import ClientError
 
-from src.config import API_URL, API_KEY_QR
+from src.config import (
+    API_KEY_QR,
+    API_URL,
+    QR_API_TIMEOUT_SECONDS,
+    QR_UPLOAD_MAX_BYTES,
+)
 from ..auth import get_current_user
 from ..database import get_db
 from ..models import Receipt, ReceiptItem, User
@@ -33,7 +38,7 @@ post = with_rate_limit(router.post, RateLimiter(100, 1))
 delete = with_rate_limit(router.delete, RateLimiter(50, 1))
 patch = with_rate_limit(router.patch, RateLimiter(50, 1))
 
-TMP_DIR = Path(tempfile.gettempdir())
+logger = logging.getLogger(__name__)
 
 
 def raise_500_if_exception(func):
@@ -41,9 +46,18 @@ def raise_500_if_exception(func):
     async def wrapper(*args, **kwargs):
         try:
             return await func(*args, **kwargs)
-        except (WebHTTPException, HttpProcessingError, ClientError) as err:
-            print(err)
-            raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, err)
+        except (
+            WebHTTPException,
+            HttpProcessingError,
+            ClientError,
+            ContentTypeError,
+            TimeoutError,
+        ) as exc:
+            logger.warning("Receipt provider request failed", extra={"provider": "receipt_api"})
+            raise HTTPException(
+                status.HTTP_502_BAD_GATEWAY,
+                detail="Receipt provider unavailable",
+            ) from exc
 
     return wrapper
 
@@ -51,46 +65,52 @@ def raise_500_if_exception(func):
 @raise_500_if_exception
 @post("/receipts/get_receipt_by_qr", response_model=ReceiptRawResponseSchema)
 async def get_receipt_by_qr(body: GetReceiptFromQRSchema):
-    async with ClientSession() as session:
-        receipt = await session.post(
+    timeout = ClientTimeout(total=QR_API_TIMEOUT_SECONDS)
+    async with ClientSession(timeout=timeout) as session:
+        async with session.post(
             API_URL,
             headers={"Content-Type": "application/json"},
             data={
                 "qrraw": body.qrraw,
                 "token": API_KEY_QR,
             },
-        )
-
-    if not receipt.ok:
-        print("ERROR from api was happen")
-        raise HTTPException(receipt.status, await receipt.text())
-    return await receipt.json()
+        ) as receipt:
+            if not receipt.ok:
+                raise HTTPException(
+                    status.HTTP_502_BAD_GATEWAY,
+                    detail="Receipt provider rejected the request",
+                )
+            return await receipt.json()
 
 
 @raise_500_if_exception
 @post("/receipts/get_receipt_by_raw_qr")
 async def get_receipt_by_raw_qr(qrfile: UploadFile):
-    data = FormData()
-    data.add_field("token", API_KEY_QR)
-
-    with tempfile.NamedTemporaryFile("wb+", delete=True) as tmp_file:
-        tmp_file.write(await qrfile.read())
-
-        data.add_field(
-            "qrfile",
-            tmp_file.file,
-            filename=qrfile.filename,
-            content_type="image/jpeg",
+    contents = await qrfile.read(QR_UPLOAD_MAX_BYTES + 1)
+    if len(contents) > QR_UPLOAD_MAX_BYTES:
+        raise HTTPException(
+            status.HTTP_413_CONTENT_TOO_LARGE,
+            detail="QR image is too large",
         )
 
-        async with ClientSession() as session:
-            receipt = await session.post(
-                API_URL,
-                headers={"Content-Type": "multipart/form-data"},
-                data=data,
-            )
+    data = FormData()
+    data.add_field("token", API_KEY_QR)
+    data.add_field(
+        "qrfile",
+        io.BytesIO(contents),
+        filename=qrfile.filename or "receipt.jpg",
+        content_type=qrfile.content_type or "image/jpeg",
+    )
 
-    return await receipt.json()
+    timeout = ClientTimeout(total=QR_API_TIMEOUT_SECONDS)
+    async with ClientSession(timeout=timeout) as session:
+        async with session.post(API_URL, data=data) as receipt:
+            if not receipt.ok:
+                raise HTTPException(
+                    status.HTTP_502_BAD_GATEWAY,
+                    detail="Receipt provider rejected the request",
+                )
+            return await receipt.json()
 
 
 @get("/receipts", response_model=list[ReceiptSchema])
@@ -163,6 +183,7 @@ async def upload_receipt(
     await db.commit()
     return {"status": "ok"}
 
+
 @post(
     "/receipts/array",
     status_code=status.HTTP_201_CREATED,
@@ -215,9 +236,7 @@ async def get_receipt(
     )
     r = result.scalar_one_or_none()
     if not r:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Receipt not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Receipt not found")
     return ReceiptSchema(
         id=r.id,
         date=r.date,
@@ -244,9 +263,7 @@ async def update_receipt(
     )
     r = result.scalar_one_or_none()
     if not r:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Receipt not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Receipt not found")
 
     r.date = body.date
     r.store = body.store or "Продуктовый"
@@ -300,8 +317,6 @@ async def delete_receipt(
     )
     r = result.scalar_one_or_none()
     if not r:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Receipt not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Receipt not found")
     await db.delete(r)
     await db.commit()
