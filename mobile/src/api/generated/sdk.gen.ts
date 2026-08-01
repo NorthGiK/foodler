@@ -129,9 +129,6 @@ import type {
   VerifyCodeApiAuthVerifyCodePostData,
   VerifyCodeApiAuthVerifyCodePostErrors,
   VerifyCodeApiAuthVerifyCodePostResponses,
-  VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostData,
-  VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostErrors,
-  VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostResponses,
   WebhookApiSubscriptionYookassaWebhookPostData,
   WebhookApiSubscriptionYookassaWebhookPostErrors,
   WebhookApiSubscriptionYookassaWebhookPostResponses,
@@ -1062,36 +1059,6 @@ export class Sdk extends HeyApiClient {
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/subscription",
       ...options,
-    });
-  }
-
-  /**
-   * Verify Google Purchase
-   */
-  public verifyGooglePurchaseApiSubscriptionGoogleVerifyPost<
-    ThrowOnError extends boolean = false,
-  >(
-    options: Options<
-      VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostData,
-      ThrowOnError
-    >,
-  ): RequestResult<
-    VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostResponses,
-    VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostErrors,
-    ThrowOnError
-  > {
-    return (options.client ?? this.client).post<
-      VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostResponses,
-      VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostErrors,
-      ThrowOnError
-    >({
-      security: [{ scheme: "bearer", type: "http" }],
-      url: "/api/subscription/google/verify",
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
     });
   }
 

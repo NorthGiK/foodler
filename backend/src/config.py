@@ -91,9 +91,3 @@ CORS_ORIGINS = _get_csv(
 )
 RECEIPT_CLEANUP_INTERVAL_SECONDS = int(os.getenv("RECEIPT_CLEANUP_INTERVAL_SECONDS", "3600"))
 METRICS_TOKEN = os.getenv("METRICS_TOKEN", "")
-
-# Google Play. The service-account JSON is mounted as a file, never stored in Git.
-GOOGLE_PLAY_PACKAGE_NAME = os.getenv("GOOGLE_PLAY_PACKAGE_NAME", "")
-GOOGLE_PLAY_SERVICE_ACCOUNT_FILE = os.getenv("GOOGLE_PLAY_SERVICE_ACCOUNT_FILE", "")
-GOOGLE_PLAY_TIMEOUT_SECONDS = float(os.getenv("GOOGLE_PLAY_TIMEOUT_SECONDS", "10"))
-GOOGLE_PLAY_PRODUCT_IDS = _get_csv("GOOGLE_PLAY_PRODUCT_IDS", "premium_monthly")

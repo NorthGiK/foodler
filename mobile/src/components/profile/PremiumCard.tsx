@@ -1,19 +1,20 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, Alert, Linking, ScrollView, Pressable } from "react-native";
+import { View, Text, StyleSheet, Alert, Linking } from "react-native";
 import MaterialIcons from "@react-native-vector-icons/material-icons";
-import { useTheme } from "../ThemeContext";
-import { AnimatedPressable } from "../animations";
-import { RainbowGlowButton } from "../RainbowGlowButton";
-import { api } from "@/api/client";
 import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+
+import type { RootStackParamList } from "../../../App";
 import { useAuth } from "@/api/auth";
-import FullModalWindow from "../FullModalWindow";
+import { api } from "@/api/client";
+
+import { useTheme } from "../ThemeContext";
+import { RainbowGlowButton } from "../RainbowGlowButton";
 
 const SUBSCRIPTION_FEATURES = [
-  { icon: "auto-awesome", text: "Увеличнный доступ к AI-помощнику" },
-  { icon: "cloud-sync", text: "Синхронизация между устройствами" },
-  { icon: "group", text: "До 10 членов семьи" },
-];
+  { icon: "auto-awesome", text: "Увеличенный доступ к AI-помощнику" },
+  { icon: "inventory", text: "Бессрочное серверное хранение новых чеков" },
+] as const;
 
 interface PremiumCardProps {
   isPremium: boolean;
@@ -25,11 +26,13 @@ export function PremiumCard({
   subscriptionExpires,
 }: PremiumCardProps) {
   const { theme } = useTheme();
-  const navigation = useNavigation<any>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { isAuthenticated } = useAuth();
   const [processing, setProcessing] = useState(false);
 
   const purchase = async () => {
+    if (processing) return;
     if (!isAuthenticated) {
       navigation.navigate("Login");
       return;
@@ -52,7 +55,6 @@ export function PremiumCard({
     }
   };
 
-
   if (isPremium) {
     return (
       <View
@@ -71,13 +73,10 @@ export function PremiumCard({
             <MaterialIcons name="star" size={24} color={theme.primary} />
           </View>
           <View style={styles.textContainer}>
-            <Text style={[styles.title, { color: theme.text }]}>
-              Premium
-            </Text>
+            <Text style={[styles.title, { color: theme.text }]}>Premium</Text>
             {subscriptionExpires && (
               <Text style={[styles.subtitle, { color: theme.muted }]}>
-                До{" "}
-                {new Date(subscriptionExpires).toLocaleDateString("ru-RU")}
+                До {new Date(subscriptionExpires).toLocaleDateString("ru-RU")}
               </Text>
             )}
           </View>
@@ -102,23 +101,6 @@ export function PremiumCard({
             </View>
           ))}
         </View>
-
-        <AnimatedPressable scaleTo={0.97}>
-          <View
-            style={[
-              styles.manageButton,
-              {
-                backgroundColor: theme.surface,
-                borderColor: theme.border,
-              },
-            ]}
-          >
-            {/* <MaterialIcons name="settings" size={16} color={theme.primary} />
-            <Text style={[styles.manageButtonText, { color: theme.primary }]}>
-              Управление подпиской
-            </Text> */}
-          </View>
-        </AnimatedPressable>
       </View>
     );
   }
@@ -153,7 +135,7 @@ export function PremiumCard({
         {SUBSCRIPTION_FEATURES.map((feature, i) => (
           <View key={i} style={styles.featureRow}>
             <MaterialIcons
-              name={feature.icon as any}
+              name={feature.icon}
               size={16}
               color={theme.primary}
             />
@@ -164,10 +146,14 @@ export function PremiumCard({
         ))}
       </View>
 
-      <RainbowGlowButton title="Оформить подписку" variant="premium" onPress={() => purchase()} />
+      <RainbowGlowButton
+        title={processing ? "Открываем оплату…" : "Оформить подписку"}
+        variant="premium"
+        onPress={purchase}
+      />
 
       <Text style={[styles.promoNote, { color: theme.muted }]}>
-        999 ₽/мес
+        Итоговая стоимость будет показана до подтверждения оплаты
       </Text>
     </View>
   );
@@ -237,19 +223,6 @@ const styles = StyleSheet.create({
   },
   featureText: {
     fontSize: 14,
-  },
-  manageButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  manageButtonText: {
-    fontSize: 15,
-    fontWeight: "600",
   },
   promoNote: {
     textAlign: "center",

@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import sqlalchemy as sa
 from alembic.config import Config
 from sqlalchemy import create_engine, inspect
@@ -140,6 +142,12 @@ def test_hardening_migrations_upgrade_previous_schema_and_data(tmp_path):
     assert receipt_date["nullable"] is False
     subscription_indexes = {index["name"] for index in inspector.get_indexes("subscriptions")}
     assert "ux_subscriptions_purchase_token" in subscription_indexes
+    provider_check = next(
+        constraint["sqltext"]
+        for constraint in inspector.get_check_constraints("subscriptions")
+        if constraint["name"] == "ck_subscriptions_provider"
+    )
+    assert provider_check == "provider IN ('yookassa', 'legacy')"
 
     with engine.connect() as connection:
         receipt = connection.execute(
@@ -154,4 +162,93 @@ def test_hardening_migrations_upgrade_previous_schema_and_data(tmp_path):
     assert receipt == ("2026-01-02", 1234)
     assert item == ("kg", 456)
     assert legacy_subscription == "legacy"
+    engine.dispose()
+
+
+def test_removed_subscription_provider_is_revoked_during_upgrade(tmp_path):
+    database = tmp_path / "removed-provider.sqlite"
+    url = f"sqlite:///{database}"
+    engine = create_engine(url)
+    metadata = sa.MetaData()
+    users = sa.Table(
+        "users",
+        metadata,
+        sa.Column("id", sa.String(), primary_key=True),
+        sa.Column("premium", sa.Boolean(), nullable=False),
+        sa.Column("subscription_expires", sa.DateTime()),
+    )
+    subscriptions = sa.Table(
+        "subscriptions",
+        metadata,
+        sa.Column("id", sa.String(), primary_key=True),
+        sa.Column("user_id", sa.String(), nullable=False),
+        sa.Column("purchase_token", sa.String(), nullable=False),
+        sa.Column("product_id", sa.String(), nullable=False),
+        sa.Column("provider", sa.String(), nullable=False),
+        sa.Column("active", sa.Boolean(), nullable=False),
+        sa.Column("expires_at", sa.DateTime()),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.CheckConstraint("length(provider) > 0", name="ck_subscriptions_provider"),
+    )
+    metadata.create_all(engine)
+
+    with engine.begin() as connection:
+        connection.execute(
+            users.insert(),
+            [
+                {
+                    "id": "unsupported-user",
+                    "premium": True,
+                    "subscription_expires": datetime(2030, 1, 1),
+                },
+                {
+                    "id": "supported-user",
+                    "premium": True,
+                    "subscription_expires": datetime(2030, 1, 1),
+                },
+            ],
+        )
+        connection.execute(
+            subscriptions.insert(),
+            [
+                {
+                    "id": "unsupported-subscription",
+                    "user_id": "unsupported-user",
+                    "purchase_token": "unsupported:token",
+                    "product_id": "unsupported-product",
+                    "provider": "unsupported",
+                    "active": True,
+                    "expires_at": datetime(2030, 1, 1),
+                    "created_at": datetime(2026, 8, 2),
+                },
+                {
+                    "id": "supported-subscription",
+                    "user_id": "supported-user",
+                    "purchase_token": "yookassa:payment",
+                    "product_id": "premium_monthly",
+                    "provider": "yookassa",
+                    "active": True,
+                    "expires_at": datetime(2030, 1, 1),
+                    "created_at": datetime(2026, 8, 2),
+                },
+            ],
+        )
+
+    config = Config("alembic.ini")
+    config.attributes["database_url"] = url
+    command.stamp(config, "c9a2e7714f30")  # pragma: allowlist secret
+    command.upgrade(config, "head")
+
+    with engine.connect() as connection:
+        unsupported_user = connection.execute(
+            sa.select(users.c.premium, users.c.subscription_expires).where(
+                users.c.id == "unsupported-user"
+            )
+        ).one()
+        remaining_subscriptions = connection.execute(
+            sa.select(subscriptions.c.user_id, subscriptions.c.provider)
+        ).all()
+
+    assert unsupported_user == (False, None)
+    assert remaining_subscriptions == [("supported-user", "yookassa")]
     engine.dispose()

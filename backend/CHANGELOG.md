@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.5.1 — Subscription simplification and documentation alignment
+
+- YooKassa is the only supported payment provider; the unused alternative
+  verification flow and its dependency were removed.
+- Added a forward migration that clears unsupported subscription entitlements
+  and restricts provider values to `yookassa` and `legacy`.
+- Receipt pagination now returns `X-Total-Count`, `X-Page-Offset` and
+  `X-Page-Limit`.
+- Rewrote subscription documentation to match the authoritative payment
+  re-fetch flow, response fields, retention rules and supported methods.
+- Updated README, agent rules, environment examples, architecture, legal texts
+  and deployment configuration together with the code.
+
+---
+
 ## v1.5.0 — Backend reliability and security
 
 - Access JWT now has issuer, audience, type, short expiry and per-user revocation
@@ -10,8 +25,7 @@
 - Receipt and AI HTTP calls reuse a bounded connection pool and have explicit
   adapter errors/timeouts. Readiness checks the database; retention runs outside
   request handlers.
-- YooKassa remains server-verified and idempotent. Google Play subscriptions are
-  verified with the Android Publisher API and bound to the Foodler user.
+- YooKassa remains server-verified and idempotent.
 - Subscription entitlement has one application service and one database source
   of truth; credits consult it before making decisions.
 - Monetary values are stored as integer kopecks, receipt dates are typed, legacy
@@ -30,7 +44,6 @@
 
 ### Critical security fixes
 
-- **Removed Google subscription endpoint** (`POST /subscription/google`) — eliminated unverified purchase abuse vector
 - **YooKassa webhook verification** — the payload is treated as an event hint;
   backend re-fetches the payment from YooKassa and verifies its trusted fields
 - **Webhook idempotency** — duplicate `payment.succeeded` events no longer extend subscription repeatedly

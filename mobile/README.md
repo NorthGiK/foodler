@@ -18,6 +18,9 @@ npm run start
 EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8000/api
 ```
 
+Для production-сборки `EXPO_PUBLIC_API_BASE_URL` обязателен: production URL не
+зашит в bundle исходным кодом. Завершающий `/` автоматически удаляется.
+
 Проверки:
 
 ```bash
@@ -41,3 +44,8 @@ DTO запрещены.
 
 Expo public variables попадают в bundle и не могут содержать секреты. Ключ
 проверки чеков хранится только на backend.
+
+При любом изменении mobile-кода обязательно проверьте README, changelog,
+guides, `.env.example`, legal-тексты и корневые `docs/`. Пользовательское
+поведение и premium-возможности должны быть описаны так же, как реализованы;
+пары `legal/*.md` и публикуемые `legal/*.html` обновляются вместе.

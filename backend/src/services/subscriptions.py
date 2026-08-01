@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Any
@@ -8,7 +7,7 @@ from typing import Any
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.config import GOOGLE_PLAY_PRODUCT_IDS, PAYMENT_AMOUNT_RUB, SUBSCRIPTION_PERIOD_DAYS
+from src.config import PAYMENT_AMOUNT_RUB, SUBSCRIPTION_PERIOD_DAYS
 from src.models import (
     Payment,
     PaymentStatus,
@@ -20,10 +19,6 @@ from src.models import (
 
 class PaymentVerificationError(ValueError):
     """A webhook does not match the authoritative payment state."""
-
-
-class GoogleSubscriptionVerificationError(ValueError):
-    """A Google Play purchase does not grant the requested entitlement."""
 
 
 def _value(obj: Any, name: str, default: Any = None) -> Any:
@@ -158,77 +153,3 @@ async def apply_yookassa_event(
 
     await db.commit()
     return "processed"
-
-
-async def apply_google_play_purchase(
-    db: AsyncSession,
-    *,
-    user: User,
-    purchase_token: str,
-    product_id: str,
-    remote_purchase: dict[str, Any],
-) -> Subscription:
-    if product_id not in GOOGLE_PLAY_PRODUCT_IDS:
-        raise GoogleSubscriptionVerificationError("Google product is not allowed")
-    allowed_states = {
-        "SUBSCRIPTION_STATE_ACTIVE",
-        "SUBSCRIPTION_STATE_IN_GRACE_PERIOD",
-    }
-    if remote_purchase.get("subscriptionState") not in allowed_states:
-        raise GoogleSubscriptionVerificationError("Google subscription is not active")
-    if remote_purchase.get("acknowledgementState") != "ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED":
-        raise GoogleSubscriptionVerificationError("Google subscription is not acknowledged")
-
-    line_items = remote_purchase.get("lineItems")
-    if not isinstance(line_items, list):
-        raise GoogleSubscriptionVerificationError("Google subscription has no line items")
-    matching_items = [
-        item
-        for item in line_items
-        if isinstance(item, dict) and item.get("productId") == product_id
-    ]
-    if not matching_items:
-        raise GoogleSubscriptionVerificationError("Google product does not match")
-    expiries = [
-        _parse_google_time(item.get("expiryTime"))
-        for item in matching_items
-        if item.get("expiryTime")
-    ]
-    if not expiries:
-        raise GoogleSubscriptionVerificationError("Google expiry is missing")
-    expires_at = max(expiries)
-    if expires_at <= _utcnow_naive():
-        raise GoogleSubscriptionVerificationError("Google subscription expired")
-
-    account_ids = remote_purchase.get("externalAccountIdentifiers") or {}
-    expected_account_id = hashlib.sha256(user.id.encode()).hexdigest()
-    if account_ids.get("obfuscatedExternalAccountId") != expected_account_id:
-        raise GoogleSubscriptionVerificationError("Google purchase owner does not match")
-
-    owner = await db.scalar(
-        select(Subscription).where(Subscription.purchase_token == purchase_token)
-    )
-    if owner is not None and owner.user_id != user.id:
-        raise GoogleSubscriptionVerificationError("Google purchase is already linked")
-
-    subscription = await db.scalar(select(Subscription).where(Subscription.user_id == user.id))
-    if subscription is None:
-        subscription = Subscription(user_id=user.id)
-        db.add(subscription)
-    subscription.purchase_token = purchase_token
-    subscription.product_id = product_id
-    subscription.provider = SubscriptionProvider.GOOGLE_PLAY
-    subscription.active = True
-    subscription.expires_at = expires_at
-    user.premium = True
-    user.subscription_expires = expires_at
-    await db.commit()
-    return subscription
-
-
-def _parse_google_time(value: str) -> datetime:
-    try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except (AttributeError, ValueError) as exc:
-        raise GoogleSubscriptionVerificationError("Google expiry is invalid") from exc
-    return _naive_utc(parsed) or _utcnow_naive()

@@ -1,176 +1,105 @@
-# Subscription Guide for Clients
+# Подписка Foodler
 
-## Overview
+Единственный платёжный провайдер подписки — YooKassa. `Subscription` является
+источником premium-доступа, а поля `User.premium` и
+`User.subscription_expires` поддерживаются как совместимый cache.
 
-Premium subscription unlocks extended receipt storage and AI credits. This guide explains how to check status, create payments, and handle confirmation via YooKassa webhooks.
+## Конфигурация
 
-## Environment Setup
-
-Add these to your `.env`:
-
-```env
-PAYMENT_ACCOUNT_ID=your_shop_id
-PAYMENT_SECRET_KEY=your_secret_key
+```dotenv
+PAYMENT_ACCOUNT_ID=
+PAYMENT_SECRET_KEY=
+PAYMENT_AMOUNT_RUB=5.00
+PAYMENT_RETURN_URL=https://foodler.site/
+PAYMENT_TIMEOUT_SECONDS=10
+PAYMENT_MAX_ATTEMPTS=2
 SUBSCRIPTION_PERIOD_DAYS=30
 ```
 
-## API Flow
+Секрет YooKassa хранится только на backend. Перед запуском новой версии
+обязательно выполните `uv run alembic upgrade head`.
 
-### 1. Check Subscription Status
+## Клиентский поток
 
-**Request:**
-```bash
-GET /api/subscription/
-Authorization: Bearer <access_token>
+### Получить статус
+
+```http
+GET /api/subscription
+Authorization: Bearer <access-token>
 ```
 
-**Response:**
 ```json
 {
   "active": true,
   "platform": "yookassa",
-  "expiresAt": "2026-08-16T17:01:28"
+  "expiresAt": "2026-09-01T10:00:00"
 }
 ```
 
-### 2. Check Premium Status (Lightweight)
+Для одной булевой проверки используется
+`GET /api/subscription/is_premium`.
 
-**Request:**
-```bash
-GET /api/subscription/is_premium
-Authorization: Bearer <access_token>
-```
+### Создать платёж
 
-**Response:**
-```json
-{
-  "premium": true
-}
-```
-
-Use this endpoint when you need a simple boolean check before enabling premium features.
-
-### 3. Create Payment
-
-**Request:**
-```bash
+```http
 POST /api/subscription/payment
-Authorization: Bearer <access_token>
+Authorization: Bearer <access-token>
 Content-Type: application/json
 
-{
-  "paymentMethod": "bank_card"  // optional
-}
-```
-
-**Response:**
-```json
-{
-  "url": "https://yookassa.ru/payment/..."
-}
-```
-
-Open the returned URL in a browser to complete payment. After payment, YooKassa will send a webhook to your server.
-
-#### Payment Method Options
-
-The `paymentMethod` field is optional. If not specified, YooKassa will show all available payment methods for the user to choose from:
-
-| Method | Description |
-|--------|-------------|
-| `bank_card` | Credit/debit card (default) |
-| `sbp` | СБП (Система быстрых платежей) - via banking app |
-| `sberbank` | SberPay - via SberBank app |
-| `tinkoff_bank` | T-Pay - via T-Bank app |
-| `yoo_money` | YooMoney wallet |
-| `apple_pay` | Apple Pay |
-| `google_pay` | Google Pay |
-
-Example with specific payment method:
-```json
 {
   "paymentMethod": "sbp"
 }
 ```
 
-### 4. Handle YooKassa Webhook
+`paymentMethod` необязателен. Поддерживаются `bank_card`, `sbp`, `sberbank`,
+`tinkoff_bank` и `yoo_money`. Без него YooKassa показывает доступные методы
+самостоятельно.
 
-**Endpoint:** `POST /api/subscription/yookassa/webhook`
-
-YooKassa sends an HTTP POST with JSON body and header `X-Yookassa-Signature`.
-
-**Required header:**
-```
-X-Yookassa-Signature: sha256=<hmac_sha256_signature>
-```
-
-The signature is computed over the raw request body using your `PAYMENT_SECRET_KEY`.
-
-**Success response body example:**
 ```json
 {
-  "event": "payment.succeeded",
-  "object": {
-    "id": "payment_123",
-    "metadata": {
-      "user_id": "user_id_here"
-    }
-  }
+  "confirmationUrl": "https://yookassa.ru/checkout/..."
 }
 ```
 
-**Your server will:**
-1. Verify HMAC-SHA256 signature (returns 403 if invalid)
-2. Check `event == "payment.succeeded"`
-3. Find `Payment` record by `object.id`
-4. Mark payment as `success`
-5. Extend user subscription by `SUBSCRIPTION_PERIOD_DAYS`
+Клиент открывает `confirmationUrl` во внешнем браузере. После возвращения в
+приложение клиент повторно получает статус подписки.
 
-## Webhook Implementation Notes
+## Уведомления YooKassa
 
-- Compute HMAC over **raw body bytes**, not parsed JSON
-- Use `hmac.compare_digest()` to prevent timing attacks
-- Webhook is idempotent — duplicate events do not extend subscription again
-- Always return 200 quickly; retries will follow otherwise
+В кабинете YooKassa зарегистрируйте `payment.succeeded` и `payment.canceled` на:
 
-## Subscription Storage Rules
-
-- Active premium → receipts stored indefinitely
-- Expired/no premium → receipts kept for 30 days
-- When `is_premium` detects expired `subscription_expires`, it resets `premium=False` in DB
-
-## Common Issues
-
-| Problem | Cause | Solution |
-|---------|-------|----------|
-| Webhook returns 403 | Missing or invalid `X-Yookassa-Signature` | Compute HMAC-SHA256 over raw body using `PAYMENT_SECRET_KEY` |
-| Premium not activated | `payment` record missing or already `success` | Ensure `/payment` was called first and webhook `payment.id` matches |
-| Subscription not extending | Duplicate webhook or expired base | Webhook is idempotent; it only extends from current expiration if still active, otherwise starts from now |
-
-## Sequence Diagram
-
-```
-Client       Your Backend      YooKassa
-  |              |                |
-  |-- GET /subscription/ ----->|
-  |<-- {active, platform} ------|
-  |              |                |
-  |-- POST /payment ----------->|
-  |<-- {url} -------------------|
-  |              |                |
-  |-- Open url -----------------|-- Payment form (user chooses method)
-  |              |                |
-  |              |<-- webhook -----|
-  |              | (with HMAC)    |
-  |              |-- verify ----->|
-  |              |-- mark success |
-  |              |-- extend sub   |
-  |<-- 200 OK ------------------|
+```text
+POST /api/subscription/yookassa/webhook
 ```
 
-## Security
+Тело уведомления используется только как указатель на payment ID. Backend
+повторно получает платёж через YooKassa API и доверяет только результату этого
+запроса. Проверяются:
 
-- Never expose `PAYMENT_SECRET_KEY` to clients
-- Always verify webhook signature server-side
-- Use HTTPS for all API calls
-- Webhook endpoint is public but protected by HMAC
+- payment ID и ожидаемый статус;
+- `paid` для успешной оплаты;
+- сумма и валюта;
+- `metadata.user_id`;
+- наличие локального платежа со статусом `in_progress`.
+
+Обработка идемпотентна: повторное успешное уведомление не продлевает подписку
+второй раз. Недоступность YooKassa возвращает `503`, несоответствие проверок —
+`400`.
+
+## Хранение чеков
+
+- новый чек при активной подписке получает бессрочное серверное хранение;
+- новый чек без подписки получает срок хранения 30 дней;
+- окончание подписки не меняет срок уже сохранённых чеков;
+- просроченные чеки удаляет фоновая retention-задача.
+
+## Безопасность и тестирование
+
+- webhook публичный, но не активирует подписку без повторной проверки через
+  YooKassa;
+- создание платежа и чтение статуса требуют access JWT;
+- одновременно допускается не более трёх незавершённых платежей пользователя;
+- интеграционные тесты мокируют `YooKassaGateway` и не обращаются в сеть.
+
+При изменении этого потока одновременно обновите FastAPI/Pydantic, route tests,
+OpenAPI-контракт, mobile client, этот guide, README и changelog.

@@ -1,8 +1,40 @@
 services:
+  migrate:
+    image: NorthGK/product-feed-analyzer-server:${GITHUB_SHA:-latest}
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: sqlite+aiosqlite:////data/food_tracker.db
+    volumes:
+      - foodler-data:/data
+    command: ["uv", "run", "alembic", "upgrade", "head"]
+    restart: "no"
+
   app:
-    image: NorthGK/product-feed-analyzer-server:${GITHUB_SHA}
-
+    image: NorthGK/product-feed-analyzer-server:${GITHUB_SHA:-latest}
     restart: always
-
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: sqlite+aiosqlite:////data/food_tracker.db
+    volumes:
+      - foodler-data:/data
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     ports:
       - "8000:8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=3)",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  foodler-data:

@@ -9,7 +9,7 @@ Foodler — мобильное приложение для учёта проду
 Требования:
 
 - Python 3.13 и [uv](https://docs.astral.sh/uv/);
-- Node.js 22 и npm;
+- Node.js 24 и npm;
 - Android Studio/SDK для локального Android-приложения.
 
 ```bash
@@ -61,6 +61,17 @@ SQLite, а авторизованный пользователь синхрон�
 - [Решение об API-контракте](docs/adr/0001-monorepo-and-api-contract.md)
 - [Backend](backend/README.md)
 - [Mobile](mobile/README.md)
+- [Подписка backend](backend/SUBSCRIPTION_GUIDE.md)
+- [Подписка mobile](mobile/SUBSCRIPTION_GUIDE.md)
+
+## Документация — часть изменения
+
+При любом изменении кода обязательно проверьте и обновите связанные README,
+changelog обоих проектов, guides, `docs/`, `.env.example`, ADR/known issues,
+legal-тексты и generated API-контракт. Задача не завершена, если документация
+описывает старые endpoint-ы, конфигурацию, ограничения или пользовательское
+поведение. Если обновление конкретного документа не требуется, это явно
+фиксируется в итоговом описании изменения.
 
 ## Конфигурация
 
@@ -81,5 +92,5 @@ make audit
 make test
 ```
 
-PR не объединяется, пока backend, mobile, API contract и secret scan не прошли
-в CI.
+PR не объединяется, пока backend, mobile, API contract, secret scan и
+документация/changelog не соответствуют фактическому изменению.

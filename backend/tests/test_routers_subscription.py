@@ -1,6 +1,5 @@
 """Tests for subscription API endpoints."""
 
-import hashlib
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -10,9 +9,8 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.integrations.google_play import GooglePlayError
 from src.models import Payment as MPayment
-from src.models import Subscription, SubscriptionProvider, User
+from src.models import Subscription, User
 
 
 def _remote_payment(
@@ -360,101 +358,3 @@ class TestCreatePaymentLimit:
             await db.scalars(select(MPayment).where(MPayment.user_id == test_user.id))
         ).all()
         assert len(payments) == 2
-
-
-class TestGooglePlayVerification:
-    @pytest.mark.asyncio
-    async def test_verified_purchase_activates_subscription(
-        self,
-        client: AsyncClient,
-        auth_headers,
-        db: AsyncSession,
-        test_user: User,
-        monkeypatch,
-    ):
-        expires_at = datetime.now(timezone.utc) + timedelta(days=30)
-        remote = {
-            "subscriptionState": "SUBSCRIPTION_STATE_ACTIVE",
-            "acknowledgementState": "ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED",
-            "externalAccountIdentifiers": {
-                "obfuscatedExternalAccountId": hashlib.sha256(test_user.id.encode()).hexdigest()
-            },
-            "lineItems": [
-                {
-                    "productId": "premium_monthly",
-                    "expiryTime": expires_at.isoformat(),
-                }
-            ],
-        }
-        monkeypatch.setattr(
-            "src.integrations.google_play.google_play_gateway.get_subscription",
-            AsyncMock(return_value=remote),
-        )
-        response = await client.post(
-            "/api/subscription/google/verify",
-            headers=auth_headers,
-            json={
-                "purchaseToken": "google_purchase_token",
-                "productId": "premium_monthly",
-            },
-        )
-
-        assert response.status_code == 200
-        assert response.json()["platform"] == "google_play"
-        subscription = await db.scalar(
-            select(Subscription).where(Subscription.user_id == test_user.id)
-        )
-        assert subscription.provider == SubscriptionProvider.GOOGLE_PLAY
-
-    @pytest.mark.asyncio
-    async def test_purchase_for_another_account_is_rejected(
-        self,
-        client: AsyncClient,
-        auth_headers,
-        monkeypatch,
-    ):
-        remote = {
-            "subscriptionState": "SUBSCRIPTION_STATE_ACTIVE",
-            "acknowledgementState": "ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED",
-            "externalAccountIdentifiers": {"obfuscatedExternalAccountId": "different-account"},
-            "lineItems": [
-                {
-                    "productId": "premium_monthly",
-                    "expiryTime": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat(),
-                }
-            ],
-        }
-        monkeypatch.setattr(
-            "src.integrations.google_play.google_play_gateway.get_subscription",
-            AsyncMock(return_value=remote),
-        )
-        response = await client.post(
-            "/api/subscription/google/verify",
-            headers=auth_headers,
-            json={
-                "purchaseToken": "stolen_google_purchase_token",
-                "productId": "premium_monthly",
-            },
-        )
-        assert response.status_code == 400
-
-    @pytest.mark.asyncio
-    async def test_google_outage_is_retryable(
-        self,
-        client: AsyncClient,
-        auth_headers,
-        monkeypatch,
-    ):
-        monkeypatch.setattr(
-            "src.integrations.google_play.google_play_gateway.get_subscription",
-            AsyncMock(side_effect=GooglePlayError("unavailable")),
-        )
-        response = await client.post(
-            "/api/subscription/google/verify",
-            headers=auth_headers,
-            json={
-                "purchaseToken": "google_purchase_token",
-                "productId": "premium_monthly",
-            },
-        )
-        assert response.status_code == 503

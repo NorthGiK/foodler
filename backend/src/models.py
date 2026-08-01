@@ -74,7 +74,6 @@ class PaymentStatus(StrEnum):
 
 class SubscriptionProvider(StrEnum):
     YOOKASSA = "yookassa"
-    GOOGLE_PLAY = "google_play"
     LEGACY = "legacy"
 
 

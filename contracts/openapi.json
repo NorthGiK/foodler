@@ -610,28 +610,6 @@
         "title": "GetReceiptFromQRSchema",
         "type": "object"
       },
-      "GooglePurchase": {
-        "properties": {
-          "productId": {
-            "maxLength": 256,
-            "minLength": 1,
-            "title": "Productid",
-            "type": "string"
-          },
-          "purchaseToken": {
-            "maxLength": 4096,
-            "minLength": 1,
-            "title": "Purchasetoken",
-            "type": "string"
-          }
-        },
-        "required": [
-          "purchaseToken",
-          "productId"
-        ],
-        "title": "GooglePurchase",
-        "type": "object"
-      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1878,7 +1856,6 @@
               {
                 "enum": [
                   "yookassa",
-                  "google_play",
                   "legacy"
                 ],
                 "type": "string"
@@ -3713,52 +3690,6 @@
           }
         ],
         "summary": "Get Subscription",
-        "tags": [
-          "Subscription"
-        ]
-      }
-    },
-    "/api/subscription/google/verify": {
-      "post": {
-        "operationId": "verify_google_purchase_api_subscription_google_verify_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/GooglePurchase"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionStatusResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Verify Google Purchase",
         "tags": [
           "Subscription"
         ]

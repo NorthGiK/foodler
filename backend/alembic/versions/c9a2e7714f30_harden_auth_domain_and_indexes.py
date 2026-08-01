@@ -176,7 +176,7 @@ def upgrade() -> None:
         with op.batch_alter_table("subscriptions") as batch:
             batch.create_check_constraint(
                 "ck_subscriptions_provider",
-                "provider IN ('yookassa', 'google_play', 'legacy')",
+                "provider IN ('yookassa', 'legacy')",
             )
 
     _create_index("ix_devices_user_device", "devices", ["user_id", "device_id"])

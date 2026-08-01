@@ -1,150 +1,25 @@
-# Subscription Guide for Clients
+# Подписка в Foodler Mobile
 
-## Overview
+Mobile не содержит платёжных секретов и не обрабатывает webhook. Авторитетное
+описание backend-потока находится в
+[backend/SUBSCRIPTION_GUIDE.md](../backend/SUBSCRIPTION_GUIDE.md).
 
-Premium subscription unlocks extended receipt storage and AI credits. This guide explains how to check status, create payments, and handle confirmation via YooKassa webhooks.
+## Клиентский сценарий
 
-## Environment Setup
+1. Пользователь должен быть авторизован.
+2. `api.makePurchase()` вызывает generated operation
+   `POST /api/subscription/payment`.
+3. Клиент открывает полученный `confirmationUrl` через `Linking.openURL`.
+4. После возвращения или повторного открытия профиля клиент обновляет
+   `/api/users/me` либо `/api/subscription/is_premium`.
 
-Add these to your `.env`:
+Все Foodler API-вызовы выполняются через `src/api/client.ts` и generated SDK.
+Платёжные реквизиты и `PAYMENT_SECRET_KEY` запрещено добавлять в mobile `.env`,
+код или Expo public variables.
 
-```env
-PAYMENT_ACCOUNT_ID=your_shop_id
-PAYMENT_SECRET_KEY=your_secret_key
-SUBSCRIPTION_PERIOD_DAYS=30
-```
+Premium предоставляет увеличенный лимит AI credits и бессрочное серверное
+хранение новых чеков. Синхронизация чеков доступна любому авторизованному
+пользователю и не должна отображаться как отдельная premium-функция.
 
-## API Flow
-
-### 1. Check Subscription Status
-
-**Request:**
-```bash
-GET /api/subscription/
-Authorization: Bearer <access_token>
-```
-
-**Response:**
-```json
-{
-  "active": true,
-  "platform": "yookassa",
-  "expiresAt": "2026-08-16T17:01:28"
-}
-```
-
-### 2. Check Premium Status (Lightweight)
-
-**Request:**
-```bash
-GET /api/subscription/is_premium
-Authorization: Bearer <access_token>
-```
-
-**Response:**
-```json
-{
-  "premium": true
-}
-```
-
-Use this endpoint when you need a simple boolean check before enabling premium features.
-
-### 3. Create Payment
-
-**Request:**
-```bash
-POST /api/subscription/payment
-Authorization: Bearer <access_token>
-```
-
-**Response:**
-```json
-{
-  "url": "https://yookassa.ru/payment/..."
-}
-```
-
-Open the returned URL in a browser to complete payment. After payment, YooKassa will send a webhook to your server.
-
-### 4. Handle YooKassa Webhook
-
-**Endpoint:** `POST /api/subscription/yookassa/webhook`
-
-YooKassa sends an HTTP POST with JSON body and header `X-Yookassa-Signature`.
-
-**Required header:**
-```
-X-Yookassa-Signature: sha256=<hmac_sha256_signature>
-```
-
-The signature is computed over the raw request body using your `PAYMENT_SECRET_KEY`.
-
-**Success response body example:**
-```json
-{
-  "event": "payment.succeeded",
-  "object": {
-    "id": "payment_123",
-    "metadata": {
-      "user_id": "user_id_here"
-    }
-  }
-}
-```
-
-**Your server will:**
-1. Verify HMAC-SHA256 signature (returns 403 if invalid)
-2. Check `event == "payment.succeeded"`
-3. Find `Payment` record by `object.id`
-4. Mark payment as `success`
-5. Extend user subscription by `SUBSCRIPTION_PERIOD_DAYS`
-
-## Webhook Implementation Notes
-
-- Compute HMAC over **raw body bytes**, not parsed JSON
-- Use `hmac.compare_digest()` to prevent timing attacks
-- Webhook is idempotent — duplicate events do not extend subscription again
-- Always return 200 quickly; retries will follow otherwise
-
-## Subscription Storage Rules
-
-- Active premium → receipts stored indefinitely
-- Expired/no premium → receipts kept for 30 days
-- When `is_premium` detects expired `subscription_expires`, it resets `premium=False` in DB
-
-## Common Issues
-
-| Problem | Cause | Solution |
-|---------|-------|----------|
-| Webhook returns 403 | Missing or invalid `X-Yookassa-Signature` | Compute HMAC-SHA256 over raw body using `PAYMENT_SECRET_KEY` |
-| Premium not activated | `payment` record missing or already `success` | Ensure `/payment` was called first and webhook `payment.id` matches |
-| Subscription not extending | Duplicate webhook or expired base | Webhook is idempotent; it only extends from current expiration if still active, otherwise starts from now |
-
-## Sequence Diagram
-
-```
-Client       Your Backend      YooKassa
-  |              |                |
-  |-- GET /subscription/ ----->|
-  |<-- {active, platform} ------|
-  |              |                |
-  |-- POST /payment ----------->|
-  |<-- {url} -------------------|
-  |              |                |
-  |-- Open url -----------------|-- Payment form
-  |              |                |
-  |              |<-- webhook -----|
-  |              | (with HMAC)    |
-  |              |-- verify ----->|
-  |              |-- mark success |
-  |              |-- extend sub   |
-  |<-- 200 OK ------------------|
-```
-
-## Security
-
-- Never expose `PAYMENT_SECRET_KEY` to clients
-- Always verify webhook signature server-side
-- Use HTTPS for all API calls
-- Webhook endpoint is public but protected by HMAC
+При изменении подписки обновите backend guide, этот файл, интерфейс
+`PremiumCard`, OpenAPI/generated SDK и оба changelog.

@@ -18,6 +18,10 @@ uv run uvicorn src.main:app --reload
 создаёт таблицы при старте: перед каждой версией применяйте Alembic.
 Alembic использует тот же `DATABASE_URL`, что и приложение.
 
+`docker compose up` использует `.env`, отдельный одноразовый migration service и
+persistent volume `/data`. Тег образа задаётся через `GITHUB_SHA`, без него
+используется `latest`.
+
 ```bash
 uv run ruff check src tests scripts
 uv audit --locked
@@ -42,9 +46,9 @@ Backend владеет API-контрактом. После изменения r
 
 ## Внешние сервисы
 
-QR receipt API, AI provider, SMTP, YooKassa и Google Play конфигурируются только
-через environment. Полный список с назначением и безопасными defaults находится
-в `.env.example`. Тесты не обращаются к провайдерам напрямую: внешние
+QR receipt API, AI provider, SMTP и YooKassa конфигурируются только через
+environment. Полный список с назначением и безопасными defaults находится в
+`.env.example`. Тесты не обращаются к провайдерам напрямую: внешние
 TCP-соединения запрещены общей fixture.
 
 Для YooKassa зарегистрируйте уведомления `payment.succeeded` и
@@ -53,12 +57,8 @@ TCP-соединения запрещены общей fixture.
 сверяет статус, сумму, валюту и владельца. Повторная доставка не продлевает
 подписку второй раз.
 
-Для Google Play задайте package name и путь к смонтированному JSON service
-account. Клиент отправляет purchase token в `/api/subscription/google/verify`;
-backend проверяет статус, acknowledgement, product ID, срок и привязку
-`obfuscatedExternalAccountId` к SHA-256 от Foodler user ID. Один purchase token
-нельзя привязать к разным пользователям, а допустимые product IDs перечисляются
-в `GOOGLE_PLAY_PRODUCT_IDS`.
+Полный клиентский и webhook-поток описан в
+[SUBSCRIPTION_GUIDE.md](SUBSCRIPTION_GUIDE.md).
 
 Access JWT живёт 30 минут, refresh token хранится только в виде SHA-256.
 Изменение или сброс пароля отзывает все активные сессии. При ротации ключа
@@ -70,7 +70,8 @@ Access JWT живёт 30 минут, refresh token хранится только
 Логи не содержат паролей, токенов, QR/receipt payload или AI-контекста.
 
 `GET /api/receipts` имеет `offset`/`limit` и возвращает заголовки
-`X-Total-Count` и `X-Page-Limit`; mobile самостоятельно выгружает все страницы.
+`X-Total-Count`, `X-Page-Offset` и `X-Page-Limit`; mobile самостоятельно
+выгружает все страницы.
 Публичного endpoint очистки данных нет — retention выполняется фоновым заданием.
 
 `/metrics` отдаёт Prometheus-метрики только при заданном `METRICS_TOKEN` и
@@ -81,3 +82,7 @@ Access JWT живёт 30 минут, refresh token хранится только
 FOODLER_LOAD_TOKEN=... uv run python -m scripts.load_smoke \
   --base-url http://127.0.0.1:8000 --requests 100 --concurrency 10
 ```
+
+При любом изменении backend-кода обязательно обновите связанные README,
+changelog, guides, `docs/`, `.env.example`, migration notes и OpenAPI. Документ
+не может описывать endpoint, поле или гарантию, которых больше нет в коде.

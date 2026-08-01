@@ -9,11 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..auth import get_current_user
 from ..config import PAYMENT_AMOUNT_RUB, PAYMENT_RETURN_URL
 from ..database import get_db
-from ..integrations.google_play import (
-    GooglePlayError,
-    GooglePlayGateway,
-    get_google_play_gateway,
-)
 from ..integrations.yookassa import (
     YooKassaError,
     YooKassaGateway,
@@ -23,7 +18,6 @@ from ..models import Payment as MPayment
 from ..models import PaymentStatus, User
 from ..schemas import (
     CreatePaymentRequest,
-    GooglePurchase,
     PaymentConfirmationResponse,
     PremiumStatusResponse,
     StatusResponse,
@@ -32,9 +26,7 @@ from ..schemas import (
 )
 from ..services.entitlements import get_entitlement
 from ..services.subscriptions import (
-    GoogleSubscriptionVerificationError,
     PaymentVerificationError,
-    apply_google_play_purchase,
     apply_yookassa_event,
 )
 from ..utils import DatabaseRateLimiter, with_rate_limit
@@ -84,47 +76,6 @@ async def is_premium(
     """Check if user has active premium subscription."""
     entitlement = await get_entitlement(db, user)
     return {"premium": entitlement.active}
-
-
-@post("/google/verify", response_model=SubscriptionStatusResponse)
-async def verify_google_purchase(
-    body: GooglePurchase,
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    gateway: GooglePlayGateway = Depends(get_google_play_gateway),
-):
-    try:
-        remote_purchase = await gateway.get_subscription(body.purchaseToken)
-        subscription = await apply_google_play_purchase(
-            db,
-            user=user,
-            purchase_token=body.purchaseToken,
-            product_id=body.productId,
-            remote_purchase=remote_purchase,
-        )
-    except GooglePlayError as exc:
-        logger.warning(
-            "Google Play verification unavailable",
-            extra={"provider": "google_play", "event": "subscription.verify"},
-        )
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Google Play verification unavailable",
-        ) from exc
-    except GoogleSubscriptionVerificationError as exc:
-        logger.warning(
-            "Google Play purchase rejected",
-            extra={"provider": "google_play", "event": "subscription.verify"},
-        )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Google Play purchase rejected",
-        ) from exc
-    return {
-        "active": True,
-        "platform": subscription.provider.value,
-        "expiresAt": subscription.expires_at,
-    }
 
 
 @post("/payment", response_model=PaymentConfirmationResponse)

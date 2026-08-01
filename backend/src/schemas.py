@@ -208,11 +208,6 @@ class CreditsInfo(BaseModel):
 # --- Subscription ---
 
 
-class GooglePurchase(BaseModel):
-    purchaseToken: str = Field(min_length=1, max_length=4096)
-    productId: str = Field(min_length=1, max_length=256)
-
-
 class CreatePaymentRequest(BaseModel):
     """Request to create a payment via YooKassa.
 
@@ -235,7 +230,7 @@ class PaymentConfirmationResponse(BaseModel):
 
 class SubscriptionStatusResponse(BaseModel):
     active: bool
-    platform: Literal["yookassa", "google_play", "legacy"] | None
+    platform: Literal["yookassa", "legacy"] | None
     expiresAt: datetime | None
 
 

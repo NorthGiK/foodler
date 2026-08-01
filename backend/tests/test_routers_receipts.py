@@ -46,8 +46,11 @@ class TestListReceipts:
         )
         assert first.status_code == 200
         assert len(first.json()) == 2
+        assert first.headers["X-Total-Count"] == "3"
+        assert first.headers["X-Page-Offset"] == "0"
         assert first.headers["X-Page-Limit"] == "2"
         assert len(second.json()) == 1
+        assert second.headers["X-Total-Count"] == "3"
 
 
 class TestCreateReceipt:

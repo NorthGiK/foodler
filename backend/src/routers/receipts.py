@@ -1,7 +1,7 @@
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -92,21 +92,25 @@ async def get_receipts(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    filters = [Receipt.user_id == user.id]
+    if from_date:
+        filters.append(Receipt.date >= from_date)
+    if to_date:
+        filters.append(Receipt.date <= to_date)
+
+    total_count = await db.scalar(select(func.count()).select_from(Receipt).where(*filters))
     query = (
         select(Receipt)
-        .where(Receipt.user_id == user.id)
+        .where(*filters)
         .options(selectinload(Receipt.items))
         .order_by(Receipt.date.desc())
         .offset(offset)
         .limit(limit)
     )
-    if from_date:
-        query = query.where(Receipt.date >= from_date)
-    if to_date:
-        query = query.where(Receipt.date <= to_date)
 
     result = await db.execute(query)
     receipts = result.scalars().all()
+    response.headers["X-Total-Count"] = str(total_count or 0)
     response.headers["X-Page-Offset"] = str(offset)
     response.headers["X-Page-Limit"] = str(limit)
     return [

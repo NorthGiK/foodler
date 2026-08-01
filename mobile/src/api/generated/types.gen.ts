@@ -358,20 +358,6 @@ export type GetReceiptFromQrSchema = {
 };
 
 /**
- * GooglePurchase
- */
-export type GooglePurchase = {
-  /**
-   * Productid
-   */
-  productId: string;
-  /**
-   * Purchasetoken
-   */
-  purchaseToken: string;
-};
-
-/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -1078,7 +1064,7 @@ export type SubscriptionStatusResponse = {
   /**
    * Platform
    */
-  platform: "yookassa" | "google_play" | "legacy" | null;
+  platform: "yookassa" | "legacy" | null;
 };
 
 /**
@@ -2214,33 +2200,6 @@ export type GetSubscriptionApiSubscriptionGetResponses = {
 
 export type GetSubscriptionApiSubscriptionGetResponse =
   GetSubscriptionApiSubscriptionGetResponses[keyof GetSubscriptionApiSubscriptionGetResponses];
-
-export type VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostData = {
-  body: GooglePurchase;
-  path?: never;
-  query?: never;
-  url: "/api/subscription/google/verify";
-};
-
-export type VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostErrors = {
-  /**
-   * Validation Error
-   */
-  422: HttpValidationError;
-};
-
-export type VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostError =
-  VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostErrors[keyof VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostErrors];
-
-export type VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostResponses = {
-  /**
-   * Successful Response
-   */
-  200: SubscriptionStatusResponse;
-};
-
-export type VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostResponse =
-  VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostResponses[keyof VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostResponses];
 
 export type IsPremiumApiSubscriptionIsPremiumGetData = {
   body?: never;
