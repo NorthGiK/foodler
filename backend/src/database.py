@@ -1,3 +1,4 @@
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -19,8 +20,10 @@ async def get_db():
             await session.close()
 
 
-async def init_db():
-    async with engine.begin() as conn:
-        from . import models  # noqa: F401 - ensure models are imported
-
-        await conn.run_sync(Base.metadata.create_all)
+async def check_database(session: AsyncSession | None = None) -> None:
+    """Fail readiness when the configured database is unreachable."""
+    if session is not None:
+        await session.execute(select(1))
+        return
+    async with async_session() as session:
+        await session.execute(select(1))

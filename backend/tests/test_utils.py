@@ -5,9 +5,9 @@ Tests for src/utils.py - Utility functions.
 import pytest
 
 from src.utils import (
-    validate_password,
     PasswordValidationError,
     get_password_requirements,
+    validate_password,
 )
 
 
@@ -16,14 +16,13 @@ class TestValidatePassword:
 
     def test_valid_password_passes(self):
         """A password meeting all requirements should pass."""
-        # Default: only min_length=8 is enforced
-        validate_password("short123")  # > 8 chars, should pass
+        validate_password("StrongPass123")
 
     def test_too_short_password(self):
         """Should raise for passwords shorter than min length."""
         with pytest.raises(PasswordValidationError) as exc:
             validate_password("Ab1!")
-        assert "8" in str(exc.value.message) or "символов" in str(exc.value.message)
+        assert "символов" in str(exc.value.message)
 
     def test_empty_password(self):
         """Should raise for empty password."""
@@ -32,12 +31,13 @@ class TestValidatePassword:
 
     def test_min_length_boundary(self):
         """Should accept password at minimum length."""
-        validate_password("12345678")  # exactly 8 chars - should pass
+        from src.config import PASSWORD_MIN_LENGTH
+
+        validate_password("Aa1" + "x" * (PASSWORD_MIN_LENGTH - 3))
 
     def test_unicode_password(self):
         """Should handle unicode characters."""
-        # Even with unicode, just check length
-        validate_password("привет123")  # > 8 chars, should pass
+        validate_password("Aпривет1234")
 
 
 class TestGetPasswordRequirements:

@@ -5,15 +5,15 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from ..ai_service import ALL_ACTIONS, LOCAL_ACTIONS, AiServiceError, TaskRouter
 from ..analytics import get_cached_response, set_cached_response
 from ..auth import get_current_user, get_current_user_optional
-from ..ai_service import ALL_ACTIONS, LOCAL_ACTIONS, AiServiceError, TaskRouter
 from ..credits import (
     InsufficientCreditsError,
     get_user_credits_info,
@@ -24,7 +24,7 @@ from ..database import get_db
 from ..models import AiReport, Receipt, ReceiptItem, User
 from ..product_matching import compute_context_hash
 from ..schemas import AiRequest, AiResult, AiSection, CreditsInfo
-from ..utils import with_rate_limit, LIMIT_DEFAULT, LIMIT_DELETE, normalize_date
+from ..utils import LIMIT_DEFAULT, LIMIT_DELETE, normalize_date, with_rate_limit
 
 logger = logging.getLogger(__name__)
 
@@ -135,14 +135,15 @@ async def run_ai(
     receipts_info = [
         {
             "id": r.id,
-            "date": r.date,
+            "date": r.date.isoformat() if hasattr(r.date, "isoformat") else str(r.date),
             "store": r.store,
-            "total": r.total,
+            "total": float(r.total),
             "items": [
                 {
                     "name": it.name,
                     "quantity": it.quantity,
-                    "price": it.price,
+                    "price": float(it.price),
+                    "unit": it.unit,
                     "product_id": it.product_id,
                 }
                 for it in (r.items or [])
@@ -155,7 +156,7 @@ async def run_ai(
 
     # Важные поля — в начало, чтобы не обрезались _truncate
     context["receipt_count"] = len(receipts)
-    context["total_spent"] = sum(r.total for r in receipts)
+    context["total_spent"] = float(sum((r.total for r in receipts), start=0))
 
     if body.parameters and body.parameters.members:
         context["members"] = [m.model_dump() for m in body.parameters.members]
@@ -196,7 +197,7 @@ async def run_ai(
             snapshot=json.dumps(
                 {
                     "receiptCount": len(receipts),
-                    "totalSpent": sum(r.total for r in receipts),
+                    "totalSpent": float(sum((r.total for r in receipts), start=0)),
                     "receiptIds": [r.id for r in receipts],
                 },
                 ensure_ascii=False,
@@ -331,7 +332,7 @@ async def run_ai(
         snapshot=json.dumps(
             {
                 "receiptCount": len(receipts),
-                "totalSpent": sum(r.total for r in receipts),
+                "totalSpent": float(sum((r.total for r in receipts), start=0)),
                 "receiptIds": [r.id for r in receipts],
             },
             ensure_ascii=False,
@@ -360,8 +361,8 @@ async def run_ai(
 
 @get("/ai/history", response_model=list[AiResult])
 async def get_history(
-    skip: int = 0,
-    limit: int = 30,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=30, ge=1, le=100),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):

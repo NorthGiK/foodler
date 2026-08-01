@@ -12,10 +12,11 @@
 import json
 import logging
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -23,12 +24,11 @@ from src.models import (
     AiCache,
     Product,
     ProductSubstitute,
-    ProductTag,
     ProductTagMember,
-    Recipe,
-    RecipeIngredient,
     Receipt,
     ReceiptItem,
+    Recipe,
+    RecipeIngredient,
 )
 from src.utils import parse_date
 
@@ -52,16 +52,16 @@ async def get_spending_summary(
     to_date: str | None = None,
 ) -> dict[str, Any]:
     """Агрегация трат пользователя за период."""
-    query = select(Receipt).where(Receipt.user_id == user_id).options(selectinload(Receipt.items))
+    filters = [Receipt.user_id == user_id]
     if from_date:
-        query = query.where(Receipt.date >= from_date)
+        filters.append(Receipt.date >= from_date)
     if to_date:
-        query = query.where(Receipt.date <= to_date)
+        filters.append(Receipt.date <= to_date)
 
-    result = await db.execute(query.order_by(Receipt.date.asc()))
-    receipts = list(result.scalars().all())
-
-    if not receipts:
+    count, total = (
+        await db.execute(select(func.count(Receipt.id), func.sum(Receipt.total)).where(*filters))
+    ).one()
+    if not count:
         return {
             "receipt_count": 0,
             "total_spent": 0,
@@ -70,29 +70,37 @@ async def get_spending_summary(
             "by_store": [],
         }
 
-    total = sum(r.total for r in receipts)
-    count = len(receipts)
-
-    # По месяцам
-    monthly: dict[str, float] = defaultdict(float)
-    for r in receipts:
-        month_key = r.date[:7]  # "2024-01"
-        monthly[month_key] += r.total
-
-    # По магазинам
-    by_store: dict[str, float] = defaultdict(float)
-    for r in receipts:
-        store = r.store or "Другой"
-        by_store[store] += r.total
+    month = func.strftime("%Y-%m", Receipt.date)
+    monthly = (
+        await db.execute(
+            select(month.label("month"), func.sum(Receipt.total))
+            .where(*filters)
+            .group_by(month)
+            .order_by(month)
+        )
+    ).all()
+    store = func.coalesce(Receipt.store, "Другой")
+    by_store = (
+        await db.execute(
+            select(store.label("store"), func.sum(Receipt.total).label("total"))
+            .where(*filters)
+            .group_by(store)
+            .order_by(func.sum(Receipt.total).desc())
+        )
+    ).all()
+    total_value = _money_float(total)
 
     return {
         "receipt_count": count,
-        "total_spent": round(total, 2),
-        "avg_receipt": round(total / count, 2) if count else 0,
-        "by_month": [{"month": k, "total": round(v, 2)} for k, v in sorted(monthly.items())],
+        "total_spent": total_value,
+        "avg_receipt": round(total_value / count, 2),
+        "by_month": [
+            {"month": month_key, "total": _money_float(month_total)}
+            for month_key, month_total in monthly
+        ],
         "by_store": [
-            {"store": k, "total": round(v, 2)}
-            for k, v in sorted(by_store.items(), key=lambda x: -x[1])
+            {"store": store_name, "total": _money_float(store_total)}
+            for store_name, store_total in by_store
         ],
     }
 
@@ -116,7 +124,11 @@ async def get_nutrition_summary(
         select(ReceiptItem)
         .join(Receipt)
         .where(Receipt.user_id == user_id)
-        .options(selectinload(ReceiptItem.product))
+        .options(
+            selectinload(ReceiptItem.product)
+            .selectinload(Product.tags)
+            .selectinload(ProductTagMember.tag)
+        )
     )
     if from_date:
         query = query.where(Receipt.date >= from_date)
@@ -160,8 +172,7 @@ async def get_nutrition_summary(
         if not product:
             continue
 
-        # Количество в граммах (предполагаем, что quantity в кг, если не указано иное)
-        grams = item.quantity * 1000  # конвертируем кг в г
+        grams = _quantity_in_grams(item.quantity, item.unit, product.serving_size)
         factor = grams / 100.0  # на 100г
 
         totals["calories"] += product.calories * factor
@@ -177,13 +188,8 @@ async def get_nutrition_summary(
         if product.sodium:
             totals["sodium"] += product.sodium * factor
 
-        # По тегам — используем прямой SQL запрос, чтобы избежать MissingGreenlet
-        _tag_result = await db.execute(
-            select(ProductTag.name)
-            .join(ProductTagMember, ProductTagMember.tag_id == ProductTag.id)
-            .where(ProductTagMember.product_id == product.id)
-        )
-        for (tag_name,) in _tag_result.all():
+        for membership in product.tags:
+            tag_name = membership.tag.name
             by_tag[tag_name]["calories"] += product.calories * factor
             by_tag[tag_name]["proteins"] += product.proteins * factor
             by_tag[tag_name]["fats"] += product.fats * factor
@@ -260,7 +266,12 @@ async def get_fridge_status(
     result = await db.execute(
         select(Receipt)
         .where(Receipt.user_id == user_id)
-        .options(selectinload(Receipt.items).selectinload(ReceiptItem.product))
+        .options(
+            selectinload(Receipt.items)
+            .selectinload(ReceiptItem.product)
+            .selectinload(Product.tags)
+            .selectinload(ProductTagMember.tag)
+        )
         .order_by(Receipt.date.desc())
     )
     receipts = result.scalars().all()
@@ -270,14 +281,19 @@ async def get_fridge_status(
 
     # Собираем историю покупок по продуктам
     # product_id -> [(date, quantity)]
-    purchase_history: dict[str, list[tuple[str, float]]] = defaultdict(list)
+    purchase_history: dict[str, list[tuple[date, float]]] = defaultdict(list)
     product_cache: dict[str, Product] = {}
 
     for receipt in receipts:
         for item in receipt.items or []:
             if not item.product_id:
                 continue
-            purchase_history[item.product_id].append((receipt.date, item.quantity))
+            normalized_quantity = _quantity_in_grams(
+                item.quantity,
+                item.unit,
+                item.product.serving_size if item.product else None,
+            )
+            purchase_history[item.product_id].append((receipt.date, normalized_quantity))
             if item.product_id not in product_cache and item.product:
                 product_cache[item.product_id] = item.product
 
@@ -294,19 +310,8 @@ async def get_fridge_status(
         purchases.sort(key=lambda x: x[0], reverse=True)
 
         # Последняя покупка
-        last_date_str, last_qty = purchases[0]
-        try:
-            last_date: datetime = (
-                datetime.fromisoformat(last_date_str)
-                if isinstance(last_date_str, str)
-                else last_date_str
-            )
-            # Make timezone-aware if needed
-            if last_date.tzinfo is None:
-                last_date = last_date.replace(tzinfo=timezone.utc)
-        except (ValueError, TypeError):
-            logger.warning("Failed to parse date %s for product %s", last_date_str, product_id)
-            continue
+        last_date_value, last_qty = purchases[0]
+        last_date = datetime.combine(last_date_value, datetime.min.time(), tzinfo=timezone.utc)
         days_since_purchase = (now - last_date).days
 
         # Средний интервал между покупками
@@ -314,14 +319,10 @@ async def get_fridge_status(
             intervals = []
             for i in range(len(purchases) - 1):
                 try:
-                    d1 = datetime.fromisoformat(purchases[i][0])
-                    d2 = datetime.fromisoformat(purchases[i + 1][0])
-                    if d1.tzinfo is None:
-                        d1 = d1.replace(tzinfo=timezone.utc)
-                    if d2.tzinfo is None:
-                        d2 = d2.replace(tzinfo=timezone.utc)
+                    d1 = purchases[i][0]
+                    d2 = purchases[i + 1][0]
                     intervals.append(abs((d1 - d2).days))
-                except (ValueError, TypeError):
+                except TypeError:
                     continue
             avg_interval = (
                 sum(intervals) / len(intervals) if intervals else DEFAULT_CONSUMPTION_DAYS
@@ -329,7 +330,7 @@ async def get_fridge_status(
         else:
             avg_interval = DEFAULT_CONSUMPTION_DAYS
 
-        # Норма потребления в день (кг)
+        # Consumption is normalized to grams.
         if avg_interval > 0:
             consumption_rate = last_qty / avg_interval
         else:
@@ -339,15 +340,9 @@ async def get_fridge_status(
         estimated_remaining = max(0, last_qty - (consumption_rate * days_since_purchase))
         days_until_empty = estimated_remaining / consumption_rate if consumption_rate > 0 else 0
 
-        # Срок годности — используем прямой SQL запрос
         expiry_days = DEFAULT_EXPIRY_DAYS.get("бакалея", 30)  # default
-        _tag_result = await db.execute(
-            select(ProductTag.name)
-            .join(ProductTagMember, ProductTagMember.tag_id == ProductTag.id)
-            .where(ProductTagMember.product_id == product.id)
-        )
-        for (tag_name,) in _tag_result.all():
-            tag_name = tag_name.lower()
+        for membership in product.tags:
+            tag_name = membership.tag.name.lower()
             if tag_name in DEFAULT_EXPIRY_DAYS:
                 expiry_days = DEFAULT_EXPIRY_DAYS[tag_name]
                 break
@@ -359,8 +354,8 @@ async def get_fridge_status(
                 "product_id": product_id,
                 "product_name": product.name,
                 "estimated_quantity": round(estimated_remaining, 2),
-                "unit": "кг",
-                "last_purchased": last_date_str,
+                "unit": "g",
+                "last_purchased": last_date_value.isoformat(),
                 "expected_expiry": expected_expiry,
                 "consumption_rate": round(consumption_rate, 3),
                 "days_until_empty": round(days_until_empty, 1),
@@ -371,6 +366,21 @@ async def get_fridge_status(
     # Сортируем: сначала те, что скоро закончатся
     fridge.sort(key=lambda x: x["days_until_empty"] if x["days_until_empty"] is not None else 999)
     return fridge
+
+
+def _quantity_in_grams(quantity: float, unit: str, serving_size: float | None) -> float:
+    conversions = {
+        "g": 1.0,
+        "kg": 1000.0,
+        "ml": 1.0,
+        "l": 1000.0,
+        "piece": serving_size or 100.0,
+    }
+    return quantity * conversions.get(unit, 1.0)
+
+
+def _money_float(value: Decimal | float | int | None) -> float:
+    return round(float(value or 0), 2)
 
 
 # ============================================================

@@ -13,15 +13,17 @@ Product Matching Pipeline.
 import hashlib
 import json
 import re
+from datetime import date, datetime
+from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import inspect, select
+from sqlalchemy import inspect, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.models import Product, ProductAlias, ProductTag, ProductTagMember
 from src.ai_service import AiServiceError, generate_ai_response
-
+from src.config import PRODUCT_FUZZY_CANDIDATE_LIMIT
+from src.models import Product, ProductAlias, ProductTag, ProductTagMember
 
 # Минимальный порог схожести для fuzzy matching
 FUZZY_THRESHOLD_EXACT = 90  # точное совпадение (thefuzz ratio)
@@ -44,8 +46,23 @@ def compute_context_hash(user_id: str, action: str, data: dict[str, Any]) -> str
     Вычисление хеша контекста для кэширования AI-ответов.
     data — агрегированные данные пользователя (id продуктов, количества, рецепты и т.д.)
     """
-    raw = f"{user_id}:{action}:{json.dumps(data, sort_keys=True, ensure_ascii=False)}"
+    canonical = _canonicalize(data)
+    raw = f"{user_id}:{action}:{json.dumps(canonical, sort_keys=True, ensure_ascii=False)}"
     return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def _canonicalize(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {key: _canonicalize(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_canonicalize(item) for item in value]
+    if isinstance(value, (date, datetime)):
+        return value.isoformat()
+    if isinstance(value, Decimal):
+        return format(value.normalize(), "f")
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    return value
 
 
 async def find_product_by_alias(db: AsyncSession, normalized: str) -> Product | None:
@@ -88,19 +105,53 @@ async def find_products_fuzzy(db: AsyncSession, normalized: str, limit: int = 5)
     """
     from thefuzz import fuzz
 
-    # Получаем все продукты (для небольшой БД это ок, для большой — нужен FTS5)
-    # Загружаем все связи сразу, чтобы избежать MissingGreenlet
+    tokens = [token for token in normalized.split() if len(token) >= 3][:3]
+    candidate_filters = [
+        condition
+        for token in tokens
+        for condition in (
+            Product.name.ilike(f"%{token}%"),
+            ProductAlias.alias.ilike(f"%{token}%"),
+        )
+    ]
+    if not candidate_filters:
+        candidate_filters = [Product.name.ilike(f"{normalized[:1]}%")]
+
     result = await db.execute(
-        select(Product).options(
+        select(Product)
+        .outerjoin(ProductAlias)
+        .where(or_(*candidate_filters))
+        .distinct()
+        .options(
             selectinload(Product.aliases),
             selectinload(Product.tags).selectinload(ProductTagMember.tag),
         )
+        .limit(PRODUCT_FUZZY_CANDIDATE_LIMIT)
     )
-    all_products = result.scalars().all()
+    candidates = result.scalars().all()
+    if not candidates:
+        prefix = normalized[:3]
+        fallback = await db.execute(
+            select(Product)
+            .outerjoin(ProductAlias)
+            .where(
+                or_(
+                    Product.name.ilike(f"{prefix}%"),
+                    ProductAlias.alias.ilike(f"{prefix}%"),
+                )
+            )
+            .distinct()
+            .options(
+                selectinload(Product.aliases),
+                selectinload(Product.tags).selectinload(ProductTagMember.tag),
+            )
+            .limit(PRODUCT_FUZZY_CANDIDATE_LIMIT)
+        )
+        candidates = fallback.scalars().all()
 
     scored: list[tuple[int, Product]] = []
 
-    for product in all_products:
+    for product in candidates:
         # Сравниваем с именем продукта
         name_score = max(
             fuzz.ratio(normalized, product.name),

@@ -10,8 +10,6 @@ import {
 } from "./client";
 import { client } from "./client.gen";
 import type {
-  CleanupReceiptsApiReceiptsCleanupPostData,
-  CleanupReceiptsApiReceiptsCleanupPostResponses,
   CreatePaymentApiSubscriptionPaymentPostData,
   CreatePaymentApiSubscriptionPaymentPostErrors,
   CreatePaymentApiSubscriptionPaymentPostResponses,
@@ -90,6 +88,8 @@ import type {
   NutritionAnalysisApiAnalyticsNutritionGetData,
   NutritionAnalysisApiAnalyticsNutritionGetErrors,
   NutritionAnalysisApiAnalyticsNutritionGetResponses,
+  ReadinessReadyGetData,
+  ReadinessReadyGetResponses,
   RefreshApiAuthRefreshPostData,
   RefreshApiAuthRefreshPostErrors,
   RefreshApiAuthRefreshPostResponses,
@@ -129,6 +129,9 @@ import type {
   VerifyCodeApiAuthVerifyCodePostData,
   VerifyCodeApiAuthVerifyCodePostErrors,
   VerifyCodeApiAuthVerifyCodePostResponses,
+  VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostData,
+  VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostErrors,
+  VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostResponses,
   WebhookApiSubscriptionYookassaWebhookPostData,
   WebhookApiSubscriptionYookassaWebhookPostErrors,
   WebhookApiSubscriptionYookassaWebhookPostResponses,
@@ -812,27 +815,6 @@ export class Sdk extends HeyApiClient {
   }
 
   /**
-   * Cleanup Receipts
-   *
-   * Удаление просроченных чеков. Вызывается периодически или вручную.
-   */
-  public cleanupReceiptsApiReceiptsCleanupPost<
-    ThrowOnError extends boolean = false,
-  >(
-    options?: Options<CleanupReceiptsApiReceiptsCleanupPostData, ThrowOnError>,
-  ): RequestResult<
-    CleanupReceiptsApiReceiptsCleanupPostResponses,
-    unknown,
-    ThrowOnError
-  > {
-    return (options?.client ?? this.client).post<
-      CleanupReceiptsApiReceiptsCleanupPostResponses,
-      unknown,
-      ThrowOnError
-    >({ url: "/api/receipts/cleanup", ...options });
-  }
-
-  /**
    * Get Receipt By Qr
    */
   public getReceiptByQrApiReceiptsGetReceiptByQrPost<
@@ -852,6 +834,7 @@ export class Sdk extends HeyApiClient {
       GetReceiptByQrApiReceiptsGetReceiptByQrPostErrors,
       ThrowOnError
     >({
+      security: [{ scheme: "bearer", type: "http" }],
       url: "/api/receipts/get_receipt_by_qr",
       ...options,
       headers: {
@@ -882,6 +865,7 @@ export class Sdk extends HeyApiClient {
       ThrowOnError
     >({
       ...formDataBodySerializer,
+      security: [{ scheme: "bearer", type: "http" }],
       url: "/api/receipts/get_receipt_by_raw_qr",
       ...options,
       headers: {
@@ -1082,6 +1066,36 @@ export class Sdk extends HeyApiClient {
   }
 
   /**
+   * Verify Google Purchase
+   */
+  public verifyGooglePurchaseApiSubscriptionGoogleVerifyPost<
+    ThrowOnError extends boolean = false,
+  >(
+    options: Options<
+      VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostData,
+      ThrowOnError
+    >,
+  ): RequestResult<
+    VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostResponses,
+    VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostErrors,
+    ThrowOnError
+  > {
+    return (options.client ?? this.client).post<
+      VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostResponses,
+      VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostErrors,
+      ThrowOnError
+    >({
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/subscription/google/verify",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Is Premium
    *
    * Check if user has active premium subscription.
@@ -1220,6 +1234,7 @@ export class Sdk extends HeyApiClient {
       SendFeedbackApiUsersSendFeedbackPostErrors,
       ThrowOnError
     >({
+      security: [{ scheme: "bearer", type: "http" }],
       url: "/api/users/send-feedback",
       ...options,
       headers: {
@@ -1240,5 +1255,18 @@ export class Sdk extends HeyApiClient {
       unknown,
       ThrowOnError
     >({ url: "/health", ...options });
+  }
+
+  /**
+   * Readiness
+   */
+  public readinessReadyGet<ThrowOnError extends boolean = false>(
+    options?: Options<ReadinessReadyGetData, ThrowOnError>,
+  ): RequestResult<ReadinessReadyGetResponses, unknown, ThrowOnError> {
+    return (options?.client ?? this.client).get<
+      ReadinessReadyGetResponses,
+      unknown,
+      ThrowOnError
+    >({ url: "/ready", ...options });
   }
 }

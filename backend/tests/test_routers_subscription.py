@@ -1,5 +1,6 @@
 """Tests for subscription API endpoints."""
 
+import hashlib
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -9,8 +10,9 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.integrations.google_play import GooglePlayError
 from src.models import Payment as MPayment
-from src.models import Subscription, User
+from src.models import Subscription, SubscriptionProvider, User
 
 
 def _remote_payment(
@@ -31,9 +33,7 @@ def _remote_payment(
 
 class TestGetSubscription:
     @pytest.mark.asyncio
-    async def test_get_subscription_no_sub(
-        self, client: AsyncClient, auth_headers
-    ):
+    async def test_get_subscription_no_sub(self, client: AsyncClient, auth_headers):
         response = await client.get("/api/subscription", headers=auth_headers)
         assert response.status_code == 200
         assert response.json() == {
@@ -64,7 +64,7 @@ class TestGetSubscription:
         response = await client.get("/api/subscription", headers=auth_headers)
         assert response.status_code == 200
         assert response.json()["active"] is True
-        assert response.json()["platform"] == "google"
+        assert response.json()["platform"] == "legacy"
         assert response.json()["expiresAt"] is not None
 
     @pytest.mark.asyncio
@@ -74,12 +74,8 @@ class TestGetSubscription:
 
 class TestIsPremium:
     @pytest.mark.asyncio
-    async def test_is_premium_not_premium(
-        self, client: AsyncClient, auth_headers
-    ):
-        response = await client.get(
-            "/api/subscription/is_premium", headers=auth_headers
-        )
+    async def test_is_premium_not_premium(self, client: AsyncClient, auth_headers):
+        response = await client.get("/api/subscription/is_premium", headers=auth_headers)
         assert response.status_code == 200
         assert response.json()["premium"] is False
 
@@ -92,14 +88,19 @@ class TestIsPremium:
         test_user: User,
     ):
         test_user.premium = True
-        test_user.subscription_expires = datetime.now(timezone.utc) + timedelta(
-            days=30
+        test_user.subscription_expires = datetime.now(timezone.utc) + timedelta(days=30)
+        db.add(
+            Subscription(
+                user_id=test_user.id,
+                purchase_token="active_test_purchase",
+                product_id="premium_test",
+                active=True,
+                expires_at=test_user.subscription_expires,
+            )
         )
         await db.commit()
 
-        response = await client.get(
-            "/api/subscription/is_premium", headers=auth_headers
-        )
+        response = await client.get("/api/subscription/is_premium", headers=auth_headers)
         assert response.status_code == 200
         assert response.json()["premium"] is True
 
@@ -112,20 +113,22 @@ class TestIsPremium:
         test_user: User,
     ):
         test_user.premium = True
-        test_user.subscription_expires = datetime.now(timezone.utc) - timedelta(
-            days=1
+        test_user.subscription_expires = datetime.now(timezone.utc) - timedelta(days=1)
+        db.add(
+            Subscription(
+                user_id=test_user.id,
+                purchase_token="expired_test_purchase",
+                product_id="premium_test",
+                active=True,
+                expires_at=test_user.subscription_expires,
+            )
         )
         await db.commit()
 
-        response = await client.get(
-            "/api/subscription/is_premium", headers=auth_headers
-        )
+        response = await client.get("/api/subscription/is_premium", headers=auth_headers)
         assert response.status_code == 200
         assert response.json()["premium"] is False
-        assert (
-            await db.scalar(select(User.premium).where(User.id == test_user.id))
-            is False
-        )
+        assert await db.scalar(select(User.premium).where(User.id == test_user.id)) is False
 
     @pytest.mark.asyncio
     async def test_is_premium_unauthenticated(self, client: AsyncClient):
@@ -148,18 +151,12 @@ class TestCreatePayment:
             confirmation=SimpleNamespace(confirmation_url="https://fake"),
         )
         create = AsyncMock(return_value=fake_payment)
-        monkeypatch.setattr(
-            "src.routers.subscription.yookassa_gateway.create_payment", create
-        )
+        monkeypatch.setattr("src.routers.subscription.yookassa_gateway.create_payment", create)
 
-        response = await client.post(
-            "/api/subscription/payment", json={}, headers=auth_headers
-        )
+        response = await client.post("/api/subscription/payment", json={}, headers=auth_headers)
         assert response.status_code == 200
         assert response.json()["confirmationUrl"] == "https://fake"
-        payment = await db.scalar(
-            select(MPayment).where(MPayment.user_id == test_user.id)
-        )
+        payment = await db.scalar(select(MPayment).where(MPayment.user_id == test_user.id))
         assert payment is not None
         assert payment.status == "in_progress"
         payment_data = create.await_args.args[0]
@@ -168,9 +165,7 @@ class TestCreatePayment:
 
     @pytest.mark.asyncio
     async def test_create_payment_unauthenticated(self, client: AsyncClient):
-        assert (
-            await client.post("/api/subscription/payment")
-        ).status_code == 401
+        assert (await client.post("/api/subscription/payment")).status_code == 401
 
 
 class TestYookassaWebhook:
@@ -190,21 +185,15 @@ class TestYookassaWebhook:
         )
         db.add(payment)
         await db.commit()
-        get_payment = AsyncMock(
-            return_value=_remote_payment("payment_123", test_user.id)
-        )
-        monkeypatch.setattr(
-            "src.routers.subscription.yookassa_gateway.get_payment", get_payment
-        )
+        get_payment = AsyncMock(return_value=_remote_payment("payment_123", test_user.id))
+        monkeypatch.setattr("src.routers.subscription.yookassa_gateway.get_payment", get_payment)
         payload = {
             "type": "notification",
             "event": "payment.succeeded",
             "object": {"id": "payment_123"},
         }
 
-        first = await client.post(
-            "/api/subscription/yookassa/webhook", json=payload
-        )
+        first = await client.post("/api/subscription/yookassa/webhook", json=payload)
         assert first.status_code == 200
         assert first.json()["status"] == "processed"
         await db.refresh(payment)
@@ -223,9 +212,7 @@ class TestYookassaWebhook:
         )
         assert subscription_response.json()["platform"] == "yookassa"
 
-        duplicate = await client.post(
-            "/api/subscription/yookassa/webhook", json=payload
-        )
+        duplicate = await client.post("/api/subscription/yookassa/webhook", json=payload)
         assert duplicate.status_code == 200
         assert duplicate.json()["status"] == "already_processed"
         await db.refresh(test_user)
@@ -249,9 +236,7 @@ class TestYookassaWebhook:
         await db.commit()
         monkeypatch.setattr(
             "src.routers.subscription.yookassa_gateway.get_payment",
-            AsyncMock(
-                return_value=_remote_payment("payment_forged", "another-user")
-            ),
+            AsyncMock(return_value=_remote_payment("payment_forged", "another-user")),
         )
 
         response = await client.post(
@@ -337,13 +322,9 @@ class TestCreatePaymentLimit:
             )
         await db.commit()
         create = AsyncMock()
-        monkeypatch.setattr(
-            "src.routers.subscription.yookassa_gateway.create_payment", create
-        )
+        monkeypatch.setattr("src.routers.subscription.yookassa_gateway.create_payment", create)
 
-        response = await client.post(
-            "/api/subscription/payment", json={}, headers=auth_headers
-        )
+        response = await client.post("/api/subscription/payment", json={}, headers=auth_headers)
         assert response.status_code == 429
         create.assert_not_awaited()
 
@@ -373,13 +354,107 @@ class TestCreatePaymentLimit:
             AsyncMock(return_value=fake_payment),
         )
 
-        response = await client.post(
-            "/api/subscription/payment", json={}, headers=auth_headers
-        )
+        response = await client.post("/api/subscription/payment", json={}, headers=auth_headers)
         assert response.status_code == 200
         payments = (
-            await db.scalars(
-                select(MPayment).where(MPayment.user_id == test_user.id)
-            )
+            await db.scalars(select(MPayment).where(MPayment.user_id == test_user.id))
         ).all()
         assert len(payments) == 2
+
+
+class TestGooglePlayVerification:
+    @pytest.mark.asyncio
+    async def test_verified_purchase_activates_subscription(
+        self,
+        client: AsyncClient,
+        auth_headers,
+        db: AsyncSession,
+        test_user: User,
+        monkeypatch,
+    ):
+        expires_at = datetime.now(timezone.utc) + timedelta(days=30)
+        remote = {
+            "subscriptionState": "SUBSCRIPTION_STATE_ACTIVE",
+            "acknowledgementState": "ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED",
+            "externalAccountIdentifiers": {
+                "obfuscatedExternalAccountId": hashlib.sha256(test_user.id.encode()).hexdigest()
+            },
+            "lineItems": [
+                {
+                    "productId": "premium_monthly",
+                    "expiryTime": expires_at.isoformat(),
+                }
+            ],
+        }
+        monkeypatch.setattr(
+            "src.integrations.google_play.google_play_gateway.get_subscription",
+            AsyncMock(return_value=remote),
+        )
+        response = await client.post(
+            "/api/subscription/google/verify",
+            headers=auth_headers,
+            json={
+                "purchaseToken": "google_purchase_token",
+                "productId": "premium_monthly",
+            },
+        )
+
+        assert response.status_code == 200
+        assert response.json()["platform"] == "google_play"
+        subscription = await db.scalar(
+            select(Subscription).where(Subscription.user_id == test_user.id)
+        )
+        assert subscription.provider == SubscriptionProvider.GOOGLE_PLAY
+
+    @pytest.mark.asyncio
+    async def test_purchase_for_another_account_is_rejected(
+        self,
+        client: AsyncClient,
+        auth_headers,
+        monkeypatch,
+    ):
+        remote = {
+            "subscriptionState": "SUBSCRIPTION_STATE_ACTIVE",
+            "acknowledgementState": "ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED",
+            "externalAccountIdentifiers": {"obfuscatedExternalAccountId": "different-account"},
+            "lineItems": [
+                {
+                    "productId": "premium_monthly",
+                    "expiryTime": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat(),
+                }
+            ],
+        }
+        monkeypatch.setattr(
+            "src.integrations.google_play.google_play_gateway.get_subscription",
+            AsyncMock(return_value=remote),
+        )
+        response = await client.post(
+            "/api/subscription/google/verify",
+            headers=auth_headers,
+            json={
+                "purchaseToken": "stolen_google_purchase_token",
+                "productId": "premium_monthly",
+            },
+        )
+        assert response.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_google_outage_is_retryable(
+        self,
+        client: AsyncClient,
+        auth_headers,
+        monkeypatch,
+    ):
+        monkeypatch.setattr(
+            "src.integrations.google_play.google_play_gateway.get_subscription",
+            AsyncMock(side_effect=GooglePlayError("unavailable")),
+        )
+        response = await client.post(
+            "/api/subscription/google/verify",
+            headers=auth_headers,
+            json={
+                "purchaseToken": "google_purchase_token",
+                "productId": "premium_monthly",
+            },
+        )
+        assert response.status_code == 503

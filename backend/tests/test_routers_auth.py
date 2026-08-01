@@ -43,7 +43,7 @@ class TestVerifyCode:
         """Should reject invalid verification code."""
         response = await client.post(
             "/api/auth/verify-code",
-            json={"email": "test@example.com", "code": "invalid_code", "password": "TestPass123!"},
+            json={"email": "test@example.com", "code": "00000000", "password": "TestPass123!"},
         )
         assert response.status_code == 401
         assert "Invalid or expired" in response.json()["detail"]
@@ -51,10 +51,15 @@ class TestVerifyCode:
     @pytest.mark.asyncio
     async def test_verify_code_valid(self, client: AsyncClient, async_session):
         """Should verify code and return tokens."""
+        from src.auth import hash_email_code
         from src.models import EmailCodesStorage
 
         # Create a valid code
-        storage = EmailCodesStorage(email="test@example.com")
+        code = "12345678"
+        storage = EmailCodesStorage(
+            email="test@example.com",
+            code_hash=hash_email_code("test@example.com", code),
+        )
         async_session.add(storage)
         await async_session.commit()
 
@@ -62,7 +67,7 @@ class TestVerifyCode:
             "/api/auth/verify-code",
             json={
                 "email": "test@example.com",
-                "code": storage.code,
+                "code": code,
                 "password": "TestPass123!",
             },
         )
@@ -117,20 +122,20 @@ class TestRefreshToken:
         """Should refresh token successfully."""
         response = await client.post(
             "/api/auth/refresh",
-            json={"refreshToken": "test_refresh_token_123"},
+            json={"refreshToken": "test_refresh_token_123_secure_fixture_value"},
         )
         assert response.status_code == 200
         data = response.json()
         assert "accessToken" in data
         assert "refreshToken" in data
-        assert data["refreshToken"] != "test_refresh_token_123"  # New token
+        assert data["refreshToken"] != "test_refresh_token_123_secure_fixture_value"
 
     @pytest.mark.asyncio
     async def test_refresh_invalid_token(self, client: AsyncClient):
         """Should reject invalid refresh token."""
         response = await client.post(
             "/api/auth/refresh",
-            json={"refreshToken": "invalid_token"},
+            json={"refreshToken": "invalid_token_value_that_is_long_enough"},
         )
         assert response.status_code == 401
 
@@ -139,7 +144,7 @@ class TestRefreshToken:
         """Should reject expired refresh token."""
         response = await client.post(
             "/api/auth/refresh",
-            json={"refreshToken": "test_expired_refresh_token_456"},
+            json={"refreshToken": "test_expired_refresh_token_456_secure_fixture"},
         )
         assert response.status_code == 401
 

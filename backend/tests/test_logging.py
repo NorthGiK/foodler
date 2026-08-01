@@ -40,12 +40,8 @@ def test_json_formatter_includes_request_id_and_drops_sensitive_extras():
 async def test_request_id_is_returned_and_untrusted_value_is_replaced(
     client: AsyncClient,
 ):
-    accepted = await client.get(
-        "/health", headers={"X-Request-ID": "mobile-request-1"}
-    )
-    rejected = await client.get(
-        "/health", headers={"X-Request-ID": "not valid/and too revealing"}
-    )
+    accepted = await client.get("/health", headers={"X-Request-ID": "mobile-request-1"})
+    rejected = await client.get("/health", headers={"X-Request-ID": "not valid/and too revealing"})
 
     assert accepted.headers["X-Request-ID"] == "mobile-request-1"
     assert rejected.headers["X-Request-ID"] != "not valid/and too revealing"

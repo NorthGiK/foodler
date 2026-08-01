@@ -10,7 +10,7 @@ permissions:
 
 env:
   DATABASE_URL: sqlite+aiosqlite:///food_tracker.db
-  SECRET_KEY: ci-only-secret-key
+  SECRET_KEY: ci-only-secret-key-at-least-32-characters
   API_QR_KEY: ci-placeholder
   API_URL: https://example.invalid/receipt
   AI_API_KEY: ci-placeholder
@@ -33,6 +33,8 @@ jobs:
       - run: uv sync --all-extras --locked
         working-directory: backend
       - run: uv run ruff check src tests scripts
+        working-directory: backend
+      - run: uv audit --locked
         working-directory: backend
       - run: uv run pytest
         working-directory: backend

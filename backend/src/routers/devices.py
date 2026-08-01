@@ -1,18 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi_throttle import RateLimiter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.utils import DatabaseRateLimiter, with_rate_limit
 
 from ..auth import get_current_user
 from ..database import get_db
 from ..models import Device, User
 from ..schemas import DeviceResponse, RegisterDeviceRequest, StatusResponse
-from src.utils import with_rate_limit
 
 router = APIRouter(tags=["Devices"])
-get = with_rate_limit(router.get, RateLimiter(100, 1))
-post = with_rate_limit(router.post, RateLimiter(100, 1))
-delete = with_rate_limit(router.delete, RateLimiter(50, 1))
+get = with_rate_limit(router.get, DatabaseRateLimiter(100, 1))
+post = with_rate_limit(router.post, DatabaseRateLimiter(100, 1))
+delete = with_rate_limit(router.delete, DatabaseRateLimiter(50, 1))
 
 
 @get("/devices", response_model=list[DeviceResponse])

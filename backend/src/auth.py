@@ -1,13 +1,24 @@
+import hashlib
+import hmac
+import secrets
 from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 
+import bcrypt
+import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
-import bcrypt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, SECRET_KEY
+from .config import (
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    ALGORITHM,
+    JWT_AUDIENCE,
+    JWT_ISSUER,
+    PREVIOUS_SECRET_KEYS,
+    SECRET_KEY,
+)
 from .database import get_db
 from .models import User
 
@@ -23,16 +34,61 @@ def verify_password(plain: str, hashed: str) -> bool:
     return bcrypt.checkpw(plain.encode(), bytes.fromhex(hashed))
 
 
-def create_access_token(user_id: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    payload = {"sub": user_id, "exp": expire, "type": "access"}
+def create_access_token(user_id: str, auth_version: int = 0) -> str:
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    payload = {
+        "sub": user_id,
+        "exp": expire,
+        "iat": now,
+        "jti": uuid4().hex,
+        "iss": JWT_ISSUER,
+        "aud": JWT_AUDIENCE,
+        "type": "access",
+        "ver": auth_version,
+    }
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def create_refresh_token() -> str:
-    from uuid import uuid4
+    return secrets.token_urlsafe(48)
 
-    return uuid4().hex + uuid4().hex
+
+def hash_refresh_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def generate_email_code() -> str:
+    return f"{secrets.randbelow(100_000_000):08d}"
+
+
+def hash_email_code(email: str, code: str) -> str:
+    normalized_email = email.strip().lower()
+    return hmac.new(
+        SECRET_KEY.encode(),
+        f"{normalized_email}:{code}".encode(),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def _decode_access_token(token: str) -> dict:
+    last_error: jwt.PyJWTError | None = None
+    for key in (SECRET_KEY, *PREVIOUS_SECRET_KEYS):
+        try:
+            payload = jwt.decode(
+                token,
+                key,
+                algorithms=[ALGORITHM],
+                audience=JWT_AUDIENCE,
+                issuer=JWT_ISSUER,
+                options={"require": ["exp", "sub", "iat", "jti", "iss", "aud", "type", "ver"]},
+            )
+            if payload.get("type") != "access":
+                raise jwt.InvalidTokenError("Unexpected token type")
+            return payload
+        except jwt.PyJWTError as exc:
+            last_error = exc
+    raise last_error or jwt.InvalidTokenError("Invalid token")
 
 
 async def get_current_user(
@@ -41,17 +97,22 @@ async def get_current_user(
 ) -> User:
     token = credentials.credentials
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = _decode_access_token(token)
         user_id: str | None = payload.get("sub")
         if user_id is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-    except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    except jwt.PyJWTError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+        ) from exc
 
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+    if payload.get("ver", 0) != user.auth_version:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token revoked")
     return user
 
 

@@ -2,13 +2,13 @@
 Tests for src/receipt_retention.py - Receipt retention logic.
 """
 
-from datetime import datetime, timedelta
 import uuid
+from datetime import datetime, timedelta
 
 import pytest
 
-from src.receipt_retention import compute_receipt_expiry, cleanup_expired_receipts
 from src.models import Receipt
+from src.receipt_retention import cleanup_expired_receipts, compute_receipt_expiry
 
 
 class TestComputeReceiptExpiry:
@@ -16,12 +16,12 @@ class TestComputeReceiptExpiry:
 
     def test_premium_user_returns_none(self, test_premium_user):
         """Premium users should have no expiry (None)."""
-        expiry = compute_receipt_expiry(test_premium_user)
+        expiry = compute_receipt_expiry(True)
         assert expiry is None
 
     def test_regular_user_returns_30_days(self, test_user):
         """Regular users should get 30 days expiry."""
-        expiry = compute_receipt_expiry(test_user)
+        expiry = compute_receipt_expiry(False)
         assert expiry is not None
 
         # Should be approximately 30 days from now
@@ -31,7 +31,7 @@ class TestComputeReceiptExpiry:
 
     def test_expired_sub_user_returns_30_days(self, test_expired_sub_user):
         """Users with expired subscription should get 30 days expiry."""
-        expiry = compute_receipt_expiry(test_expired_sub_user)
+        expiry = compute_receipt_expiry(False)
         assert expiry is not None
 
         now = datetime.now()
@@ -42,7 +42,7 @@ class TestComputeReceiptExpiry:
         """Premium without subscription_expires should still get 30 days."""
         test_user.premium = True
         test_user.subscription_expires = None
-        expiry = compute_receipt_expiry(test_user)
+        expiry = compute_receipt_expiry(False)
         assert expiry is not None
 
 

@@ -16,6 +16,7 @@ Foodler — мобильное приложение для учёта проду
 make bootstrap
 cp backend/.env.example backend/.env
 cp mobile/.env.example mobile/.env
+cd backend && uv run alembic upgrade head && cd ..
 make dev
 ```
 
@@ -27,9 +28,10 @@ make dev
 | Команда | Назначение |
 |---|---|
 | `make bootstrap` | Установить фиксированные зависимости обоих проектов |
-| `make dev` | Запустить API и Expo параллельно |
+| `make dev` | Применить backend-миграции, затем запустить API и Expo |
 | `make check` | Линтеры, форматирование, typecheck, контракт и секреты |
 | `make test` | Все backend- и mobile-тесты |
+| `make audit` | Проверить backend lockfile по OSV на известные уязвимости |
 | `make contract` | Перегенерировать OpenAPI и TypeScript API-типы |
 | `make contract-check` | Проверить, что generated-файлы актуальны |
 
@@ -75,6 +77,7 @@ Production URL не должен быть зашит в код: задайте
 ```bash
 make contract
 make check
+make audit
 make test
 ```
 

@@ -3,7 +3,7 @@ Tests for src/seed_products.py - Product seeding.
 """
 
 import pytest
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 
 from src.models import Product, ProductAlias, ProductTag, ProductTagMember
 

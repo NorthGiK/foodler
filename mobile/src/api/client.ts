@@ -139,8 +139,12 @@ export const api = {
     );
   },
 
-  getReceipts() {
-    return unwrap(sdk.getReceiptsApiReceiptsGet());
+  getReceipts(offset = 0, limit = 100) {
+    return unwrap(
+      sdk.getReceiptsApiReceiptsGet({
+        query: { offset, limit },
+      }),
+    );
   },
 
   createReceipt(data: ReceiptSchema) {

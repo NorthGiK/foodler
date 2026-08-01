@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 .PHONY: bootstrap dev dev-backend dev-mobile check test backend-check mobile-check \
-	backend-test mobile-test contract contract-check secrets
+	backend-test mobile-test contract contract-check secrets audit backend-audit
 
 bootstrap:
 	cd backend && uv sync --all-extras
@@ -11,6 +11,7 @@ dev:
 	$(MAKE) -j2 dev-backend dev-mobile
 
 dev-backend:
+	cd backend && uv run alembic upgrade head
 	cd backend && uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
 
 dev-mobile:
@@ -43,3 +44,8 @@ contract-check: contract
 
 secrets:
 	cd backend && .venv/bin/python -m scripts.check_secrets
+
+audit: backend-audit
+
+backend-audit:
+	cd backend && uv audit --locked

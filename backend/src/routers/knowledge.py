@@ -10,49 +10,49 @@ import json
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi_throttle import RateLimiter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from src.utils import DatabaseRateLimiter, with_rate_limit
+
+from ..analytics import (
+    get_fridge_status,
+    get_nutrition_summary,
+    get_spending_summary,
+    suggest_recipes,
+)
 from ..auth import get_current_user
 from ..database import get_db
 from ..models import (
     Product,
     ProductAlias,
+    ProductSubstitute,
     ProductTag,
     ProductTagMember,
-    ProductSubstitute,
     Recipe,
     RecipeIngredient,
     User,
 )
+from ..product_matching import match_product, normalize_name
 from ..schemas import (
-    ProductSchema,
+    FridgeProduct,
+    NutritionSummary,
     ProductCreateSchema,
     ProductMatchRequest,
     ProductMatchResult,
+    ProductSchema,
     ProductSearchResult,
-    ProductTagSchema,
     ProductSubstituteSchema,
-    RecipeSchema,
+    ProductTagSchema,
     RecipeCreateSchema,
+    RecipeSchema,
     RecipeSuggestion,
-    NutritionSummary,
-    FridgeProduct,
 )
-from ..product_matching import match_product, normalize_name
-from ..analytics import (
-    get_spending_summary,
-    get_nutrition_summary,
-    get_fridge_status,
-    suggest_recipes,
-)
-from src.utils import with_rate_limit
 
 router = APIRouter(tags=["Knowledge Base"])
-get = with_rate_limit(router.get, RateLimiter(100, 1))
-post = with_rate_limit(router.post, RateLimiter(100, 1))
+get = with_rate_limit(router.get, DatabaseRateLimiter(100, 1))
+post = with_rate_limit(router.post, DatabaseRateLimiter(100, 1))
 
 # ============================================================
 # Helpers — загрузка связей через прямые SQL запросы

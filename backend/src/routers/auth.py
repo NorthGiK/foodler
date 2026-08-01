@@ -1,41 +1,42 @@
 import logging
 from datetime import datetime, timedelta, timezone
 
-
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi_throttle import RateLimiter
-from sqlalchemy import select, delete
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth import (
-    create_access_token,
-    create_refresh_token,
+    generate_email_code,
+    hash_email_code,
     hash_password,
+    hash_refresh_token,
     verify_password,
 )
-from ..config import (
-    EMAIL_CODE_EXPIRE_MINUTES,
-    MAX_CODE_SENDS_PER_10_MINUTES,
-    REFRESH_TOKEN_EXPIRE_MINUTES,
-)
+from ..config import EMAIL_CODE_EXPIRE_MINUTES, MAX_CODE_SENDS_PER_10_MINUTES
 from ..database import get_db
 from ..email_service import EmailService
-from ..models import EmailCodesStorage, RefreshToken, User, _uuid, _email_code
+from ..models import EmailCodesStorage, RefreshToken, User
 from ..schemas import (
     AuthResponse,
     ForgotPassword,
     ForgotPasswordVerify,
-    MessageResponse,
     LoginRequest,
+    MessageResponse,
     RefreshRequest,
     SendCodeRequest,
     UserResponse,
     VerifyCodeRequest,
 )
-from ..utils import PasswordValidationError, validate_password, with_rate_limit
+from ..services.auth_tokens import issue_tokens, revoke_user_sessions
+from ..utils import (
+    DatabaseRateLimiter,
+    PasswordValidationError,
+    validate_password,
+    with_rate_limit,
+)
 
 router = APIRouter(tags=["Auth"])
-post = with_rate_limit(router.post, RateLimiter(100, 1))
+post = with_rate_limit(router.post, DatabaseRateLimiter(100, 1))
 logger = logging.getLogger(__name__)
 
 
@@ -64,12 +65,16 @@ async def send_code(body: SendCodeRequest, db: AsyncSession = Depends(get_db)):
             detail="Too many verification codes sent. Please wait 10 minutes.",
         )
 
-    storage = EmailCodesStorage(email=body.email)
+    code = generate_email_code()
+    storage = EmailCodesStorage(
+        email=str(body.email),
+        code_hash=hash_email_code(str(body.email), code),
+    )
     db.add(storage)
     await db.commit()
 
     # Send email
-    await EmailService.send_code(body.email, storage.code)
+    await EmailService.send_code(str(body.email), code)
 
     return {"message": "Verification code sent"}
 
@@ -83,7 +88,7 @@ async def verify_code(body: VerifyCodeRequest, db: AsyncSession = Depends(get_db
     result = await db.execute(
         select(EmailCodesStorage).where(
             EmailCodesStorage.email == body.email,
-            EmailCodesStorage.code == body.code,
+            EmailCodesStorage.code_hash == hash_email_code(str(body.email), body.code),
             EmailCodesStorage.created_at
             > _utcnow_naive() - timedelta(minutes=EMAIL_CODE_EXPIRE_MINUTES),
         )
@@ -117,7 +122,7 @@ async def verify_code(body: VerifyCodeRequest, db: AsyncSession = Depends(get_db
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(e),
-            )
+            ) from e
         user = User(
             email=body.email,
             password_hash=hash_password(body.password),
@@ -134,18 +139,11 @@ async def verify_code(body: VerifyCodeRequest, db: AsyncSession = Depends(get_db
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=str(e),
-                )
+                ) from e
             user.password_hash = hash_password(body.password)
+            await revoke_user_sessions(db, user)
 
-    # Generate tokens
-    access_token = create_access_token(user.id)
-    refresh_token_str = create_refresh_token()
-
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
-
-    rt = RefreshToken(token=refresh_token_str, user_id=user.id, expires_at=expires_at)
-    db.add(rt)
-    await db.commit()
+    access_token, refresh_token_str = await issue_tokens(db, user)
 
     return AuthResponse(
         accessToken=access_token,
@@ -171,14 +169,7 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
             detail="Invalid email or password",
         )
 
-    access_token = create_access_token(user.id)
-    refresh_token_str = create_refresh_token()
-
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
-
-    rt = RefreshToken(token=refresh_token_str, user_id=user.id, expires_at=expires_at)
-    db.add(rt)
-    await db.commit()
+    access_token, refresh_token_str = await issue_tokens(db, user)
 
     return AuthResponse(
         accessToken=access_token,
@@ -226,13 +217,10 @@ async def forgot_password_send_code(
         )
 
     # Generate and store code
-    code = _email_code()
-    code_id = _uuid()
-
+    code = generate_email_code()
     storage = EmailCodesStorage(
-        id=code_id,
-        email=body.email,
-        code=code,
+        email=str(body.email),
+        code_hash=hash_email_code(str(body.email), code),
     )
     db.add(storage)
     await db.commit()
@@ -259,7 +247,7 @@ async def forgot_password_verify_code(
     result = await db.execute(
         select(EmailCodesStorage).where(
             EmailCodesStorage.email == body.email,
-            EmailCodesStorage.code == body.code,
+            EmailCodesStorage.code_hash == hash_email_code(str(body.email), body.code),
             EmailCodesStorage.created_at
             > _utcnow_naive() - timedelta(minutes=EMAIL_CODE_EXPIRE_MINUTES),
         )
@@ -282,7 +270,7 @@ async def forgot_password_verify_code(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
 
     # Find user and update password
     result = await db.execute(select(User).where(User.email == body.email))
@@ -295,14 +283,16 @@ async def forgot_password_verify_code(
         )
 
     user.password_hash = hash_password(body.new_password)
-    await db.commit()
+    await revoke_user_sessions(db, user)
 
     return {"message": "Password reset successful"}
 
 
 @post("/auth/refresh", response_model=AuthResponse)
 async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(RefreshToken).where(RefreshToken.token == body.refreshToken))
+    result = await db.execute(
+        select(RefreshToken).where(RefreshToken.token_hash == hash_refresh_token(body.refreshToken))
+    )
     rt = result.scalar_one_or_none()
     if not rt:
         raise HTTPException(
@@ -329,14 +319,7 @@ async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
     # Delete old refresh token
     await db.delete(rt)
 
-    access_token = create_access_token(user.id)
-    refresh_token_str = create_refresh_token()
-
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)
-
-    new_rt = RefreshToken(token=refresh_token_str, user_id=user.id, expires_at=expires_at)
-    db.add(new_rt)
-    await db.commit()
+    access_token, refresh_token_str = await issue_tokens(db, user)
 
     return AuthResponse(
         accessToken=access_token,

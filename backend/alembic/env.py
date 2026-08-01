@@ -1,11 +1,11 @@
 import sys
-from pathlib import Path
 from logging.config import fileConfig
+from pathlib import Path
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config, pool
 
 from alembic import context
+from src.config import DATABASE_URL
 
 # Добавляем корень проекта в sys.path для импорта src
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -13,6 +13,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+database_url = config.attributes.get("database_url", DATABASE_URL)
+sync_database_url = database_url.replace("sqlite+aiosqlite", "sqlite", 1)
+config.set_main_option("sqlalchemy.url", sync_database_url.replace("%", "%%"))
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -21,8 +24,8 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-from src.database import Base  # noqa: E402
 from src import models  # noqa: E402, F401 — ensure all models are imported
+from src.database import Base  # noqa: E402
 
 target_metadata = Base.metadata
 
@@ -70,9 +73,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

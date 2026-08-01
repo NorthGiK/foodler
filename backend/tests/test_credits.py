@@ -152,17 +152,11 @@ class TestDeductCredits:
         assert info["remaining"] == 1.0  # 2 - 1
 
     @pytest.mark.asyncio
-    async def test_ask_cannot_overdraw_one_remaining_credit(
-        self, async_session, test_user
-    ):
-        await deduct_credits(
-            async_session, test_user, ip=None, action="overall-analysis"
-        )
+    async def test_ask_cannot_overdraw_one_remaining_credit(self, async_session, test_user):
+        await deduct_credits(async_session, test_user, ip=None, action="overall-analysis")
 
         with pytest.raises(InsufficientCreditsError):
-            await deduct_credits(
-                async_session, test_user, ip=None, action="ask"
-            )
+            await deduct_credits(async_session, test_user, ip=None, action="ask")
 
         info = await get_user_credits_info(async_session, test_user)
         assert info["remaining"] == 1.0
@@ -185,9 +179,7 @@ class TestDeductCredits:
 
         async def reserve_once():
             async with sessions() as session:
-                return await deduct_credits(
-                    session, user, ip=None, action="diet"
-                )
+                return await deduct_credits(session, user, ip=None, action="diet")
 
         results = await asyncio.gather(
             reserve_once(),
@@ -196,10 +188,7 @@ class TestDeductCredits:
             return_exceptions=True,
         )
         assert sum(not isinstance(result, Exception) for result in results) == 2
-        assert sum(
-            isinstance(result, InsufficientCreditsError)
-            for result in results
-        ) == 1
+        assert sum(isinstance(result, InsufficientCreditsError) for result in results) == 1
         async with sessions() as session:
             info = await get_user_credits_info(session, user)
             assert info["remaining"] == 0.0

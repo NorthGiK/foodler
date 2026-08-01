@@ -4,18 +4,20 @@ Tests for src/auth.py - JWT token management and authentication.
 
 from datetime import datetime, timedelta, timezone
 
+import jwt
 import pytest
-from jose import jwt, JWTError
 
 from src.auth import (
-    hash_password,
-    verify_password,
     create_access_token,
     create_refresh_token,
     get_current_user,
     get_current_user_optional,
+    hash_email_code,
+    hash_password,
+    hash_refresh_token,
+    verify_password,
 )
-from src.config import SECRET_KEY, ALGORITHM
+from src.config import ALGORITHM, JWT_AUDIENCE, JWT_ISSUER, SECRET_KEY
 
 
 class TestPasswordHashing:
@@ -69,19 +71,37 @@ class TestAccessToken:
     def test_create_access_token_contains_user_id(self):
         """Token payload should contain the user ID."""
         token = create_access_token("user_id_123")
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM],
+            audience=JWT_AUDIENCE,
+            issuer=JWT_ISSUER,
+        )
         assert payload["sub"] == "user_id_123"
 
     def test_create_access_token_has_correct_type(self):
         """Token should have 'access' type."""
         token = create_access_token("user_id_123")
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM],
+            audience=JWT_AUDIENCE,
+            issuer=JWT_ISSUER,
+        )
         assert payload["type"] == "access"
 
     def test_create_access_token_has_expiration(self):
         """Token should have expiration claim."""
         token = create_access_token("user_id_123")
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM],
+            audience=JWT_AUDIENCE,
+            issuer=JWT_ISSUER,
+        )
         assert "exp" in payload
         assert isinstance(payload["exp"], int)
 
@@ -91,7 +111,7 @@ class TestAccessToken:
         payload = {"sub": "user_id_123", "exp": expire, "type": "access"}
         expired_token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
-        with pytest.raises(JWTError):
+        with pytest.raises(jwt.PyJWTError):
             jwt.decode(expired_token, SECRET_KEY, algorithms=[ALGORITHM])
 
     def test_create_access_token_different_user_id_gives_different_token(self):
@@ -104,10 +124,10 @@ class TestAccessToken:
         """Tokens with wrong signature should be rejected."""
         fake_token = jwt.encode(
             {"sub": "user_id_123", "exp": 9999999999, "type": "access"},
-            "wrong_secret_key",
+            "wrong-secret-key-with-at-least-32-characters",
             algorithm=ALGORITHM,
         )
-        with pytest.raises(JWTError):
+        with pytest.raises(jwt.PyJWTError):
             jwt.decode(fake_token, SECRET_KEY, algorithms=[ALGORITHM])
 
 
@@ -115,13 +135,13 @@ class TestRefreshToken:
     """Tests for refresh token creation."""
 
     def test_create_refresh_token_returns_string(self):
-        """create_refresh_token should return a hex string."""
+        """create_refresh_token should return an opaque string."""
         token = create_refresh_token()
         assert isinstance(token, str)
         assert len(token) > 0
 
     def test_create_refresh_token_has_min_length(self):
-        """Refresh token should be at least 64 chars (two UUIDs)."""
+        """Refresh token should carry at least 384 bits of entropy."""
         token = create_refresh_token()
         assert len(token) >= 64
 
@@ -131,10 +151,17 @@ class TestRefreshToken:
         token2 = create_refresh_token()
         assert token1 != token2
 
-    def test_create_refresh_token_hex_chars(self):
-        """Refresh token should contain only hex characters."""
+    def test_refresh_token_is_only_persisted_as_hash(self):
         token = create_refresh_token()
-        assert all(c in "0123456789abcdef" for c in token)
+        digest = hash_refresh_token(token)
+        assert token not in digest
+        assert len(digest) == 64
+
+    def test_email_code_hash_is_bound_to_email(self):
+        assert hash_email_code("one@example.com", "12345678") != hash_email_code(
+            "two@example.com",
+            "12345678",
+        )
 
 
 class TestGetCurrentUser:
@@ -156,8 +183,8 @@ class TestGetCurrentUser:
     @pytest.mark.asyncio
     async def test_get_current_user_invalid_token(self, async_session):
         """Should raise for invalid token."""
-        from fastapi.security import HTTPAuthorizationCredentials
         from fastapi import HTTPException
+        from fastapi.security import HTTPAuthorizationCredentials
 
         credentials = HTTPAuthorizationCredentials(
             scheme="Bearer", credentials="invalid_token_here"
@@ -169,8 +196,8 @@ class TestGetCurrentUser:
     @pytest.mark.asyncio
     async def test_get_current_user_nonexistent_user(self, async_session):
         """Should raise if user does not exist."""
-        from fastapi.security import HTTPAuthorizationCredentials
         from fastapi import HTTPException
+        from fastapi.security import HTTPAuthorizationCredentials
 
         token = create_access_token("nonexistent_user_id")
         credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)

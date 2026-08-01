@@ -9,8 +9,8 @@ from yookassa.domain.exceptions import ApiError
 from src.config import (
     PAYMENT_ACCOUNT_ID,
     PAYMENT_MAX_ATTEMPTS,
-    PAYMENT_TIMEOUT_SECONDS,
     PAYMENT_SECRET_KEY,
+    PAYMENT_TIMEOUT_SECONDS,
 )
 
 
@@ -43,3 +43,7 @@ class YooKassaGateway:
 
 
 yookassa_gateway = YooKassaGateway()
+
+
+def get_yookassa_gateway() -> YooKassaGateway:
+    return yookassa_gateway

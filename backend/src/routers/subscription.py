@@ -3,32 +3,51 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi_throttle import RateLimiter
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth import get_current_user
 from ..config import PAYMENT_AMOUNT_RUB, PAYMENT_RETURN_URL
 from ..database import get_db
-from ..integrations.yookassa import YooKassaError, yookassa_gateway
+from ..integrations.google_play import (
+    GooglePlayError,
+    GooglePlayGateway,
+    get_google_play_gateway,
+)
+from ..integrations.yookassa import (
+    YooKassaError,
+    YooKassaGateway,
+    yookassa_gateway,
+)
 from ..models import Payment as MPayment
-from ..models import Subscription, User
+from ..models import PaymentStatus, User
 from ..schemas import (
     CreatePaymentRequest,
+    GooglePurchase,
     PaymentConfirmationResponse,
     PremiumStatusResponse,
     StatusResponse,
     SubscriptionStatusResponse,
     YooKassaWebhookRequest,
 )
-from ..services.subscriptions import PaymentVerificationError, apply_yookassa_event
-from ..utils import with_rate_limit
+from ..services.entitlements import get_entitlement
+from ..services.subscriptions import (
+    GoogleSubscriptionVerificationError,
+    PaymentVerificationError,
+    apply_google_play_purchase,
+    apply_yookassa_event,
+)
+from ..utils import DatabaseRateLimiter, with_rate_limit
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Subscription"], prefix="/subscription")
-get = with_rate_limit(router.get, RateLimiter(100, 1))
-post = with_rate_limit(router.post, RateLimiter(100, 1))
+get = with_rate_limit(router.get, DatabaseRateLimiter(100, 1))
+post = with_rate_limit(router.post, DatabaseRateLimiter(100, 1))
+
+
+def provide_yookassa_gateway() -> YooKassaGateway:
+    return yookassa_gateway
 
 
 def _utcnow() -> datetime:
@@ -42,11 +61,8 @@ async def get_subscription(
     db: AsyncSession = Depends(get_db),
 ):
     """Get current subscription status."""
-    q = select(Subscription).where(Subscription.user_id == user.id)
-    result = await db.execute(q)
-    subscription = result.scalar_one_or_none()
-
-    if subscription is None:
+    entitlement = await get_entitlement(db, user)
+    if entitlement.provider is None:
         return {
             "active": False,
             "platform": None,
@@ -54,13 +70,9 @@ async def get_subscription(
         }
 
     return {
-        "active": subscription.active,
-        "platform": (
-            "yookassa"
-            if subscription.purchase_token.startswith("yookassa:")
-            else "google"
-        ),
-        "expiresAt": subscription.expires_at.isoformat() if subscription.expires_at else None,
+        "active": entitlement.active,
+        "platform": entitlement.provider.value,
+        "expiresAt": entitlement.expires_at.isoformat() if entitlement.expires_at else None,
     }
 
 
@@ -70,21 +82,49 @@ async def is_premium(
     db: AsyncSession = Depends(get_db),
 ):
     """Check if user has active premium subscription."""
-    now = _utcnow()
-    q = select(User.premium, User.subscription_expires).where(User.id == user.id)
-    result = await db.execute(q)
-    premium, expires = result.one_or_none() or (False, None)
+    entitlement = await get_entitlement(db, user)
+    return {"premium": entitlement.active}
 
-    # Check if subscription is still valid
-    if premium and expires:
-        # Ensure timezone-aware
-        expires = expires.replace(tzinfo=timezone.utc) if expires.tzinfo is None else expires
-        if expires < now:
-            premium = False
-            await db.execute(update(User).where(User.id == user.id).values(premium=False))
-            await db.commit()
 
-    return {"premium": premium}
+@post("/google/verify", response_model=SubscriptionStatusResponse)
+async def verify_google_purchase(
+    body: GooglePurchase,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    gateway: GooglePlayGateway = Depends(get_google_play_gateway),
+):
+    try:
+        remote_purchase = await gateway.get_subscription(body.purchaseToken)
+        subscription = await apply_google_play_purchase(
+            db,
+            user=user,
+            purchase_token=body.purchaseToken,
+            product_id=body.productId,
+            remote_purchase=remote_purchase,
+        )
+    except GooglePlayError as exc:
+        logger.warning(
+            "Google Play verification unavailable",
+            extra={"provider": "google_play", "event": "subscription.verify"},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Google Play verification unavailable",
+        ) from exc
+    except GoogleSubscriptionVerificationError as exc:
+        logger.warning(
+            "Google Play purchase rejected",
+            extra={"provider": "google_play", "event": "subscription.verify"},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Google Play purchase rejected",
+        ) from exc
+    return {
+        "active": True,
+        "platform": subscription.provider.value,
+        "expiresAt": subscription.expires_at,
+    }
 
 
 @post("/payment", response_model=PaymentConfirmationResponse)
@@ -92,6 +132,7 @@ async def create_payment(
     body: CreatePaymentRequest | None = None,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    gateway: YooKassaGateway = Depends(provide_yookassa_gateway),
 ):
     """Create YooKassa payment for premium subscription."""
     # Prevent abuse: limit pending payments to 3
@@ -100,7 +141,7 @@ async def create_payment(
         .select_from(MPayment)
         .where(
             MPayment.user_id == user.id,
-            MPayment.status == "in_progress",
+            MPayment.status == PaymentStatus.IN_PROGRESS,
         )
     )
     pending_count = await db.scalar(q) or 0
@@ -137,7 +178,7 @@ async def create_payment(
 
     idempotency_key = str(uuid4())
     try:
-        payment = await yookassa_gateway.create_payment(payment_data, idempotency_key)
+        payment = await gateway.create_payment(payment_data, idempotency_key)
     except YooKassaError as exc:
         logger.warning(
             "Payment provider request failed",
@@ -150,7 +191,7 @@ async def create_payment(
 
     if payment.confirmation is None:
         try:
-            await yookassa_gateway.cancel_payment(payment.id, str(uuid4()))
+            await gateway.cancel_payment(payment.id, str(uuid4()))
         except YooKassaError:
             logger.warning(
                 "Payment cancellation failed",
@@ -165,7 +206,7 @@ async def create_payment(
         id=payment.id,
         user_id=user.id,
         created_at=now,
-        status="in_progress",
+        status=PaymentStatus.IN_PROGRESS,
     )
     db.add(mpayment)
     await db.commit()
@@ -177,10 +218,11 @@ async def create_payment(
 async def webhook(
     body: YooKassaWebhookRequest,
     db: AsyncSession = Depends(get_db),
+    gateway: YooKassaGateway = Depends(provide_yookassa_gateway),
 ):
     """Verify the current payment at YooKassa, then apply the event once."""
     try:
-        remote_payment = await yookassa_gateway.get_payment(body.object.id)
+        remote_payment = await gateway.get_payment(body.object.id)
     except YooKassaError as exc:
         logger.warning(
             "Payment verification unavailable",

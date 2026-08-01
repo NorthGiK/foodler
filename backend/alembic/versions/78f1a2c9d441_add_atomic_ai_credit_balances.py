@@ -8,6 +8,7 @@ Create Date: 2026-08-01 21:30:00
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision: str = "78f1a2c9d441"  # pragma: allowlist secret

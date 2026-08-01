@@ -27,3 +27,15 @@
   завершаются в CI без `skip`/`xfail`.
 - Дублирующий legacy AI route удалён; YooKassa вынесена в integration adapter,
   обработка подписки — в application service.
+- JWT имеет issuer/audience/type/version, refresh tokens и email-коды
+  хешируются, смена пароля отзывает все сессии, CORS использует allowlist.
+- Rate limiting хранится в общей БД и работает между несколькими workers.
+- Google Play подписка проверяется официальным серверным API и привязывается к
+  конкретному Foodler user ID; `Subscription` является источником entitlement.
+- Денежные значения хранятся целыми копейками, даты типизированы, миграция
+  проверена переходом с предыдущей revision.
+- Списки чеков пагинированы, mobile выгружает все страницы; аналитика агрегирует
+  расходы в SQL, product matching ограничивает число кандидатов, N+1 устранены.
+- Общий HTTP pool, timeout и adapter seams применены ко всем внешним API.
+- Добавлены `/ready`, защищённые `/metrics`, фоновый retention и bounded
+  нагрузочный smoke-тест.

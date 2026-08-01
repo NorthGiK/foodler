@@ -29,6 +29,26 @@ class TestListReceipts:
         assert receipts[0]["total"] == 850.50
         assert len(receipts[0]["items"]) == 3
 
+    @pytest.mark.asyncio
+    async def test_list_receipts_is_paginated(
+        self,
+        client: AsyncClient,
+        auth_headers,
+        test_receipts,
+    ):
+        first = await client.get(
+            "/api/receipts?offset=0&limit=2",
+            headers=auth_headers,
+        )
+        second = await client.get(
+            "/api/receipts?offset=2&limit=2",
+            headers=auth_headers,
+        )
+        assert first.status_code == 200
+        assert len(first.json()) == 2
+        assert first.headers["X-Page-Limit"] == "2"
+        assert len(second.json()) == 1
+
 
 class TestCreateReceipt:
     """Tests for POST /api/receipts"""
@@ -122,11 +142,9 @@ class TestDeleteReceipt:
 
 
 class TestCleanupReceipts:
-    """Tests for POST /api/receipts/cleanup"""
+    """Retention is internal and cannot be triggered through the public API."""
 
     @pytest.mark.asyncio
-    async def test_cleanup_no_expired(self, client: AsyncClient, auth_headers):
-        """Should return 0 when no expired receipts."""
+    async def test_cleanup_endpoint_is_not_public(self, client: AsyncClient, auth_headers):
         response = await client.post("/api/receipts/cleanup", headers=auth_headers)
-        assert response.status_code == 200
-        assert response.json()["deleted"] == 0
+        assert response.status_code == 405

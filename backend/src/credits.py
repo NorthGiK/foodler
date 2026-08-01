@@ -12,6 +12,7 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models import AiCreditBalance, AiCreditUsage, User
+from src.services.entitlements import get_entitlement
 
 REGULAR_LIMIT = 2.0
 PREMIUM_LIMIT = 10.0
@@ -49,15 +50,6 @@ def _utcnow() -> datetime:
 
 def credit_cost(action: str) -> float:
     return 2.0 if action == "ask" else 1.0
-
-
-def _is_premium(user: User | None, now: datetime) -> bool:
-    if not user or not user.premium or not user.subscription_expires:
-        return False
-    expires = user.subscription_expires
-    if expires.tzinfo is not None:
-        expires = expires.astimezone(timezone.utc).replace(tzinfo=None)
-    return expires > now
 
 
 def _premium_period(now: datetime) -> CreditPeriod:
@@ -109,7 +101,7 @@ async def _period_and_usage(
     ip_hash: str | None,
     now: datetime,
 ) -> tuple[CreditPeriod, float]:
-    if _is_premium(user, now):
+    if user and (await get_entitlement(db, user, now=now)).active:
         period = _premium_period(now)
         usages = await _usage_in_period(db, user=user, ip_hash=ip_hash, start=period.start)
         return period, sum(item.credits for item in usages)

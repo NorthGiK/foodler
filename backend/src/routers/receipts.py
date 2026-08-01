@@ -1,91 +1,66 @@
-import io
 import logging
-from functools import wraps
 
-from fastapi import APIRouter, Depends, Response, UploadFile, HTTPException, status
-from fastapi_throttle import RateLimiter
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from aiohttp import ClientSession, ClientTimeout, ContentTypeError, FormData
-from aiohttp.web_exceptions import HTTPException as WebHTTPException
-from aiohttp.http_exceptions import HttpProcessingError
-from aiohttp.client import ClientError
 
 from src.config import (
-    API_KEY_QR,
-    API_URL,
-    QR_API_TIMEOUT_SECONDS,
     QR_UPLOAD_MAX_BYTES,
+    RECEIPT_PAGE_SIZE_MAX,
 )
+from src.utils import DatabaseRateLimiter, with_rate_limit
+
 from ..auth import get_current_user
 from ..database import get_db
+from ..integrations.receipts import (
+    ReceiptGateway,
+    ReceiptProviderError,
+    get_receipt_gateway,
+)
 from ..models import Receipt, ReceiptItem, User
-from ..receipt_retention import compute_receipt_expiry, cleanup_expired_receipts
+from ..receipt_retention import compute_receipt_expiry
 from ..schemas import (
-    ReceiptItemSchema,
-    ReceiptSchema,
-    ReceiptRawResponseSchema,
     GetReceiptFromQRSchema,
+    ReceiptItemSchema,
+    ReceiptRawResponseSchema,
+    ReceiptSchema,
     ReceiptSchemaArray,
     StatusResponse,
 )
-from src.utils import with_rate_limit
+from ..services.entitlements import get_entitlement
 
 router = APIRouter(tags=["Receipts"])
-get = with_rate_limit(router.get, RateLimiter(100, 1))
-post = with_rate_limit(router.post, RateLimiter(100, 1))
-delete = with_rate_limit(router.delete, RateLimiter(50, 1))
-patch = with_rate_limit(router.patch, RateLimiter(50, 1))
+get = with_rate_limit(router.get, DatabaseRateLimiter(100, 1))
+post = with_rate_limit(router.post, DatabaseRateLimiter(100, 1))
+delete = with_rate_limit(router.delete, DatabaseRateLimiter(50, 1))
+patch = with_rate_limit(router.patch, DatabaseRateLimiter(50, 1))
 
 logger = logging.getLogger(__name__)
 
 
-def raise_500_if_exception(func):
-    @wraps(func)
-    async def wrapper(*args, **kwargs):
-        try:
-            return await func(*args, **kwargs)
-        except (
-            WebHTTPException,
-            HttpProcessingError,
-            ClientError,
-            ContentTypeError,
-            TimeoutError,
-        ) as exc:
-            logger.warning("Receipt provider request failed", extra={"provider": "receipt_api"})
-            raise HTTPException(
-                status.HTTP_502_BAD_GATEWAY,
-                detail="Receipt provider unavailable",
-            ) from exc
-
-    return wrapper
-
-
-@raise_500_if_exception
 @post("/receipts/get_receipt_by_qr", response_model=ReceiptRawResponseSchema)
-async def get_receipt_by_qr(body: GetReceiptFromQRSchema):
-    timeout = ClientTimeout(total=QR_API_TIMEOUT_SECONDS)
-    async with ClientSession(timeout=timeout) as session:
-        async with session.post(
-            API_URL,
-            headers={"Content-Type": "application/json"},
-            data={
-                "qrraw": body.qrraw,
-                "token": API_KEY_QR,
-            },
-        ) as receipt:
-            if not receipt.ok:
-                raise HTTPException(
-                    status.HTTP_502_BAD_GATEWAY,
-                    detail="Receipt provider rejected the request",
-                )
-            return await receipt.json()
+async def get_receipt_by_qr(
+    body: GetReceiptFromQRSchema,
+    user: User = Depends(get_current_user),
+    gateway: ReceiptGateway = Depends(get_receipt_gateway),
+):
+    try:
+        return await gateway.recognize_raw(body.qrraw)
+    except ReceiptProviderError as exc:
+        logger.warning("Receipt provider request failed", extra={"provider": "receipt_api"})
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            detail="Receipt provider unavailable",
+        ) from exc
 
 
-@raise_500_if_exception
 @post("/receipts/get_receipt_by_raw_qr")
-async def get_receipt_by_raw_qr(qrfile: UploadFile):
+async def get_receipt_by_raw_qr(
+    qrfile: UploadFile,
+    user: User = Depends(get_current_user),
+    gateway: ReceiptGateway = Depends(get_receipt_gateway),
+):
     contents = await qrfile.read(QR_UPLOAD_MAX_BYTES + 1)
     if len(contents) > QR_UPLOAD_MAX_BYTES:
         raise HTTPException(
@@ -93,30 +68,27 @@ async def get_receipt_by_raw_qr(qrfile: UploadFile):
             detail="QR image is too large",
         )
 
-    data = FormData()
-    data.add_field("token", API_KEY_QR)
-    data.add_field(
-        "qrfile",
-        io.BytesIO(contents),
-        filename=qrfile.filename or "receipt.jpg",
-        content_type=qrfile.content_type or "image/jpeg",
-    )
-
-    timeout = ClientTimeout(total=QR_API_TIMEOUT_SECONDS)
-    async with ClientSession(timeout=timeout) as session:
-        async with session.post(API_URL, data=data) as receipt:
-            if not receipt.ok:
-                raise HTTPException(
-                    status.HTTP_502_BAD_GATEWAY,
-                    detail="Receipt provider rejected the request",
-                )
-            return await receipt.json()
+    try:
+        return await gateway.recognize_image(
+            contents,
+            filename=qrfile.filename or "receipt.jpg",
+            content_type=qrfile.content_type or "image/jpeg",
+        )
+    except ReceiptProviderError as exc:
+        logger.warning("Receipt provider request failed", extra={"provider": "receipt_api"})
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            detail="Receipt provider unavailable",
+        ) from exc
 
 
 @get("/receipts", response_model=list[ReceiptSchema])
 async def get_receipts(
+    response: Response,
     from_date: str | None = None,
     to_date: str | None = None,
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, ge=1, le=RECEIPT_PAGE_SIZE_MAX),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -125,6 +97,8 @@ async def get_receipts(
         .where(Receipt.user_id == user.id)
         .options(selectinload(Receipt.items))
         .order_by(Receipt.date.desc())
+        .offset(offset)
+        .limit(limit)
     )
     if from_date:
         query = query.where(Receipt.date >= from_date)
@@ -133,6 +107,8 @@ async def get_receipts(
 
     result = await db.execute(query)
     receipts = result.scalars().all()
+    response.headers["X-Page-Offset"] = str(offset)
+    response.headers["X-Page-Limit"] = str(limit)
     return [
         ReceiptSchema(
             id=r.id,
@@ -140,7 +116,12 @@ async def get_receipts(
             store=r.store,
             total=r.total,
             items=[
-                ReceiptItemSchema(name=i.name, quantity=i.quantity, price=i.price)
+                ReceiptItemSchema(
+                    name=i.name,
+                    quantity=i.quantity,
+                    unit=i.unit,
+                    price=i.price,
+                )
                 for i in (r.items or [])
             ],
         )
@@ -158,8 +139,14 @@ async def upload_receipt(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    entitlement = await get_entitlement(db, user)
     receipt = await db.get(Receipt, body.id)
     if receipt:
+        if receipt.user_id != user.id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Receipt identifier is already in use",
+            )
         return Response()
 
     receipt = Receipt(
@@ -168,7 +155,7 @@ async def upload_receipt(
         store=body.store,
         total=body.total,
         user_id=user.id,
-        receipt_expires_at=compute_receipt_expiry(user),
+        receipt_expires_at=compute_receipt_expiry(entitlement.active),
     )
     db.add(receipt)
 
@@ -177,6 +164,7 @@ async def upload_receipt(
             receipt_id=receipt.id,
             name=item.name,
             quantity=item.quantity,
+            unit=item.unit,
             price=item.price,
         )
         db.add(ri)
@@ -195,6 +183,30 @@ async def upload_receipts(
     db: AsyncSession = Depends(get_db),
 ):
     receipt_bodies = body.receipts or []
+    entitlement = await get_entitlement(db, user)
+    requested_ids = [receipt.id for receipt in receipt_bodies]
+    existing = set(
+        (
+            await db.scalars(
+                select(Receipt.id).where(
+                    Receipt.id.in_(requested_ids),
+                    Receipt.user_id == user.id,
+                )
+            )
+        ).all()
+    )
+    foreign_collision = await db.scalar(
+        select(Receipt.id).where(
+            Receipt.id.in_(requested_ids),
+            Receipt.user_id != user.id,
+        )
+    )
+    if foreign_collision:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Receipt identifier is already in use",
+        )
+    new_receipt_bodies = [receipt for receipt in receipt_bodies if receipt.id not in existing]
     receipts = [
         Receipt(
             id=r.id,
@@ -202,20 +214,21 @@ async def upload_receipts(
             store=r.store,
             total=r.total,
             user_id=user.id,
-            receipt_expires_at=compute_receipt_expiry(user),
+            receipt_expires_at=compute_receipt_expiry(entitlement.active),
         )
-        for r in receipt_bodies
+        for r in new_receipt_bodies
     ]
 
     for receipt in receipts:
         db.add(receipt)
 
-    for receipt in receipt_bodies:
+    for receipt in new_receipt_bodies:
         for item in receipt.items:
             ri = ReceiptItem(
                 receipt_id=receipt.id,
                 name=item.name,
                 quantity=item.quantity,
+                unit=item.unit,
                 price=item.price,
             )
             db.add(ri)
@@ -243,7 +256,7 @@ async def get_receipt(
         store=r.store,
         total=r.total,
         items=[
-            ReceiptItemSchema(name=i.name, quantity=i.quantity, price=i.price)
+            ReceiptItemSchema(name=i.name, quantity=i.quantity, unit=i.unit, price=i.price)
             for i in (r.items or [])
         ],
     )
@@ -279,6 +292,7 @@ async def update_receipt(
             receipt_id=r.id,
             name=item.name,
             quantity=item.quantity,
+            unit=item.unit,
             price=item.price,
         )
         db.add(ri)
@@ -293,17 +307,10 @@ async def update_receipt(
         store=r.store,
         total=r.total,
         items=[
-            ReceiptItemSchema(name=i.name, quantity=i.quantity, price=i.price)
+            ReceiptItemSchema(name=i.name, quantity=i.quantity, unit=i.unit, price=i.price)
             for i in (r.items or [])
         ],
     )
-
-
-@post("/receipts/cleanup")
-async def cleanup_receipts(db: AsyncSession = Depends(get_db)):
-    """Удаление просроченных чеков. Вызывается периодически или вручную."""
-    deleted = await cleanup_expired_receipts(db)
-    return {"deleted": deleted, "status": "ok"}
 
 
 @delete("/receipts/{receipt_id}", status_code=status.HTTP_204_NO_CONTENT)

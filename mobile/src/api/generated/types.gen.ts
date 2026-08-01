@@ -358,6 +358,20 @@ export type GetReceiptFromQrSchema = {
 };
 
 /**
+ * GooglePurchase
+ */
+export type GooglePurchase = {
+  /**
+   * Productid
+   */
+  productId: string;
+  /**
+   * Purchasetoken
+   */
+  purchaseToken: string;
+};
+
+/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -782,6 +796,10 @@ export type ReceiptItemSchema = {
    * Sum
    */
   sum?: number | null;
+  /**
+   * Unit
+   */
+  unit?: "g" | "kg" | "ml" | "l" | "piece";
 };
 
 /**
@@ -1060,7 +1078,7 @@ export type SubscriptionStatusResponse = {
   /**
    * Platform
    */
-  platform: "yookassa" | "google" | null;
+  platform: "yookassa" | "google_play" | "legacy" | null;
 };
 
 /**
@@ -1814,6 +1832,14 @@ export type GetReceiptsApiReceiptsGetData = {
      * To Date
      */
     to_date?: string | null;
+    /**
+     * Offset
+     */
+    offset?: number;
+    /**
+     * Limit
+     */
+    limit?: number;
   };
   url: "/api/receipts";
 };
@@ -1893,20 +1919,6 @@ export type UploadReceiptsApiReceiptsArrayPostResponses = {
 
 export type UploadReceiptsApiReceiptsArrayPostResponse =
   UploadReceiptsApiReceiptsArrayPostResponses[keyof UploadReceiptsApiReceiptsArrayPostResponses];
-
-export type CleanupReceiptsApiReceiptsCleanupPostData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: "/api/receipts/cleanup";
-};
-
-export type CleanupReceiptsApiReceiptsCleanupPostResponses = {
-  /**
-   * Successful Response
-   */
-  200: unknown;
-};
 
 export type GetReceiptByQrApiReceiptsGetReceiptByQrPostData = {
   body: GetReceiptFromQrSchema;
@@ -2203,6 +2215,33 @@ export type GetSubscriptionApiSubscriptionGetResponses = {
 export type GetSubscriptionApiSubscriptionGetResponse =
   GetSubscriptionApiSubscriptionGetResponses[keyof GetSubscriptionApiSubscriptionGetResponses];
 
+export type VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostData = {
+  body: GooglePurchase;
+  path?: never;
+  query?: never;
+  url: "/api/subscription/google/verify";
+};
+
+export type VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostError =
+  VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostErrors[keyof VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostErrors];
+
+export type VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostResponses = {
+  /**
+   * Successful Response
+   */
+  200: SubscriptionStatusResponse;
+};
+
+export type VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostResponse =
+  VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostResponses[keyof VerifyGooglePurchaseApiSubscriptionGoogleVerifyPostResponses];
+
 export type IsPremiumApiSubscriptionIsPremiumGetData = {
   body?: never;
   path?: never;
@@ -2356,3 +2395,20 @@ export type HealthHealthGetResponses = {
 
 export type HealthHealthGetResponse =
   HealthHealthGetResponses[keyof HealthHealthGetResponses];
+
+export type ReadinessReadyGetData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/ready";
+};
+
+export type ReadinessReadyGetResponses = {
+  /**
+   * Successful Response
+   */
+  200: StatusResponse;
+};
+
+export type ReadinessReadyGetResponse =
+  ReadinessReadyGetResponses[keyof ReadinessReadyGetResponses];

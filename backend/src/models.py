@@ -1,33 +1,81 @@
 from __future__ import annotations
 
 import uuid
-import random
-import string
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+from decimal import ROUND_HALF_UP, Decimal
+from enum import StrEnum
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Float, Text, Integer
-from sqlalchemy.orm import relationship, Mapped, mapped_column
+from sqlalchemy import (
+    CheckConstraint,
+    Date,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    Text,
+)
 from sqlalchemy.dialects.sqlite import JSON
+from sqlalchemy.engine import Dialect
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
+from sqlalchemy.types import TypeDecorator
 
 from .database import Base
-from src.schemas import FamilyMemberDict
-
-
-EMAIL_CODE_LENGTH = 8
-CHAR_POOL = string.ascii_letters.lower() + string.digits
 
 
 def _uuid() -> str:
     return uuid.uuid4().hex
 
 
-def _email_code() -> str:
-    return "".join(random.choice(CHAR_POOL) for _ in range(EMAIL_CODE_LENGTH))
-
-
 def _utcnow() -> datetime:
     """Return naive UTC for SQLite DateTime columns."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+class Money(TypeDecorator[Decimal]):
+    """Store money as integer minor units and expose an exact Decimal."""
+
+    impl = Integer
+    cache_ok = True
+
+    def process_bind_param(self, value: Decimal | float | int | str | None, dialect: Dialect):
+        if value is None:
+            return None
+        amount = Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        return int(amount * 100)
+
+    def process_result_value(self, value: int | None, dialect: Dialect):
+        if value is None:
+            return None
+        return Decimal(value) / Decimal(100)
+
+
+class IsoDate(TypeDecorator[date]):
+    """Strict DATE storage with compatibility for existing ISO input strings."""
+
+    impl = Date
+    cache_ok = True
+
+    def process_bind_param(self, value: date | str | None, dialect: Dialect):
+        if value is None or isinstance(value, date):
+            return value
+        return date.fromisoformat(value)
+
+    def process_result_value(self, value: date | None, dialect: Dialect):
+        return value
+
+
+class PaymentStatus(StrEnum):
+    IN_PROGRESS = "in_progress"
+    REJECTED = "rejected"
+    SUCCESS = "success"
+
+
+class SubscriptionProvider(StrEnum):
+    YOOKASSA = "yookassa"
+    GOOGLE_PLAY = "google_play"
+    LEGACY = "legacy"
 
 
 # ============================================================
@@ -40,7 +88,7 @@ class EmailCodesStorage(Base):
 
     id: Mapped[str] = mapped_column(primary_key=True, default=_uuid)
     email: Mapped[str] = mapped_column(index=True)
-    code: Mapped[str] = mapped_column(default=_email_code, index=True)
+    code_hash: Mapped[str] = mapped_column(index=True)
     created_at: Mapped[datetime] = mapped_column(default=_utcnow)
 
 
@@ -50,6 +98,7 @@ class User(Base):
     id: Mapped[str] = mapped_column(primary_key=True, default=_uuid)
     email: Mapped[str] = mapped_column(unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(nullable=False)
+    auth_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     premium: Mapped[bool] = mapped_column(insert_default=False)
     subscription_expires: Mapped[datetime] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=_utcnow)
@@ -69,8 +118,8 @@ class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
 
     id: Mapped[str] = mapped_column(primary_key=True, default=_uuid)
-    token: Mapped[str] = mapped_column(unique=True, nullable=False, index=True)
-    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
+    token_hash: Mapped[str] = mapped_column(unique=True, nullable=False, index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     expires_at: Mapped[datetime] = mapped_column(nullable=False)
     created_at: Mapped[datetime] = mapped_column(default=_utcnow)
 
@@ -79,6 +128,7 @@ class RefreshToken(Base):
 
 class Device(Base):
     __tablename__ = "devices"
+    __table_args__ = (Index("ix_devices_user_device", "user_id", "device_id"),)
 
     id: Mapped[str] = mapped_column(primary_key=True, default=_uuid)
     device_id: Mapped[str] = mapped_column(nullable=False)
@@ -92,12 +142,16 @@ class Device(Base):
 
 class Receipt(Base):
     __tablename__ = "receipts"
+    __table_args__ = (
+        Index("ix_receipts_user_date", "user_id", "date"),
+        CheckConstraint("total_cents >= 0", name="ck_receipts_total_nonnegative"),
+    )
 
     id: Mapped[str] = mapped_column(primary_key=True)
-    date: Mapped[str] = mapped_column(nullable=False)  # ISO date
+    date: Mapped[date] = mapped_column(IsoDate(), nullable=False)
     store: Mapped[str] = mapped_column(nullable=True)
-    total: Mapped[float] = mapped_column(nullable=False)
-    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
+    total: Mapped[Decimal] = mapped_column("total_cents", Money(), nullable=False)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(default=_utcnow)
     # Дата, после которой чек можно удалить. None = хранить бесконечно.
     receipt_expires_at: Mapped[datetime] = mapped_column(nullable=True, index=True)
@@ -107,15 +161,23 @@ class Receipt(Base):
         "ReceiptItem", back_populates="receipt", cascade="all, delete-orphan"
     )
 
+    @validates("date")
+    def _validate_date(self, key: str, value: date | str) -> date:
+        return value if isinstance(value, date) else date.fromisoformat(value)
+
 
 class ReceiptItem(Base):
     __tablename__ = "receipt_items"
+    __table_args__ = (
+        CheckConstraint("price_cents >= 0", name="ck_receipt_items_price_nonnegative"),
+    )
 
     id: Mapped[str] = mapped_column(primary_key=True, default=_uuid)
-    receipt_id: Mapped[str] = mapped_column(ForeignKey("receipts.id"), nullable=False)
+    receipt_id: Mapped[str] = mapped_column(ForeignKey("receipts.id"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(nullable=False)
     quantity: Mapped[float] = mapped_column(insert_default=1)
-    price: Mapped[float] = mapped_column(nullable=False)
+    unit: Mapped[str] = mapped_column(nullable=False, insert_default="kg")
+    price: Mapped[Decimal] = mapped_column("price_cents", Money(), nullable=False)
     # Связь с продуктом (если распознан)
     product_id: Mapped[str] = mapped_column(ForeignKey("products.id"), nullable=True, index=True)
 
@@ -125,6 +187,7 @@ class ReceiptItem(Base):
 
 class AiReport(Base):
     __tablename__ = "ai_reports"
+    __table_args__ = (Index("ix_ai_reports_user_created", "user_id", "created_at"),)
 
     id: Mapped[str] = mapped_column(primary_key=True)
     action: Mapped[str] = mapped_column(nullable=False)
@@ -138,17 +201,26 @@ class AiReport(Base):
 
 class Payment(Base):
     __tablename__ = "subcription_in_process"
+    __table_args__ = (Index("ix_payments_user_status_created", "user_id", "status", "created_at"),)
 
     id: Mapped[str] = mapped_column(primary_key=True)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
     created_at: Mapped[datetime] = mapped_column(default=_utcnow)
-    status: Mapped[str] = mapped_column()  # in_progress | rejected | success
+    status: Mapped[PaymentStatus] = mapped_column(
+        Enum(
+            PaymentStatus,
+            native_enum=False,
+            create_constraint=True,
+            values_callable=lambda enum: [e.value for e in enum],
+        )
+    )
 
     user: Mapped[User] = relationship("User")
 
 
 class Subscription(Base):
     __tablename__ = "subscriptions"
+    __table_args__ = (Index("ux_subscriptions_purchase_token", "purchase_token", unique=True),)
 
     id: Mapped[str] = mapped_column(primary_key=True, default=_uuid)
     user_id: Mapped[str] = mapped_column(
@@ -157,6 +229,16 @@ class Subscription(Base):
     )
     purchase_token: Mapped[str] = mapped_column(nullable=False)
     product_id: Mapped[str] = mapped_column(nullable=False)
+    provider: Mapped[SubscriptionProvider] = mapped_column(
+        Enum(
+            SubscriptionProvider,
+            native_enum=False,
+            create_constraint=True,
+            values_callable=lambda enum: [e.value for e in enum],
+        ),
+        nullable=False,
+        default=SubscriptionProvider.LEGACY,
+    )
     active: Mapped[bool] = mapped_column(insert_default=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=_utcnow)
@@ -169,7 +251,17 @@ class FamilyMembers(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[str] = mapped_column(ForeignKey(User.id), unique=True)
-    members: Mapped[FamilyMemberDict] = mapped_column(JSON)
+    members: Mapped[list[dict[str, object]]] = mapped_column(JSON)
+
+
+class RateLimitBucket(Base):
+    """Shared fixed-window limiter state for all API workers."""
+
+    __tablename__ = "rate_limit_buckets"
+
+    bucket_key: Mapped[str] = mapped_column(primary_key=True)
+    request_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
 
 
 # ============================================================
@@ -375,6 +467,16 @@ class AiCache(Base):
     """
 
     __tablename__ = "ai_cache"
+    __table_args__ = (
+        Index(
+            "ix_ai_cache_lookup",
+            "user_id",
+            "action",
+            "context_hash",
+            "question_hash",
+            "expires_at",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(primary_key=True, default=_uuid)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)

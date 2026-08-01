@@ -12,21 +12,27 @@ Usage:
     sections = await router.route(action, parameters, context, db, user_id)
 """
 
-import asyncio
 import json
 import logging
 from typing import Any
 
-from aiohttp import ClientSession, ClientTimeout, ContentTypeError
+from aiohttp import ClientTimeout, ContentTypeError
 
-from src.config import AI_API_KEY, AI_BASE_URL, AI_LIGHT_MODEL, AI_STRONG_MODEL
+from src.ai_sections import _coerce_sections
 from src.analytics import (
-    get_spending_summary,
-    get_nutrition_summary,
     get_fridge_status,
+    get_nutrition_summary,
+    get_spending_summary,
     suggest_recipes,
 )
-from src.ai_sections import _coerce_sections
+from src.config import (
+    AI_API_KEY,
+    AI_BASE_URL,
+    AI_LIGHT_MODEL,
+    AI_STRONG_MODEL,
+    AI_TIMEOUT_SECONDS,
+)
+from src.integrations.http import get_http_session
 from src.utils import normalize_date
 
 logger = logging.getLogger(__name__)
@@ -129,9 +135,9 @@ async def _call_llm(
     url = AI_BASE_URL + model
     logger.info("Calling AI provider", extra={"provider": "ai", "action": action})
 
-    timeout = ClientTimeout(total=60 * 1.5)
-    async with ClientSession(timeout=timeout) as session:
-        resp = await session.post(url, json=body, headers=headers)
+    timeout = ClientTimeout(total=AI_TIMEOUT_SECONDS)
+    session = await get_http_session()
+    async with session.post(url, json=body, headers=headers, timeout=timeout) as resp:
         if not resp.ok:
             logger.warning(
                 "AI provider returned non-success",
@@ -191,10 +197,9 @@ def _section_chart(
 
 
 async def _local_overall_analysis(db, user_id, period_from, period_to) -> list[dict[str, Any]]:
-    # Parallel execution of independent queries
-    spending_task = get_spending_summary(db, user_id, period_from, period_to)
-    nutrition_task = get_nutrition_summary(db, user_id, period_from, period_to)
-    spending, nutrition = await asyncio.gather(spending_task, nutrition_task)
+    # AsyncSession is not safe for concurrent task use; SQLite executes these sequentially.
+    spending = await get_spending_summary(db, user_id, period_from, period_to)
+    nutrition = await get_nutrition_summary(db, user_id, period_from, period_to)
 
     sections: list[dict[str, Any]] = []
 
@@ -373,14 +378,8 @@ class TaskRouter:
             return [_section_text("Ошибка", f"Неизвестное действие: {action}")]
 
         values = parameters or {}
-        period_from = (
-            normalize_date(values["periodFrom"])
-            if values.get("periodFrom")
-            else None
-        )
-        period_to = (
-            normalize_date(values["periodTo"]) if values.get("periodTo") else None
-        )
+        period_from = normalize_date(values["periodFrom"]) if values.get("periodFrom") else None
+        period_to = normalize_date(values["periodTo"]) if values.get("periodTo") else None
 
         # ---- Tier 0: Local ----
         if action in LOCAL_ACTIONS:

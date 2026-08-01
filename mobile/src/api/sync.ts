@@ -1,6 +1,10 @@
 import { api, getAccessToken } from "./client";
 import type { Receipt, ReceiptItem } from "../types";
 import { openDb, loadReceipts, loadReceiptItems } from "../storage";
+import type { ReceiptItemSchema, ReceiptSchema } from "./generated/types.gen";
+
+type LocalDatabase = Awaited<ReturnType<typeof openDb>>;
+const RECEIPT_PAGE_SIZE = 100;
 
 /**
  * Checks if user is authenticated by verifying access token exists
@@ -46,7 +50,7 @@ export async function syncReceiptToServer(
  * Server schema: id, date, store, total, items[{name, quantity, price, sum, product_id}]
  */
 export async function pullServerReceipts(
-  db: any,
+  db: LocalDatabase,
 ): Promise<{ receipts: Receipt[]; items: ReceiptItem[] }> {
   const result: { receipts: Receipt[]; items: ReceiptItem[] } = {
     receipts: [],
@@ -56,7 +60,12 @@ export async function pullServerReceipts(
   if (!(await isAuthenticated())) return result;
 
   try {
-    const serverReceipts: any[] = await api.getReceipts();
+    const serverReceipts: ReceiptSchema[] = [];
+    for (let offset = 0; ; offset += RECEIPT_PAGE_SIZE) {
+      const page = await api.getReceipts(offset, RECEIPT_PAGE_SIZE);
+      serverReceipts.push(...page);
+      if (page.length < RECEIPT_PAGE_SIZE) break;
+    }
 
     // Load existing local IDs to avoid duplicates
     const localReceipts = await loadReceipts(db);
@@ -78,10 +87,10 @@ export async function pullServerReceipts(
       result.receipts.push(receipt);
 
       const receiptItems: ReceiptItem[] = (sr.items || []).map(
-        (item: any, i: number) => ({
+        (item: ReceiptItemSchema, i: number) => ({
           receiptId: sr.id,
           name: item.name || `Товар ${i + 1}`,
-          category: item.category || "другое",
+          category: "другое",
           priceRub: Math.abs(item.price ?? 0),
           quantity: item.quantity ?? 1,
           sumRub: Math.abs(item.sum ?? item.price ?? 0),

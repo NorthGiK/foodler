@@ -4,12 +4,11 @@ Tests for src/analytics.py - Local analytics without AI.
 
 import pytest
 
-
 from src.analytics import (
-    get_spending_summary,
-    get_nutrition_summary,
-    get_fridge_status,
     get_cached_response,
+    get_fridge_status,
+    get_nutrition_summary,
+    get_spending_summary,
     set_cached_response,
 )
 

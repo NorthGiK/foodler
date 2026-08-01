@@ -1,26 +1,104 @@
-import re
-from datetime import datetime
-from typing import Callable
+import hashlib
+from datetime import datetime, timedelta, timezone
 from functools import wraps
+from typing import Callable
 
-from fastapi import Depends
-from fastapi_throttle import RateLimiter
+from fastapi import Depends, HTTPException, Request, Response, status
+from sqlalchemy import delete, update
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import (
     PASSWORD_MIN_LENGTH,
-    PASSWORD_REQUIRE_UPPERCASE,
-    PASSWORD_REQUIRE_LOWERCASE,
     PASSWORD_REQUIRE_DIGIT,
+    PASSWORD_REQUIRE_LOWERCASE,
     PASSWORD_REQUIRE_SPECIAL,
+    PASSWORD_REQUIRE_UPPERCASE,
+    TRUST_PROXY_HEADERS,
 )
-
+from .database import get_db
+from .models import RateLimitBucket
 
 # ============================================================
 # Rate limiting
 # ============================================================
 
-LIMIT_DEFAULT = RateLimiter(100, 1)
-LIMIT_DELETE = RateLimiter(50, 1)
+
+class DatabaseRateLimiter:
+    """Cross-process fixed-window limiter backed by the shared SQLite database."""
+
+    def __init__(self, times: int, seconds: int):
+        if times < 1 or seconds < 1:
+            raise ValueError("Rate limit values must be positive")
+        self.times = times
+        self.seconds = seconds
+
+    async def __call__(
+        self,
+        request: Request,
+        response: Response,
+        db: AsyncSession = Depends(get_db),
+    ) -> None:
+        aware_now = datetime.now(timezone.utc)
+        now = aware_now.replace(tzinfo=None)
+        window_epoch = int(aware_now.timestamp()) // self.seconds
+        identity = _request_identity(request)
+        route = request.scope.get("route")
+        path = getattr(route, "path", request.url.path)
+        raw_key = f"{identity}:{request.method}:{path}:{window_epoch}:{self.seconds}"
+        key = hashlib.sha256(raw_key.encode()).hexdigest()
+        expires_at = datetime.fromtimestamp(
+            (window_epoch + 1) * self.seconds,
+            tz=timezone.utc,
+        ).replace(tzinfo=None)
+
+        await db.execute(
+            sqlite_insert(RateLimitBucket)
+            .values(bucket_key=key, request_count=0, expires_at=expires_at)
+            .on_conflict_do_nothing(index_elements=["bucket_key"])
+        )
+        request_count = await db.scalar(
+            update(RateLimitBucket)
+            .where(
+                RateLimitBucket.bucket_key == key,
+                RateLimitBucket.request_count < self.times,
+                RateLimitBucket.expires_at > now,
+            )
+            .values(request_count=RateLimitBucket.request_count + 1)
+            .returning(RateLimitBucket.request_count)
+        )
+        await db.commit()
+        if request_count is None:
+            retry_after = max(1, int((expires_at - now).total_seconds()))
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too Many Requests",
+                headers={"Retry-After": str(retry_after)},
+            )
+
+        response.headers["X-RateLimit-Limit"] = str(self.times)
+        response.headers["X-RateLimit-Remaining"] = str(max(0, self.times - request_count))
+
+
+def _request_identity(request: Request) -> str:
+    if TRUST_PROXY_HEADERS:
+        forwarded = request.headers.get("x-forwarded-for", "")
+        if forwarded:
+            return forwarded.split(",", maxsplit=1)[0].strip()
+    if request.client and request.client.host:
+        return request.client.host
+    return "unknown"
+
+
+async def cleanup_rate_limit_buckets(db: AsyncSession) -> int:
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1)
+    result = await db.execute(delete(RateLimitBucket).where(RateLimitBucket.expires_at < cutoff))
+    await db.commit()
+    return result.rowcount or 0
+
+
+LIMIT_DEFAULT = DatabaseRateLimiter(100, 1)
+LIMIT_DELETE = DatabaseRateLimiter(50, 1)
 
 
 def with_rate_limit(fastapi_decorator: Callable, rate_limiter):
@@ -104,16 +182,18 @@ def validate_password(password: str) -> None:
             f"Пароль должен содержать не менее {PASSWORD_MIN_LENGTH} символов"
         )
 
-    if PASSWORD_REQUIRE_UPPERCASE and not re.search(r"[A-Z]", password):
+    if PASSWORD_REQUIRE_UPPERCASE and not any(char.isupper() for char in password):
         raise PasswordValidationError("Пароль должен содержать хотя бы одну заглавную букву")
 
-    if PASSWORD_REQUIRE_LOWERCASE and not re.search(r"[a-z]", password):
+    if PASSWORD_REQUIRE_LOWERCASE and not any(char.islower() for char in password):
         raise PasswordValidationError("Пароль должен содержать хотя бы одну строчную букву")
 
-    if PASSWORD_REQUIRE_DIGIT and not re.search(r"\d", password):
+    if PASSWORD_REQUIRE_DIGIT and not any(char.isdigit() for char in password):
         raise PasswordValidationError("Пароль должен содержать хотя бы одну цифру")
 
-    if PASSWORD_REQUIRE_SPECIAL and not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+    if PASSWORD_REQUIRE_SPECIAL and not any(
+        not char.isalnum() and not char.isspace() for char in password
+    ):
         raise PasswordValidationError("Пароль должен содержать хотя бы один специальный символ")
 
 

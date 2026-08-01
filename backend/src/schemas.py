@@ -1,41 +1,40 @@
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Any, TypedDict, Literal
+from datetime import date, datetime
+from typing import Annotated, Any, Literal, TypedDict
 
-from pydantic import BaseModel, EmailStr
-
+from pydantic import BaseModel, EmailStr, Field
 
 # --- Auth ---
 
 
 class SendCodeRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(min_length=1, max_length=128)
 
 
 class VerifyCodeRequest(BaseModel):
     email: EmailStr
-    code: str
-    password: str | None = None
+    code: str = Field(min_length=8, max_length=8, pattern=r"^\d{8}$")
+    password: str | None = Field(default=None, max_length=128)
 
 
 class ForgotPasswordVerify(BaseModel):
     email: EmailStr
-    code: str
-    new_password: str
+    code: str = Field(min_length=8, max_length=8, pattern=r"^\d{8}$")
+    new_password: str = Field(min_length=1, max_length=128)
 
 
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(min_length=1, max_length=128)
 
 
 LoginRequest = RegisterRequest
 
 
 class RefreshRequest(BaseModel):
-    refreshToken: str
+    refreshToken: str = Field(min_length=32, max_length=256)
 
 
 class AuthResponse(BaseModel):
@@ -57,8 +56,11 @@ class ForgotPassword(BaseModel):
 
 class FeedbackRequest(BaseModel):
     email: EmailStr
-    text: str
-    images: list[str] = []  # base64-encoded images
+    text: str = Field(min_length=1, max_length=10_000)
+    images: list[Annotated[str, Field(max_length=2_000_000)]] = Field(
+        default_factory=list,
+        max_length=5,
+    )
 
 
 class MessageResponse(BaseModel):
@@ -104,7 +106,7 @@ class ReceiptRawResponseSchema(BaseModel):
 
 
 class GetReceiptFromQRSchema(BaseModel):
-    qrraw: str
+    qrraw: str = Field(min_length=1, max_length=4096)
 
 
 class GetReceiptFromRawQRSchema(BaseModel):
@@ -112,19 +114,20 @@ class GetReceiptFromRawQRSchema(BaseModel):
 
 
 class ReceiptItemSchema(BaseModel):
-    name: str
-    quantity: float = 1
-    price: float
+    name: str = Field(min_length=1, max_length=500)
+    quantity: float = Field(default=1, gt=0)
+    unit: Literal["g", "kg", "ml", "l", "piece"] = "kg"
+    price: float = Field(ge=0, multiple_of=0.01)
     sum: float | None = None
     product_id: str | None = None  # связь с Product после распознавания
 
 
 class ReceiptSchema(BaseModel):
-    id: str
-    date: str
-    store: str | None = None
-    total: float
-    items: list[ReceiptItemSchema] = []
+    id: str = Field(min_length=1, max_length=128)
+    date: date
+    store: str | None = Field(default=None, max_length=500)
+    total: float = Field(ge=0, multiple_of=0.01)
+    items: list[ReceiptItemSchema] = Field(default_factory=list, max_length=1000)
 
 
 class ReceiptSchemaArray(BaseModel):
@@ -145,14 +148,14 @@ class AiResponse(BaseModel):
 
 class AiHistoryItem(BaseModel):
     role: str  # "user" | "assistant"
-    text: str
+    text: str = Field(max_length=4000)
 
 
 class AiRequestParameters(BaseModel):
     periodFrom: str | None = None
     periodTo: str | None = None
-    question: str | None = None
-    history: list[AiHistoryItem] | None = None
+    question: str | None = Field(default=None, max_length=4000)
+    history: list[AiHistoryItem] | None = Field(default=None, max_length=20)
     members: list[FamilyMember] | None = None
 
 
@@ -206,8 +209,8 @@ class CreditsInfo(BaseModel):
 
 
 class GooglePurchase(BaseModel):
-    purchaseToken: str
-    productId: str
+    purchaseToken: str = Field(min_length=1, max_length=4096)
+    productId: str = Field(min_length=1, max_length=256)
 
 
 class CreatePaymentRequest(BaseModel):
@@ -232,7 +235,7 @@ class PaymentConfirmationResponse(BaseModel):
 
 class SubscriptionStatusResponse(BaseModel):
     active: bool
-    platform: Literal["yookassa", "google"] | None
+    platform: Literal["yookassa", "google_play", "legacy"] | None
     expiresAt: datetime | None
 
 

@@ -3,23 +3,23 @@ Pytest fixtures and configuration for async tests.
 Uses aiosqlite with SQLAlchemy async, in-memory SQLite for tests.
 """
 
-from datetime import datetime, timedelta, timezone
 import socket
-from typing import AsyncGenerator
 import uuid
+from datetime import datetime, timedelta, timezone
+from typing import AsyncGenerator
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     create_async_engine,
 )
 
+from src.auth import create_access_token, hash_password, hash_refresh_token
 from src.database import Base, get_db
 from src.main import app
 from src.models import (
-    User,
     Product,
     ProductAlias,
     ProductTag,
@@ -29,8 +29,10 @@ from src.models import (
     Recipe,
     RecipeIngredient,
     RefreshToken,
+    Subscription,
+    SubscriptionProvider,
+    User,
 )
-from src.auth import hash_password, create_access_token
 
 
 class ExternalNetworkBlocked(RuntimeError):
@@ -129,14 +131,26 @@ async def test_user(async_session: AsyncSession) -> User:
 @pytest_asyncio.fixture
 async def test_premium_user(async_session: AsyncSession) -> User:
     """Create a premium test user."""
+    expires_at = datetime.now() + timedelta(days=30)
     user = User(
         email="premium@example.com",
         password_hash=hash_password("TestPass123!"),
         premium=True,
-        subscription_expires=datetime.now() + timedelta(days=30),
+        subscription_expires=expires_at,
         created_at=datetime.now(),
     )
     async_session.add(user)
+    await async_session.flush()
+    async_session.add(
+        Subscription(
+            user_id=user.id,
+            purchase_token=f"test:{user.id}",
+            product_id="premium_test",
+            provider=SubscriptionProvider.LEGACY,
+            active=True,
+            expires_at=expires_at,
+        )
+    )
     await async_session.commit()
     await async_session.refresh(user)
     return user
@@ -161,14 +175,14 @@ async def test_expired_sub_user(async_session: AsyncSession) -> User:
 @pytest_asyncio.fixture
 def auth_headers(test_user: User) -> dict:
     """Generate auth headers for the test user."""
-    token = create_access_token(test_user.id)
+    token = create_access_token(test_user.id, test_user.auth_version)
     return {"Authorization": f"Bearer {token}"}
 
 
 @pytest_asyncio.fixture
 def premium_auth_headers(test_premium_user: User) -> dict:
     """Generate auth headers for premium user."""
-    token = create_access_token(test_premium_user.id)
+    token = create_access_token(test_premium_user.id, test_premium_user.auth_version)
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -411,7 +425,7 @@ async def test_receipts(
 async def test_refresh_token(async_session: AsyncSession, test_user: User) -> RefreshToken:
     """Create a valid refresh token."""
     rt = RefreshToken(
-        token="test_refresh_token_123",
+        token_hash=hash_refresh_token("test_refresh_token_123_secure_fixture_value"),
         user_id=test_user.id,
         expires_at=datetime.now(timezone.utc) + timedelta(days=30),
     )
@@ -424,7 +438,7 @@ async def test_refresh_token(async_session: AsyncSession, test_user: User) -> Re
 async def test_expired_refresh_token(async_session: AsyncSession, test_user: User) -> RefreshToken:
     """Create an expired refresh token."""
     rt = RefreshToken(
-        token="test_expired_refresh_token_456",
+        token_hash=hash_refresh_token("test_expired_refresh_token_456_secure_fixture"),
         user_id=test_user.id,
         expires_at=datetime.now(timezone.utc) - timedelta(days=1),
     )

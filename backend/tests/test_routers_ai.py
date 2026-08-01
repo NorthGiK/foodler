@@ -65,8 +65,9 @@ class TestRunAi:
         self, client: AsyncClient, auth_headers, async_session, test_user
     ):
         """Should reject with 429 when credits exhausted."""
-        from src.models import AiCreditUsage
         from datetime import datetime, timedelta
+
+        from src.models import AiCreditUsage
 
         # Use up all daily credits
         today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -92,8 +93,9 @@ class TestRunAi:
         self, client: AsyncClient, auth_headers, async_session, test_user
     ):
         """LOCAL actions should NOT check credits even if exhausted."""
-        from src.models import AiCreditUsage
         from datetime import datetime, timedelta
+
+        from src.models import AiCreditUsage
 
         # Use up all daily credits
         today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -228,8 +230,9 @@ class TestRunAi:
         self, client: AsyncClient, auth_headers, async_session, test_user
     ):
         """Should NOT deduct credits when response is from cache."""
-        from src.models import AiCache, AiCreditUsage
         from datetime import datetime, timedelta, timezone
+
+        from src.models import AiCache, AiCreditUsage
         from src.product_matching import compute_context_hash
 
         # Pre-compute the context_hash that will match
@@ -278,8 +281,9 @@ class TestRunAi:
         self, client: AsyncClient, auth_headers, async_session, test_user, test_products
     ):
         """Should filter receipts by period."""
-        from src.models import Receipt, ReceiptItem
         import uuid
+
+        from src.models import Receipt, ReceiptItem
 
         milk = test_products[0]
 
@@ -416,8 +420,9 @@ class TestRunAi:
         self, client: AsyncClient, auth_headers, async_session, test_user
     ):
         """LOCAL actions should NOT load receipts (they query DB themselves)."""
-        from src.models import Receipt
         import uuid
+
+        from src.models import Receipt
 
         # Create a receipt — LOCAL action should NOT load it
         r = Receipt(
@@ -501,8 +506,9 @@ class TestGetHistory:
         self, client: AsyncClient, auth_headers, async_session, test_user
     ):
         """Should return report history."""
-        from src.models import AiReport
         from datetime import datetime
+
+        from src.models import AiReport
 
         report = AiReport(
             id="test_report_1",
@@ -527,8 +533,9 @@ class TestGetHistory:
         self, client: AsyncClient, auth_headers, async_session
     ):
         """Should not return other users' reports."""
-        from src.models import AiReport, User
         from datetime import datetime
+
+        from src.models import AiReport, User
 
         other_user = User(email="other@example.com", password_hash="hash")
         async_session.add(other_user)
@@ -554,8 +561,9 @@ class TestGetHistory:
         self, client: AsyncClient, auth_headers, async_session, test_user
     ):
         """Should support skip/limit pagination."""
-        from src.models import AiReport
         from datetime import datetime
+
+        from src.models import AiReport
 
         for i in range(5):
             report = AiReport(
@@ -602,8 +610,9 @@ class TestGetReport:
         self, client: AsyncClient, auth_headers, async_session, test_user
     ):
         """Should return report by ID."""
-        from src.models import AiReport
         from datetime import datetime
+
+        from src.models import AiReport
 
         report = AiReport(
             id="my_report",
@@ -632,8 +641,9 @@ class TestDeleteReport:
         self, client: AsyncClient, auth_headers, async_session, test_user
     ):
         """Should delete a report."""
-        from src.models import AiReport
         from datetime import datetime
+
+        from src.models import AiReport
 
         report = AiReport(
             id="delete_me",

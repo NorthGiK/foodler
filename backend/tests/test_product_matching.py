@@ -3,13 +3,14 @@ Tests for src/product_matching.py - Product matching pipeline.
 """
 
 import pytest
+
 from src.product_matching import (
-    normalize_name,
     compute_context_hash,
     find_product_by_alias,
     find_product_by_name,
     find_products_fuzzy,
     match_product,
+    normalize_name,
 )
 
 
@@ -237,9 +238,10 @@ class TestSaveNewProduct:
     @pytest.mark.asyncio
     async def test_save_new_product_with_alias(self, async_session):
         """Should create alias for the new product."""
-        from src.product_matching import save_new_product
-        from src.models import ProductAlias
         from sqlalchemy import select
+
+        from src.models import ProductAlias
+        from src.product_matching import save_new_product
 
         nutrition = {"calories": 50, "proteins": 1.0, "fats": 0.5, "carbs": 10.0}
         product = await save_new_product(
@@ -259,9 +261,10 @@ class TestSaveNewProduct:
     @pytest.mark.asyncio
     async def test_save_new_product_with_tags(self, async_session):
         """Should create tags for the new product."""
-        from src.product_matching import save_new_product
-        from src.models import ProductTagMember, ProductTag
         from sqlalchemy import select
+
+        from src.models import ProductTag, ProductTagMember
+        from src.product_matching import save_new_product
 
         nutrition = {"calories": 50, "proteins": 1.0, "fats": 0.5, "carbs": 10.0}
         product = await save_new_product(

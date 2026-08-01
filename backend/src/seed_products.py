@@ -10,7 +10,8 @@ import sys
 sys.path.insert(0, ".")
 
 from sqlalchemy import select
-from src.database import async_session, init_db
+
+from src.database import async_session, check_database
 from src.models import Product, ProductAlias, ProductTag, ProductTagMember
 
 logger = logging.getLogger(__name__)
@@ -451,7 +452,7 @@ SEED_PRODUCTS = [
 
 async def seed():
     """Заполнение БД начальными данными."""
-    await init_db()
+    await check_database()
 
     async with async_session() as db:
         # Проверяем, есть ли уже данные

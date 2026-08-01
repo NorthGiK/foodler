@@ -1,11 +1,38 @@
 # Changelog
 
+## v1.5.0 — Backend reliability and security
+
+- Access JWT now has issuer, audience, type, short expiry and per-user revocation
+  version. Refresh tokens and email codes are stored only as hashes; password
+  changes revoke all sessions.
+- CORS uses an allowlist, provider endpoints require authentication, rate limits
+  are shared through the database, and metrics require a separate bearer token.
+- Receipt and AI HTTP calls reuse a bounded connection pool and have explicit
+  adapter errors/timeouts. Readiness checks the database; retention runs outside
+  request handlers.
+- YooKassa remains server-verified and idempotent. Google Play subscriptions are
+  verified with the Android Publisher API and bound to the Foodler user.
+- Subscription entitlement has one application service and one database source
+  of truth; credits consult it before making decisions.
+- Monetary values are stored as integer kopecks, receipt dates are typed, legacy
+  data is migrated, and database indexes cover common user/date/status lookups.
+- Receipt lists are paginated end to end; analytics aggregates spending in SQL,
+  eager loading removes N+1 tag queries, and fuzzy product matching has a bounded
+  candidate set.
+- The runtime no longer calls `create_all`; Alembic is mandatory. Migration,
+  security, provider failure, pagination and exact-money tests cover the new
+  guarantees.
+- CI audits the locked backend dependency graph against OSV.
+
+---
+
 ## v1.4.1 — Subscription security hardening
 
 ### Critical security fixes
 
 - **Removed Google subscription endpoint** (`POST /subscription/google`) — eliminated unverified purchase abuse vector
-- **YooKassa webhook HMAC verification** — webhook now validates `X-Yookassa-Signature` using HMAC-SHA256 with `PAYMENT_SECRET_KEY`
+- **YooKassa webhook verification** — the payload is treated as an event hint;
+  backend re-fetches the payment from YooKassa and verifies its trusted fields
 - **Webhook idempotency** — duplicate `payment.succeeded` events no longer extend subscription repeatedly
 - **Removed debug logging** — eliminated `print(payment.json())` that could leak sensitive payment data
 - **Pending payment limit** — users can have at most 3 `in_progress` payments; excess attempts return `429 Too Many Requests`
@@ -18,7 +45,7 @@
 
 ### Tests
 
-- Added HMAC signature validation tests (valid/invalid/missing signatures)
+- Added trusted payment re-fetch and field validation tests
 - Added webhook idempotency test
 - Added pending payment limit tests (`429` when 3 pending, `200` when fewer)
 - Updated timezone handling in all subscription tests

@@ -5,25 +5,24 @@
 - Если подписка закончилась, старые чеки остаются, новые — с лимитом 30 дней
 """
 
-from datetime import datetime, timedelta, timezone
-from sqlalchemy import select, delete
+from datetime import datetime, timedelta
+
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .models import Receipt, User
+from .models import Receipt, ReceiptItem
 
 RECEIPT_RETENTION_DAYS = 30
 
 
-def compute_receipt_expiry(user: User) -> datetime | None:
+def compute_receipt_expiry(has_active_subscription: bool) -> datetime | None:
     """
     Вычисляет дату истечения хранения чека.
     Возвращает None для бесконечного хранения (подписка активна),
     иначе datetime в будущем (текущее время + 30 дней).
     """
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-
     # Если у пользователя активна подписка — храним бесконечно
-    if user.premium and user.subscription_expires and user.subscription_expires > now:
+    if has_active_subscription:
         return None
 
     # Иначе — 30 дней с момента сохранения
@@ -36,17 +35,15 @@ async def cleanup_expired_receipts(db: AsyncSession) -> int:
     Возвращает количество удалённых чеков.
     """
     now = datetime.now()
-    result = await db.execute(
-        select(Receipt.id).where(
-            Receipt.receipt_expires_at.isnot(None),
-            Receipt.receipt_expires_at < now,
-        )
+    expired_receipts = select(Receipt.id).where(
+        Receipt.receipt_expires_at.isnot(None),
+        Receipt.receipt_expires_at < now,
     )
-    expired_ids = [row[0] for row in result.all()]
-
-    if not expired_ids:
+    expired_count = await db.scalar(select(func.count()).select_from(expired_receipts.subquery()))
+    if not expired_count:
         return 0
 
-    await db.execute(delete(Receipt).where(Receipt.id.in_(expired_ids)))
+    await db.execute(delete(ReceiptItem).where(ReceiptItem.receipt_id.in_(expired_receipts)))
+    await db.execute(delete(Receipt).where(Receipt.id.in_(expired_receipts)))
     await db.commit()
-    return len(expired_ids)
+    return expired_count
