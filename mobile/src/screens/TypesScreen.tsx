@@ -1,0 +1,138 @@
+import React, { useMemo, useRef, useState } from "react";
+import { Animated, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Theme } from "@/themes";
+import { useTheme } from "@/components/ThemeContext";
+import Dropdown from "../components/Dropdown";
+import { StatList } from "../components/StatList";
+import type { Period, CategoryMode, Receipt, ReceiptItem } from "../types";
+import { filterReceiptsByPeriod, sumBy } from "../utils";
+import { useStaggeredFadeIn } from "../components/animations";
+
+interface TypesScreenProps {
+  receipts: Receipt[];
+  joinedItems: (ReceiptItem & { ticketDate?: string })[];
+  onRefresh?: () => void;
+}
+
+const periodItems: Array<{ label: string; value: string }> = [
+  { label: "День", value: "day" },
+  { label: "Неделя", value: "week" },
+  { label: "Месяц", value: "month" },
+  { label: "Год", value: "year" },
+];
+
+const modeItems: Array<{ label: string; value: string }> = [
+  { label: "Частота", value: "count" },
+  { label: "Сумма", value: "spend" },
+];
+
+export function TypesScreen({ receipts, joinedItems }: TypesScreenProps) {
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
+  const [period, setPeriod] = useState<Period>("month");
+  const [mode, setMode] = useState<CategoryMode>("count");
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  const filteredReceipts = useMemo(
+    () => filterReceiptsByPeriod(receipts, period),
+    [receipts, period],
+  );
+  const filteredItems = useMemo(() => {
+    const ids = new Set(filteredReceipts.map((r) => r.id));
+    return joinedItems.filter((item) => ids.has(item.receiptId));
+  }, [joinedItems, filteredReceipts]);
+
+  const stats = useMemo(() => {
+    if (mode === "count") {
+      return sumBy(
+        filteredItems,
+        (item) => item.category,
+        () => 1,
+      );
+    }
+    return sumBy(
+      filteredItems,
+      (item) => item.category,
+      (item) => Math.abs(item.sumRub),
+    );
+  }, [filteredItems, mode]);
+
+  const cardStyles = useStaggeredFadeIn(3, 80);
+
+  return (
+    <ScrollView
+      contentContainerStyle={styles.content}
+      onScroll={Animated.event(
+        [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+        { useNativeDriver: false },
+      )}
+      scrollEventThrottle={16}
+      showsVerticalScrollIndicator={false}
+    >
+      <Animated.View style={cardStyles[0]}>
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: theme.surface, borderColor: theme.border },
+          ]}
+        >
+          <Dropdown
+            label="Период"
+            value={period}
+            items={periodItems}
+            onChange={(v) => setPeriod(v as Period)}
+          />
+          <Dropdown
+            label="Режим"
+            value={mode}
+            items={modeItems}
+            onChange={(v) => setMode(v as CategoryMode)}
+          />
+        </View>
+      </Animated.View>
+
+      <Animated.View style={cardStyles[1]}>
+        <StatList
+          title={mode === "count" ? "Самые частые типы" : "Самые дорогие типы"}
+          data={stats.slice(0, 10)}
+        />
+      </Animated.View>
+
+      <Animated.View style={cardStyles[2]}>
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: theme.surface, borderColor: theme.border },
+          ]}
+        >
+          <Text style={[styles.title, { color: theme.text }]}>
+            Как определяется тип
+          </Text>
+          <Text style={[styles.body, { color: theme.muted }]}>
+            Названия вроде «колбаса Вязанка» и «сервелат Папа Может» попадают в
+            тип «Колбасы» по ключевым словам, а не по бренду.
+          </Text>
+        </View>
+      </Animated.View>
+    </ScrollView>
+  );
+}
+
+const getStyles = (theme: Theme) =>
+  StyleSheet.create({
+    content: {
+      paddingHorizontal: 16,
+      paddingBottom: 100,
+      gap: 14,
+      paddingTop: 20,
+    },
+    card: {
+      borderWidth: 1,
+      borderRadius: 20,
+      padding: 16,
+      gap: 16,
+      marginBottom: 0,
+    },
+    title: { fontSize: 18, fontWeight: "700" },
+    body: { lineHeight: 22, fontSize: 14 },
+  });

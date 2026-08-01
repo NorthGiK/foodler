@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+:root{
+    color-scheme: light dark;
+    supported-color-schemes: light dark;
+
+    --primary:#2196F3;
+    --primary-container:#D6ECFF;
+
+    --surface:#F8FAFC;
+    --surface-container:#FFFFFF;
+    --surface-container-high:#F1F5F9;
+
+    --outline:#D7DEE7;
+
+    --text:#1B1F23;
+    --text-secondary:#5F6B7A;
+}
+
+@media (prefers-color-scheme:dark){
+
+:root{
+
+    --primary:#7CC4FF;
+    --primary-container:#133A5C;
+
+    --surface:#0F172A;
+    --surface-container:#18212F;
+    --surface-container-high:#202B3D;
+
+    --outline:#334155;
+
+    --text:#F8FAFC;
+    --text-secondary:#B8C4D5;
+}
+
+}
+
+body{
+    margin:0;
+    padding:0;
+    background:var(--surface);
+    font-family:
+    Roboto,
+    "Segoe UI",
+    Helvetica,
+    Arial,
+    sans-serif;
+}
+
+table{
+    border-collapse:collapse;
+}
+
+.card{
+    width:600px;
+    max-width:94%;
+    background:var(--surface-container);
+    border-radius:32px;
+    overflow:hidden;
+}
+
+.title{
+    font-size:30px;
+    font-weight:600;
+    color:var(--text);
+    line-height:38px;
+}
+
+.body{
+    font-size:16px;
+    line-height:26px;
+    color:var(--text-secondary);
+}
+
+.code-card{
+    background:var(--surface-container-high);
+    border-radius:28px;
+}
+
+.code{
+    font-size:46px;
+    letter-spacing:10px;
+    font-weight:700;
+    color:var(--primary);
+    font-family:
+        ui-monospace,
+        SFMono-Regular,
+        Consolas,
+        monospace;
+}
+
+.button{
+    display:inline-block;
+    background:var(--primary);
+    color:#fff!important;
+    text-decoration:none;
+    padding:16px 32px;
+    border-radius:999px;
+    font-weight:600;
+    font-size:15px;
+}
+
+.small{
+    color:var(--text-secondary);
+    font-size:13px;
+    line-height:20px;
+}
+</style>
+
+</head>
+
+<body>
+
+<table width="100%" bgcolor="transparent" cellpadding="40" cellspacing="0">
+<tr>
+<td align="center">
+
+<table class="card" cellpadding="0" cellspacing="0">
+
+<tr>
+<td align="center" style="padding:48px 48px 16px 48px;">
+
+<svg width="72" height="72" viewBox="0 0 24 24" fill="none">
+<circle cx="12" cy="12" r="11" fill="#2196F3"/>
+<path d="M12 3L5 6V11C5 15.4 8.1 19.4 12 20.3C15.9 19.4 19 15.4 19 11V6L12 3Z" fill="white"/>
+<path d="M9.4 11.9L11.2 13.7L15.2 9.7" stroke="#2196F3" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+</td>
+</tr>
+
+<tr>
+<td align="center" class="title" style="padding:0 48px; margin-bottom: 5vh;">
+Foody
+</td>
+</tr>
+
+<tr>
+<td align="center" class="title" style="padding:0 48px;">
+Код подтверждения
+</td>
+</tr>
+
+<tr>
+<td align="center" class="body" style="padding:16px 56px 36px;">
+Используйте этот одноразовый код для подтверждения входа.
+Никому его не сообщайте.
+</td>
+</tr>
+
+<tr>
+<td style="padding:0 40px;">
+
+<table class="code-card" width="100%" cellpadding="0" cellspacing="0">
+<tr>
+<td align="center" style="padding:34px;">
+
+<div class="code">
+^^^***
+</div>
+
+<div style="height:28px"></div>
+
+</td>
+</tr>
+</table>
+
+</td>
+</tr>
+
+<tr>
+<td align="center" class="small" style="padding:36px 56px 48px;">
+
+</td>
+</tr>
+
+</table>
+
+</td>
+</tr>
+</table>
+
+</body>
+</html>

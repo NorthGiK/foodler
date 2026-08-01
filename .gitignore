@@ -1,0 +1,22 @@
+.DS_Store
+.idea/
+.vscode/
+*.log
+
+# Local environments and secrets
+**/.env
+**/.env.*
+!**/.env.example
+**/.venv/
+**/node_modules/
+
+# Generated runtime/build state
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.ruff_cache/
+**/.expo/
+**/coverage/
+mobile/dist/
+mobile/android/
+backend/*.db

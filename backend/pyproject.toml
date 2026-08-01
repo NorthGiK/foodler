@@ -1,0 +1,53 @@
+[project]
+name = "food-spend-tracker-API"
+version = "1.5.0"
+description = "..."
+requires-python = ">=3.13,<3.15"
+dependencies = [
+    "aiohttp>=3.14.1",
+    "aiosqlite>=0.21,<0.22",
+    "alembic>=1.18.5",
+    "bcrypt>=4.0.0",
+    "dotenv>=0.9.9",
+    "fastapi>=0.138.1",
+    "fastapi-throttle>=0.1.8",
+    "httpx>=0.28.1",
+    "numpy>=2.5.0",
+    "passlib[bcrypt]>=1.7.4",
+    "pydantic[email]>=2.13.4",
+    "python-jose[cryptography]>=3.3.0",
+    "python-multipart>=0.0.6",
+    "sqlalchemy>=2.0.51",
+    "thefuzz>=0.22.1",
+    "uvicorn>=0.49.0",
+    "yookassa>=3.11.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "detect-secrets>=1.5.0",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=1.4.0",
+    "pytest-mock>=3.15.1",
+    "pytest-timeout>=2.4.0",
+    "ruff>=0.12.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+timeout = 30
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["F841"]
+
+[tool.ruff.format]
+quote-style = "double"

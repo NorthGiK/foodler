@@ -1,0 +1,8 @@
+services:
+  app:
+    image: NorthGK/product-feed-analyzer-server:${GITHUB_SHA}
+
+    restart: always
+
+    ports:
+      - "8000:8000"

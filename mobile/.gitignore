@@ -1,0 +1,7 @@
+# files
+.expo/
+.vscode/
+dist/
+android/
+node_modules/
+.env

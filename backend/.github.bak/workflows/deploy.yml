@@ -1,0 +1,72 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main, master]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SECRET_GH_SSH_KEY_TO_COPY_REPO }}
+
+      - name: Deploy via SSH
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+            set -e
+
+            # Config
+            APP_DIR="${{ secrets.APP_DIR }}"
+            REPO_URL="${{ secrets.REPO_URL }}"
+            BRANCH="${{ secrets.BRANCH }}"
+
+            echo "Deploying to $APP_DIR..."
+
+            # Clone or pull
+            if [ ! -d "$APP_DIR" ]; then
+              git clone "$REPO_URL" "$APP_DIR"
+            fi
+
+            cd "$APP_DIR"
+            git fetch origin
+            git checkout "$BRANCH"
+            git pull origin "$BRANCH"
+
+            # Python venv
+            if [ ! -d "venv" ]; then
+              python3 -m venv venv
+            fi
+
+            source venv/bin/activate
+            pip install -U pip
+            pip install -e ".[test]"
+
+            # Env
+            cp .env.example .env
+            # Add production secrets
+            echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> .env
+            echo "API_QR_KEY=${{ secrets.API_QR_KEY }}" >> .env
+            echo "SMTP_HOST=${{ secrets.SMTP_HOST }}" >> .env
+            echo "SMTP_PORT=${{ secrets.SMTP_PORT }}" >> .env
+            echo "SMTP_USER=${{ secrets.SMTP_USER }}" >> .env
+            echo "SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}" >> .env
+            echo "FROM_EMAIL=${{ secrets.FROM_EMAIL }}" >> .env
+            echo "AI_API_KEY=${{ secrets.AI_API_KEY }}" >> .env
+            echo "AI_BASE_URL=${{ secrets.AI_BASE_URL }}" >> .env
+            echo "AI_MODEL=${{ secrets.AI_MODEL }}" >> .env
+
+            # Migrations
+            alembic upgrade head
+
+            # Restart uvicorn
+            pkill -f "uvicorn main:app" || true
+            nohup venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 --workers 2 > /tmp/uvicorn.log 2>&1 &
+
+            echo "Deployment complete!"
+          EOF

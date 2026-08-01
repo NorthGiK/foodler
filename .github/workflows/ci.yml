@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  DATABASE_URL: sqlite+aiosqlite:///food_tracker.db
+  SECRET_KEY: ci-only-secret-key
+  API_QR_KEY: ci-placeholder
+  API_URL: https://example.invalid/receipt
+  AI_API_KEY: ci-placeholder
+  AI_BASE_URL: https://example.invalid/ai
+  PAYMENT_ACCOUNT_ID: ci-placeholder
+  PAYMENT_SECRET_KEY: ci-placeholder
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v8
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - run: uv sync --all-extras --locked
+        working-directory: backend
+      - run: uv run ruff check src tests scripts
+        working-directory: backend
+      - run: uv run pytest
+        working-directory: backend
+
+  mobile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+        working-directory: mobile
+      - run: npm run typecheck
+        working-directory: mobile
+      - run: npm run lint
+        working-directory: mobile
+      - run: npm run format:check
+        working-directory: mobile
+      - run: npm run test -- --runInBand
+        working-directory: mobile
+
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v8
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: uv sync --all-extras --locked
+        working-directory: backend
+      - run: npm ci
+        working-directory: mobile
+      - run: make contract-check
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v8
+      - run: uv sync --all-extras --locked
+        working-directory: backend
+      - run: make secrets

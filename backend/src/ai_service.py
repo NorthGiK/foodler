@@ -1,0 +1,413 @@
+"""
+AI service with multi-tier routing.
+
+Maps each action to one of three tiers:
+  - Tier 0 (LOCAL): No AI, uses local analytics and returns structured AiSection blocks.
+  - Tier 1 (LIGHT): Cheap model (e.g. gpt-4o-mini) for simple recommendations.
+  - Tier 2 (STRONG): More capable model for complex reasoning.
+
+Usage:
+    from src.ai_service import TaskRouter
+    router = TaskRouter()
+    sections = await router.route(action, parameters, context, db, user_id)
+"""
+
+import asyncio
+import json
+import logging
+from typing import Any
+from pprint import pprint
+
+from aiohttp import ClientSession, ClientTimeout
+
+from src.config import AI_API_KEY, AI_BASE_URL, AI_LIGHT_MODEL, AI_STRONG_MODEL
+from src.analytics import (
+    get_spending_summary,
+    get_nutrition_summary,
+    get_fridge_status,
+    suggest_recipes,
+)
+from src.ai_sections import _coerce_sections
+
+logger = logging.getLogger("ai_service")
+
+
+class AiServiceError(Exception):
+    """Raised when the AI API returns an error or cannot be reached."""
+    def __init__(self, message: str, status_code: int = 500):
+        self.message = message
+        self.status_code = status_code
+        super().__init__(self.message)
+
+
+# ---------------------------------------------------------------------------
+#  Tier constants
+# ---------------------------------------------------------------------------
+# Actions that can be answered without any AI — pure local computation.
+LOCAL_ACTIONS = frozenset({
+    "overall-analysis",
+    "expiring-products",
+    "recipes",
+    "ingredients",
+})
+
+# Actions best served by a cheap, fast LLM.
+LIGHT_ACTIONS = frozenset({
+    "save-money",
+    "healthy-food",
+    "habits",
+    "shopping-cart",
+})
+
+# Actions that benefit from a more capable LLM.
+STRONG_ACTIONS = frozenset({
+    "diet",
+    "ask",
+})
+
+ALL_ACTIONS = LOCAL_ACTIONS | LIGHT_ACTIONS | STRONG_ACTIONS
+
+
+# ---------------------------------------------------------------------------
+#  Helpers
+# ---------------------------------------------------------------------------
+
+def _truncate(text: str, limit: int = 12000) -> str:
+    if len(text) <= limit:
+        return text
+    return text[: limit - 3] + "..."
+
+
+def _build_user_prompt(action: str, parameters: dict | None, context: dict) -> str:
+    parts: list[str] = []
+    parts.append(f"action={action}")
+    if parameters:
+        parts.append("parameters=" + json.dumps(parameters, ensure_ascii=True))
+    parts.append("context=" + json.dumps(context, ensure_ascii=True, default=str))
+    return _truncate("\n---\n".join(parts), 12000)
+
+
+async def _call_llm(model: str, action: str, prompt: str, max_tokens: int = 500, temperature: float = 0.2) -> str:
+    """Call the OpenAI-compatible API and return the raw response text."""
+    system_prompt = "\n".join((
+        "# Ты — helpful nutrition assistant.",
+        "Отвечай **кратко** и **по делу**. Используй **только контекст пользователя**.",
+        "Упоминай в конце какая информация может помочь ответить лучше в следующий раз.",
+        "Если нужен список — возвращай JSON-массив секций. Каждая секция: { \"type\": \"text\"|\"score\"|\"list\"|\"products\"|\"chart\", ... }.",
+        "",
+        "\n---\n",
+    ))
+
+    headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': f'Bearer {AI_API_KEY}'
+    }
+
+    body = {
+        "is_sync": True,
+        "temperature": temperature,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt},
+        ],
+        "max_tokens": max_tokens,
+    }
+
+    url = AI_BASE_URL + model
+    logger.info("Calling AI API", extra={"url": url, "model": model, "action": action})
+
+    timeout = ClientTimeout(total=60 * 1.5)
+    async with ClientSession(timeout=timeout) as session:
+        resp = await session.post(url, json=body, headers=headers)
+        if not resp.ok:
+            error_text = await resp.text()
+            logger.error("AI API returned non-200", extra={
+                "status": resp.status, "body": error_text[:500], "action": action,
+            })
+            raise AiServiceError(
+                f"AI API returned {resp.status}: {error_text[:200]}",
+                status_code=resp.status,
+            )
+
+        resp_data: dict[str, Any]
+        try:
+            resp_data = await resp.json()
+        except Exception as e:
+            print("error while reading respose body:")
+            print(e)
+            raise AiServiceError("Failed to parse AI API response")
+
+        pprint(resp_data)
+
+        if resp_data.get("error"):
+            error_detail = resp_data.get("error_description", "unknown error")
+            logger.error("AI API returned error=true", extra={
+                "error": error_detail, "action": action,
+            })
+            raise AiServiceError(f"AI API error: {error_detail}")
+
+        try:
+            return resp_data["response"][0]['message']['content']
+        except (KeyError, IndexError, TypeError):
+            pass
+
+        # Log the actual response structure for debugging
+        logger.error("AI API response structure not recognized" + json.dumps({
+            "action": action,
+            "top_keys": list(resp_data.keys()),
+            "response_preview": str(resp_data)[:500],
+        }))
+
+        raise AiServiceError("Unexpected AI API response structure")
+
+
+# ---------------------------------------------------------------------------
+#  Tier-0 helpers — local AiSection builders
+# ---------------------------------------------------------------------------
+
+def _section_text(title: str, text: str) -> dict[str, Any]:
+    return {"type": "text", "title": title, "text": text}
+
+
+def _section_score(title: str, value: float, max_val: float) -> dict[str, Any]:
+    return {"type": "score", "title": title, "value": value, "max": max_val}
+
+
+def _section_list(title: str, items: list[str]) -> dict[str, Any]:
+    return {"type": "list", "title": title, "items": items}
+
+
+def _section_chart(title: str, labels: list[str], values: list[float], kind: str = "bar") -> dict[str, Any]:
+    return {"type": "chart", "title": title, "labels": labels, "values": values, "kind": kind}
+
+
+# ---------------------------------------------------------------------------
+#  Tier-0 actions
+# ---------------------------------------------------------------------------
+
+async def _local_overall_analysis(db, user_id, period_from, period_to) -> list[dict[str, Any]]:
+    # Parallel execution of independent queries
+    spending_task = get_spending_summary(db, user_id, period_from, period_to)
+    nutrition_task = get_nutrition_summary(db, user_id, period_from, period_to)
+    spending, nutrition = await asyncio.gather(spending_task, nutrition_task)
+
+    sections: list[dict[str, Any]] = []
+
+    if spending["receipt_count"] > 0:
+        sections.append(_section_text(
+            "Сводка по тратам",
+            f"Всего чеков: {spending['receipt_count']}\n"
+            f"Средний чек: {spending['avg_receipt']} ₽\n"
+            f"Потрачено всего: {spending['total_spent']} ₽"
+        ))
+
+        if spending["by_month"]:
+            labels = [m["month"] for m in spending["by_month"]]
+            values = [m["total"] for m in spending["by_month"]]
+            sections.append(_section_chart("Траты по месяцам", labels, values))
+
+        if spending["by_store"]:
+            sections.append(_section_list(
+                "Траты по магазинам",
+                [f"{s['store']}: {s['total']} ₽" for s in spending["by_store"]]
+            ))
+
+    if nutrition["total_calories"] > 0:
+        sections.append(_section_text(
+            "КБЖУ",
+            f"Калории: {nutrition['total_calories']} ккал\n"
+            f"Белки: {nutrition['total_proteins']} г\n"
+            f"Жиры: {nutrition['total_fats']} г\n"
+            f"Углеводы: {nutrition['total_carbs']} г"
+        ))
+        if nutrition.get("by_tag"):
+            sections.append(_section_list(
+                "По категориям",
+                [f"{t['tag']}: {t['calories']} ккал" for t in nutrition["by_tag"]]
+            ))
+
+    if not sections:
+        sections.append(_section_text("Нет данных", "За выбранный период нет информации."))
+
+    return sections
+
+
+async def _local_expiring_products(db, user_id, period_from=None, period_to=None) -> list[dict[str, Any]]:
+    fridge = await get_fridge_status(db, user_id)
+    if not fridge:
+        return [_section_text("Холодильник", "Пока нет информации о продуктах.")]
+
+    # Filter expiring — days_until_empty is small or already negative
+    expiring = [p for p in fridge if p["days_until_empty"] is not None and p["days_until_empty"] <= 3]
+    ok = [p for p in fridge if p["days_until_empty"] is None or p["days_until_empty"] > 3]
+
+    sections: list[dict[str, Any]] = []
+
+    if expiring:
+        sections.append(_section_list(
+            "Скоро закончится",
+            [f"{p['product_name']} — осталось ~{p['estimated_quantity']} кг (~{p['days_until_empty']} дн.)"
+             for p in expiring]
+        ))
+
+    if ok:
+        sections.append(_section_list(
+            "В наличии",
+            [f"{p['product_name']} — {p['estimated_quantity']} кг (до {p['expected_expiry']})"
+             for p in ok[:10]]
+        ))
+
+    return sections
+
+
+async def _local_recipes(db, user_id, period_from=None, period_to=None) -> list[dict[str, Any]]:
+    suggestions = await suggest_recipes(db, user_id, limit=5)
+    if not suggestions:
+        return [_section_text("Рецепты", "Нет подходящих рецептов для ваших продуктов.")]
+
+    sections: list[dict[str, Any]] = []
+    for s in suggestions:
+        recipe = s["recipe"]
+        parts = [
+            f"**{recipe['name']}** (совпадение: {s['match_score']*100:.0f}%)",
+        ]
+        if recipe.get("cooking_time_minutes"):
+            parts.append(f"⏱ {recipe['cooking_time_minutes']} мин.")
+        if s["missing_products"]:
+            missing_names = [m["product_name"] for m in s["missing_products"]]
+            parts.append(f"❌ Не хватает: {', '.join(missing_names)}")
+        if s["available_substitutes"]:
+            for sub in s["available_substitutes"]:
+                parts.append(f"🔄 {sub['original_name']} → {sub['substitute_name']}")
+        sections.append(_section_text(recipe["name"], "\n".join(parts)))
+
+    return sections
+
+
+async def _local_ingredients(db, user_id, period_from=None, period_to=None) -> list[dict[str, Any]]:
+    nutrition = await get_nutrition_summary(db, user_id, period_from, period_to)
+    if not nutrition or nutrition["total_calories"] == 0:
+        return [_section_text("Состав продуктов", "Нет данных за выбранный период.")]
+
+    sections: list[dict[str, Any]] = [
+        _section_text(
+            "Нутриенты за период",
+            f"Калории: {nutrition['total_calories']} ккал\n"
+            f"Белки: {nutrition['total_proteins']} г\n"
+            f"Жиры: {nutrition['total_fats']} г\n"
+            f"Углеводы: {nutrition['total_carbs']} г\n"
+            f"Клетчатка: {nutrition.get('total_fiber', '—')} г\n"
+            f"Сахар: {nutrition.get('total_sugar', '—')} г\n"
+            f"Насыщенные жиры: {nutrition.get('total_saturated_fats', '—')} г\n"
+            f"Натрий: {nutrition.get('total_sodium', '—')} мг"
+        ),
+    ]
+
+    if nutrition.get("by_tag"):
+        sections.append(_section_list(
+            "По категориям",
+            [f"{t['tag']}: {t['calories']} ккал, {t['proteins']} г белков"
+             for t in nutrition["by_tag"]]
+        ))
+
+    return sections
+
+
+# ---------------------------------------------------------------------------
+#  Public interface
+# ---------------------------------------------------------------------------
+
+class TaskRouter:
+    """
+    Routes AI requests to the appropriate tier
+    based on the action type.
+    """
+
+    async def route(
+        self,
+        action: str,
+        parameters: dict[str, Any] | None,
+        context: dict[str, Any],
+        db=None,
+        user_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Returns a list of AiSection-compatible dicts.
+
+        The caller (routers/ai.py) is responsible for:
+          - loading receipts and building context
+          - checking credits
+          - caching
+        """
+        if action not in ALL_ACTIONS:
+            return [_section_text("Ошибка", f"Неизвестное действие: {action}")]
+
+        # Extract period filters from parameters
+        # period_from = parameters.get("periodFrom")
+        # period_to = parameters.get("periodTo")
+
+        # ---- Tier 0: Local ----
+        if action in LOCAL_ACTIONS:
+            if not db or not user_id:
+                return [_section_text("Ошибка", "Требуется аутентификация для локального расчёта.")]
+            local_handlers = {
+                "overall-analysis": _local_overall_analysis,
+                "expiring-products": _local_expiring_products,
+                "recipes": _local_recipes,
+                "ingredients": _local_ingredients,
+            }
+            handler = local_handlers[action]
+            return await handler(db, user_id)
+
+        # ---- Tier 1/2: LLM calls ----
+        if action in LIGHT_ACTIONS:
+            model = AI_LIGHT_MODEL
+            max_tokens = 400
+            temperature = 0.2
+        else:  # STRONG_ACTIONS
+            model = AI_STRONG_MODEL or AI_LIGHT_MODEL
+            max_tokens = 800
+            temperature = 0.3
+
+        # Enrich context with local analytics data for LLM tiers
+        # if db and user_id:
+        #     try:
+        #         enriched = dict(context)
+        #         enriched["nutrition_summary"] = await get_nutrition_summary(db, user_id, period_from, period_to)
+        #         if action in ("save-money", "habits", "shopping-cart"):
+        #             spending = await get_spending_summary(db, user_id, period_from, period_to)
+        #             enriched["spending_summary"] = spending
+        #         if action in ("diet",):
+        #             enriched["fridge"] = await get_fridge_status(db, user_id)
+        #     except Exception:
+        #         logger.warning("Failed to enrich context for action %s", action, exc_info=True)
+        # else:
+        #     enriched = context
+
+        enriched = context
+        prompt = _build_user_prompt(action, parameters, enriched)
+        raw = await _call_llm(model, action, prompt, max_tokens=max_tokens, temperature=temperature)
+        return _coerce_sections(raw)
+
+
+# ---------------------------------------------------------------------------
+#  Backward-compatible top-level function
+# ---------------------------------------------------------------------------
+
+async def generate_ai_response(
+    action: str,
+    parameters: dict[str, Any] | None,
+    context: dict[str, Any],
+    db=None,
+    user_id: str | None = None,
+) -> str:
+    """
+    Legacy entry point — maintained for tests and potential external callers.
+
+    Returns raw text for LLM tiers, JSON-like text for local tiers.
+    Prefer using TaskRouter.route() directly for new code.
+    """
+    router = TaskRouter()
+    sections = await router.route(action, parameters, context, db=db, user_id=user_id)
+    return json.dumps(sections, ensure_ascii=False)

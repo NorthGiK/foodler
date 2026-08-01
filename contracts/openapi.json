@@ -1,0 +1,3759 @@
+{
+  "components": {
+    "schemas": {
+      "AiHistoryItem": {
+        "properties": {
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "text"
+        ],
+        "title": "AiHistoryItem",
+        "type": "object"
+      },
+      "AiRequest": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "parameters": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiRequestParameters"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "AiRequest",
+        "type": "object"
+      },
+      "AiRequestParameters": {
+        "properties": {
+          "history": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AiHistoryItem"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "History"
+          },
+          "members": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/FamilyMember"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Members"
+          },
+          "periodFrom": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Periodfrom"
+          },
+          "periodTo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Periodto"
+          },
+          "question": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question"
+          }
+        },
+        "title": "AiRequestParameters",
+        "type": "object"
+      },
+      "AiResult": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "createdAt": {
+            "title": "Createdat",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/AiSection"
+            },
+            "title": "Sections",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "createdAt",
+          "sections"
+        ],
+        "title": "AiResult",
+        "type": "object"
+      },
+      "AiSection": {
+        "description": "Плоский формат секции — совместим с клиентом.\n\nПоля опциональны, используется только то, что соответствует type:\n- text: text\n- score: value, max\n- list: items\n- products: products\n- chart: labels, values, kind",
+        "properties": {
+          "items": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Items"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "labels": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Labels"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "products": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Products"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "title": {
+            "default": "Ответ",
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "values": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Values"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "title": "AiSection",
+        "type": "object"
+      },
+      "AuthResponse": {
+        "properties": {
+          "accessToken": {
+            "title": "Accesstoken",
+            "type": "string"
+          },
+          "refreshToken": {
+            "title": "Refreshtoken",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserResponse"
+          }
+        },
+        "required": [
+          "accessToken",
+          "refreshToken",
+          "user"
+        ],
+        "title": "AuthResponse",
+        "type": "object"
+      },
+      "Body_get_receipt_by_raw_qr_api_receipts_get_receipt_by_raw_qr_post": {
+        "properties": {
+          "qrfile": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Qrfile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "qrfile"
+        ],
+        "title": "Body_get_receipt_by_raw_qr_api_receipts_get_receipt_by_raw_qr_post",
+        "type": "object"
+      },
+      "CreatePaymentRequest": {
+        "description": "Request to create a payment via YooKassa.\n\npaymentMethod values: bank_card, sbp, sberbank, tinkoff_bank, yoo_money\nIf None, YooKassa will show all available payment methods.",
+        "properties": {
+          "paymentMethod": {
+            "anyOf": [
+              {
+                "enum": [
+                  "bank_card",
+                  "sbp",
+                  "sberbank",
+                  "tinkoff_bank",
+                  "yoo_money"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paymentmethod"
+          }
+        },
+        "title": "CreatePaymentRequest",
+        "type": "object"
+      },
+      "CreditsInfo": {
+        "properties": {
+          "monthly_limit": {
+            "title": "Monthly Limit",
+            "type": "number"
+          },
+          "period": {
+            "title": "Period",
+            "type": "string"
+          },
+          "period_limit": {
+            "title": "Period Limit",
+            "type": "number"
+          },
+          "remaining": {
+            "title": "Remaining",
+            "type": "number"
+          },
+          "weekly_limit": {
+            "title": "Weekly Limit",
+            "type": "number"
+          }
+        },
+        "required": [
+          "remaining",
+          "period_limit",
+          "weekly_limit",
+          "monthly_limit",
+          "period"
+        ],
+        "title": "CreditsInfo",
+        "type": "object"
+      },
+      "DeviceResponse": {
+        "properties": {
+          "createdAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat"
+          },
+          "deviceId": {
+            "title": "Deviceid",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "os": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Os"
+          }
+        },
+        "required": [
+          "deviceId",
+          "id"
+        ],
+        "title": "DeviceResponse",
+        "type": "object"
+      },
+      "FamilyMember": {
+        "properties": {
+          "additional_info": {
+            "title": "Additional Info",
+            "type": "string"
+          },
+          "age": {
+            "title": "Age",
+            "type": "integer"
+          },
+          "gender": {
+            "title": "Gender",
+            "type": "string"
+          },
+          "height": {
+            "title": "Height",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "weight": {
+            "title": "Weight",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "age",
+          "height",
+          "weight",
+          "gender",
+          "additional_info"
+        ],
+        "title": "FamilyMember",
+        "type": "object"
+      },
+      "FeedbackRequest": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "images": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Images",
+            "type": "array"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "text"
+        ],
+        "title": "FeedbackRequest",
+        "type": "object"
+      },
+      "ForgotPassword": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "ForgotPassword",
+        "type": "object"
+      },
+      "ForgotPasswordVerify": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "new_password": {
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "code",
+          "new_password"
+        ],
+        "title": "ForgotPasswordVerify",
+        "type": "object"
+      },
+      "FridgeProduct": {
+        "description": "Продукт в холодильнике (прогноз).",
+        "properties": {
+          "consumption_rate": {
+            "title": "Consumption Rate",
+            "type": "number"
+          },
+          "days_until_empty": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days Until Empty"
+          },
+          "estimated_quantity": {
+            "title": "Estimated Quantity",
+            "type": "number"
+          },
+          "expected_expiry": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Expiry"
+          },
+          "last_purchased": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Purchased"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_id",
+          "product_name",
+          "estimated_quantity",
+          "unit",
+          "last_purchased",
+          "expected_expiry",
+          "consumption_rate",
+          "days_until_empty"
+        ],
+        "title": "FridgeProduct",
+        "type": "object"
+      },
+      "GetReceiptFromQRSchema": {
+        "properties": {
+          "qrraw": {
+            "title": "Qrraw",
+            "type": "string"
+          }
+        },
+        "required": [
+          "qrraw"
+        ],
+        "title": "GetReceiptFromQRSchema",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "MessageResponse": {
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "MessageResponse",
+        "type": "object"
+      },
+      "NutritionSummary": {
+        "description": "Агрегированные данные о питании за период.",
+        "properties": {
+          "avg_daily_calories": {
+            "title": "Avg Daily Calories",
+            "type": "number"
+          },
+          "avg_daily_carbs": {
+            "title": "Avg Daily Carbs",
+            "type": "number"
+          },
+          "avg_daily_fats": {
+            "title": "Avg Daily Fats",
+            "type": "number"
+          },
+          "avg_daily_proteins": {
+            "title": "Avg Daily Proteins",
+            "type": "number"
+          },
+          "by_category": {
+            "default": [],
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "By Category",
+            "type": "array"
+          },
+          "period_from": {
+            "title": "Period From",
+            "type": "string"
+          },
+          "period_to": {
+            "title": "Period To",
+            "type": "string"
+          },
+          "total_calories": {
+            "title": "Total Calories",
+            "type": "number"
+          },
+          "total_carbs": {
+            "title": "Total Carbs",
+            "type": "number"
+          },
+          "total_fats": {
+            "title": "Total Fats",
+            "type": "number"
+          },
+          "total_proteins": {
+            "title": "Total Proteins",
+            "type": "number"
+          }
+        },
+        "required": [
+          "period_from",
+          "period_to",
+          "total_calories",
+          "total_proteins",
+          "total_fats",
+          "total_carbs",
+          "avg_daily_calories",
+          "avg_daily_proteins",
+          "avg_daily_fats",
+          "avg_daily_carbs"
+        ],
+        "title": "NutritionSummary",
+        "type": "object"
+      },
+      "PaymentConfirmationResponse": {
+        "properties": {
+          "confirmationUrl": {
+            "title": "Confirmationurl",
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirmationUrl"
+        ],
+        "title": "PaymentConfirmationResponse",
+        "type": "object"
+      },
+      "PremiumStatusResponse": {
+        "properties": {
+          "premium": {
+            "title": "Premium",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "premium"
+        ],
+        "title": "PremiumStatusResponse",
+        "type": "object"
+      },
+      "ProductCreateSchema": {
+        "description": "Создание нового продукта (вручную или через AI).",
+        "properties": {
+          "aliases": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Aliases",
+            "type": "array"
+          },
+          "calcium": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calcium"
+          },
+          "calories": {
+            "default": 0,
+            "title": "Calories",
+            "type": "number"
+          },
+          "carbs": {
+            "default": 0,
+            "title": "Carbs",
+            "type": "number"
+          },
+          "cholesterol": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cholesterol"
+          },
+          "fats": {
+            "default": 0,
+            "title": "Fats",
+            "type": "number"
+          },
+          "fiber": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fiber"
+          },
+          "iron": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iron"
+          },
+          "magnesium": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Magnesium"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "potassium": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Potassium"
+          },
+          "proteins": {
+            "default": 0,
+            "title": "Proteins",
+            "type": "number"
+          },
+          "saturated_fats": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saturated Fats"
+          },
+          "serving_size": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serving Size"
+          },
+          "serving_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serving Unit"
+          },
+          "sodium": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sodium"
+          },
+          "sugar": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sugar"
+          },
+          "tags": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "vitamin_a": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vitamin A"
+          },
+          "vitamin_c": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vitamin C"
+          },
+          "vitamin_d": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vitamin D"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "ProductCreateSchema",
+        "type": "object"
+      },
+      "ProductMatchRequest": {
+        "description": "Запрос на распознавание продукта.",
+        "properties": {
+          "quantity": {
+            "default": 1,
+            "title": "Quantity",
+            "type": "number"
+          },
+          "raw_name": {
+            "title": "Raw Name",
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "required": [
+          "raw_name"
+        ],
+        "title": "ProductMatchRequest",
+        "type": "object"
+      },
+      "ProductMatchResult": {
+        "description": "Результат распознавания продукта.",
+        "properties": {
+          "alternatives": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ProductSchema"
+            },
+            "title": "Alternatives",
+            "type": "array"
+          },
+          "confidence": {
+            "title": "Confidence",
+            "type": "number"
+          },
+          "matched_by": {
+            "title": "Matched By",
+            "type": "string"
+          },
+          "product": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProductSchema"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "product",
+          "confidence",
+          "matched_by"
+        ],
+        "title": "ProductMatchResult",
+        "type": "object"
+      },
+      "ProductSchema": {
+        "description": "Полная схема продукта.",
+        "properties": {
+          "aliases": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Aliases",
+            "type": "array"
+          },
+          "calcium": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calcium"
+          },
+          "calories": {
+            "default": 0,
+            "title": "Calories",
+            "type": "number"
+          },
+          "carbs": {
+            "default": 0,
+            "title": "Carbs",
+            "type": "number"
+          },
+          "cholesterol": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cholesterol"
+          },
+          "fats": {
+            "default": 0,
+            "title": "Fats",
+            "type": "number"
+          },
+          "fiber": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fiber"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "iron": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iron"
+          },
+          "magnesium": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Magnesium"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "potassium": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Potassium"
+          },
+          "proteins": {
+            "default": 0,
+            "title": "Proteins",
+            "type": "number"
+          },
+          "saturated_fats": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saturated Fats"
+          },
+          "serving_size": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serving Size"
+          },
+          "serving_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serving Unit"
+          },
+          "sodium": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sodium"
+          },
+          "sugar": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sugar"
+          },
+          "tags": {
+            "default": [],
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "vitamin_a": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vitamin A"
+          },
+          "vitamin_c": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vitamin C"
+          },
+          "vitamin_d": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vitamin D"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ProductSchema",
+        "type": "object"
+      },
+      "ProductSearchResult": {
+        "description": "Результат поиска продуктов.",
+        "properties": {
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/ProductSchema"
+            },
+            "title": "Results",
+            "type": "array"
+          }
+        },
+        "required": [
+          "query",
+          "results"
+        ],
+        "title": "ProductSearchResult",
+        "type": "object"
+      },
+      "ProductSubstituteSchema": {
+        "properties": {
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "ratio": {
+            "default": 1.0,
+            "title": "Ratio",
+            "type": "number"
+          },
+          "similarity_score": {
+            "title": "Similarity Score",
+            "type": "number"
+          },
+          "substitute_name": {
+            "title": "Substitute Name",
+            "type": "string"
+          },
+          "substitute_product_id": {
+            "title": "Substitute Product Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_id",
+          "substitute_product_id",
+          "substitute_name",
+          "similarity_score"
+        ],
+        "title": "ProductSubstituteSchema",
+        "type": "object"
+      },
+      "ProductTagSchema": {
+        "properties": {
+          "children": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ProductTagSchema"
+            },
+            "title": "Children",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ProductTagSchema",
+        "type": "object"
+      },
+      "ReceiptItemSchema": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "price": {
+            "title": "Price",
+            "type": "number"
+          },
+          "product_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Id"
+          },
+          "quantity": {
+            "default": 1,
+            "title": "Quantity",
+            "type": "number"
+          },
+          "sum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sum"
+          }
+        },
+        "required": [
+          "name",
+          "price"
+        ],
+        "title": "ReceiptItemSchema",
+        "type": "object"
+      },
+      "ReceiptJsonData": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReceiptItemSchema"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "operationType": {
+            "title": "Operationtype",
+            "type": "integer"
+          },
+          "ticketDate": {
+            "title": "Ticketdate",
+            "type": "string"
+          },
+          "totalSum": {
+            "title": "Totalsum",
+            "type": "integer"
+          },
+          "user": {
+            "title": "User",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ticketDate",
+          "operationType",
+          "totalSum",
+          "user",
+          "items"
+        ],
+        "title": "ReceiptJsonData",
+        "type": "object"
+      },
+      "ReceiptRawResponseSchema": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "integer"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReceiptResponseData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "data"
+        ],
+        "title": "ReceiptRawResponseSchema",
+        "type": "object"
+      },
+      "ReceiptResponseData": {
+        "properties": {
+          "json": {
+            "$ref": "#/components/schemas/ReceiptJsonData"
+          }
+        },
+        "required": [
+          "json"
+        ],
+        "title": "ReceiptResponseData",
+        "type": "object"
+      },
+      "ReceiptSchema": {
+        "properties": {
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "items": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ReceiptItemSchema"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "store": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store"
+          },
+          "total": {
+            "title": "Total",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "date",
+          "total"
+        ],
+        "title": "ReceiptSchema",
+        "type": "object"
+      },
+      "ReceiptSchemaArray": {
+        "properties": {
+          "receipts": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ReceiptSchema"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receipts"
+          }
+        },
+        "title": "ReceiptSchemaArray",
+        "type": "object"
+      },
+      "RecipeCreateSchema": {
+        "properties": {
+          "cooking_time_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cooking Time Minutes"
+          },
+          "ingredients": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RecipeIngredientSchema"
+            },
+            "title": "Ingredients",
+            "type": "array"
+          },
+          "instructions": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instructions"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "tags": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "RecipeCreateSchema",
+        "type": "object"
+      },
+      "RecipeIngredientSchema": {
+        "properties": {
+          "importance_score": {
+            "default": 1.0,
+            "title": "Importance Score",
+            "type": "number"
+          },
+          "product_id": {
+            "title": "Product Id",
+            "type": "string"
+          },
+          "product_name": {
+            "title": "Product Name",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "number"
+          },
+          "substitute_ids": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Substitute Ids",
+            "type": "array"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_id",
+          "product_name",
+          "quantity",
+          "unit"
+        ],
+        "title": "RecipeIngredientSchema",
+        "type": "object"
+      },
+      "RecipeSchema": {
+        "properties": {
+          "cooking_time_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cooking Time Minutes"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "ingredients": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RecipeIngredientSchema"
+            },
+            "title": "Ingredients",
+            "type": "array"
+          },
+          "instructions": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instructions"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "tags": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "created_at"
+        ],
+        "title": "RecipeSchema",
+        "type": "object"
+      },
+      "RecipeSuggestion": {
+        "description": "Результат \"что приготовить\".",
+        "properties": {
+          "available_substitutes": {
+            "default": [],
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Available Substitutes",
+            "type": "array"
+          },
+          "match_score": {
+            "title": "Match Score",
+            "type": "number"
+          },
+          "missing_products": {
+            "default": [],
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Missing Products",
+            "type": "array"
+          },
+          "recipe": {
+            "$ref": "#/components/schemas/RecipeSchema"
+          }
+        },
+        "required": [
+          "recipe",
+          "match_score"
+        ],
+        "title": "RecipeSuggestion",
+        "type": "object"
+      },
+      "RefreshRequest": {
+        "properties": {
+          "refreshToken": {
+            "title": "Refreshtoken",
+            "type": "string"
+          }
+        },
+        "required": [
+          "refreshToken"
+        ],
+        "title": "RefreshRequest",
+        "type": "object"
+      },
+      "RegisterDeviceRequest": {
+        "properties": {
+          "deviceId": {
+            "title": "Deviceid",
+            "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "os": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Os"
+          }
+        },
+        "required": [
+          "deviceId"
+        ],
+        "title": "RegisterDeviceRequest",
+        "type": "object"
+      },
+      "RegisterRequest": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "RegisterRequest",
+        "type": "object"
+      },
+      "SendCodeRequest": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "SendCodeRequest",
+        "type": "object"
+      },
+      "StatusResponse": {
+        "properties": {
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "StatusResponse",
+        "type": "object"
+      },
+      "UserResponse": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "premium": {
+            "title": "Premium",
+            "type": "boolean"
+          },
+          "subscriptionExpires": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subscriptionexpires"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "premium"
+        ],
+        "title": "UserResponse",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "VerifyCodeRequest": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
+          }
+        },
+        "required": [
+          "email",
+          "code"
+        ],
+        "title": "VerifyCodeRequest",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "title": "Food Spend Tracker API",
+    "version": "1.4.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/ai/actions": {
+      "get": {
+        "operationId": "get_actions_api_ai_actions_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Actions",
+        "tags": [
+          "AI"
+        ]
+      }
+    },
+    "/api/ai/credits": {
+      "get": {
+        "operationId": "get_credits_api_ai_credits_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreditsInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Credits",
+        "tags": [
+          "AI"
+        ]
+      }
+    },
+    "/api/ai/history": {
+      "get": {
+        "operationId": "get_history_api_ai_history_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "skip",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Skip",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AiResult"
+                  },
+                  "title": "Response Get History Api Ai History Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get History",
+        "tags": [
+          "AI"
+        ]
+      }
+    },
+    "/api/ai/history/{report_id}": {
+      "delete": {
+        "operationId": "delete_report_api_ai_history__report_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Report",
+        "tags": [
+          "AI"
+        ]
+      },
+      "get": {
+        "operationId": "get_report_api_ai_history__report_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Report",
+        "tags": [
+          "AI"
+        ]
+      }
+    },
+    "/api/ai/run": {
+      "post": {
+        "operationId": "run_ai_api_ai_run_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Run Ai",
+        "tags": [
+          "AI"
+        ]
+      }
+    },
+    "/api/analytics/nutrition": {
+      "get": {
+        "description": "Анализ КБЖУ и нутриентов за период.",
+        "operationId": "nutrition_analysis_api_analytics_nutrition_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From Date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To Date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NutritionSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Nutrition Analysis",
+        "tags": [
+          "Knowledge Base"
+        ]
+      }
+    },
+    "/api/analytics/spending": {
+      "get": {
+        "description": "Анализ трат за период.",
+        "operationId": "spending_analysis_api_analytics_spending_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From Date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To Date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Spending Analysis",
+        "tags": [
+          "Knowledge Base"
+        ]
+      }
+    },
+    "/api/auth/forgot-password/send-code": {
+      "post": {
+        "description": "Send password reset code",
+        "operationId": "forgot_password_send_code_api_auth_forgot_password_send_code_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPassword"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Forgot Password Send Code",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/auth/forgot-password/verify-code": {
+      "post": {
+        "description": "Verify reset code and set new password",
+        "operationId": "forgot_password_verify_code_api_auth_forgot_password_verify_code_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordVerify"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Forgot Password Verify Code",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "description": "Legacy login endpoint - kept for backward compatibility",
+        "operationId": "login_api_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/auth/refresh": {
+      "post": {
+        "operationId": "refresh_api_auth_refresh_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Refresh",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/auth/send-code": {
+      "post": {
+        "description": "Send verification code to email",
+        "operationId": "send_code_api_auth_send_code_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendCodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Send Code",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/auth/verify-code": {
+      "post": {
+        "description": "Verify code and return tokens (for login/registration)",
+        "operationId": "verify_code_api_auth_verify_code_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyCodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify Code",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/devices": {
+      "get": {
+        "operationId": "list_devices_api_devices_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DeviceResponse"
+                  },
+                  "title": "Response List Devices Api Devices Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Devices",
+        "tags": [
+          "Devices"
+        ]
+      }
+    },
+    "/api/devices/register": {
+      "post": {
+        "operationId": "register_device_api_devices_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterDeviceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Register Device",
+        "tags": [
+          "Devices"
+        ]
+      }
+    },
+    "/api/devices/{device_id}": {
+      "delete": {
+        "operationId": "remove_device_api_devices__device_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "title": "Device Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Remove Device",
+        "tags": [
+          "Devices"
+        ]
+      }
+    },
+    "/api/fridge": {
+      "get": {
+        "description": "Прогноз остатков в холодильнике.",
+        "operationId": "fridge_status_api_fridge_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FridgeProduct"
+                  },
+                  "title": "Response Fridge Status Api Fridge Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Fridge Status",
+        "tags": [
+          "Knowledge Base"
+        ]
+      }
+    },
+    "/api/products": {
+      "post": {
+        "description": "Создание нового продукта (вручную).",
+        "operationId": "create_product_api_products_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductCreateSchema"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductSchema"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Product",
+        "tags": [
+          "Knowledge Base"
+        ]
+      }
+    },
+    "/api/products/match": {
+      "post": {
+        "description": "Распознавание продукта по сырому названию.",
+        "operationId": "match_product_endpoint_api_products_match_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductMatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductMatchResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Match Product Endpoint",
+        "tags": [
+          "Knowledge Base"
+        ]
+      }
+    },
+    "/api/products/search": {
+      "get": {
+        "description": "Поиск продуктов по названию (точный + нечеткий).",
+        "operationId": "search_products_api_products_search_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "query",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Query",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductSearchResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search Products",
+        "tags": [
+          "Knowledge Base"
+        ]
+      }
+    },
+    "/api/products/{product_id}": {
+      "get": {
+        "description": "Получение продукта по ID.",
+        "operationId": "get_product_api_products__product_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductSchema"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Product",
+        "tags": [
+          "Knowledge Base"
+        ]
+      }
+    },
+    "/api/products/{product_id}/substitutes": {
+      "get": {
+        "description": "Получение аналогов продукта.",
+        "operationId": "get_substitutes_api_products__product_id__substitutes_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductSubstituteSchema"
+                  },
+                  "title": "Response Get Substitutes Api Products  Product Id  Substitutes Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Substitutes",
+        "tags": [
+          "Knowledge Base"
+        ]
+      }
+    },
+    "/api/receipts": {
+      "get": {
+        "operationId": "get_receipts_api_receipts_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From Date"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To Date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReceiptSchema"
+                  },
+                  "title": "Response Get Receipts Api Receipts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Receipts",
+        "tags": [
+          "Receipts"
+        ]
+      },
+      "post": {
+        "operationId": "upload_receipt_api_receipts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReceiptSchema"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Upload Receipt",
+        "tags": [
+          "Receipts"
+        ]
+      }
+    },
+    "/api/receipts/array": {
+      "post": {
+        "operationId": "upload_receipts_api_receipts_array_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReceiptSchemaArray"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Upload Receipts",
+        "tags": [
+          "Receipts"
+        ]
+      }
+    },
+    "/api/receipts/cleanup": {
+      "post": {
+        "description": "Удаление просроченных чеков. Вызывается периодически или вручную.",
+        "operationId": "cleanup_receipts_api_receipts_cleanup_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Cleanup Receipts",
+        "tags": [
+          "Receipts"
+        ]
+      }
+    },
+    "/api/receipts/get_receipt_by_qr": {
+      "post": {
+        "operationId": "get_receipt_by_qr_api_receipts_get_receipt_by_qr_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetReceiptFromQRSchema"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReceiptRawResponseSchema"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Receipt By Qr",
+        "tags": [
+          "Receipts"
+        ]
+      }
+    },
+    "/api/receipts/get_receipt_by_raw_qr": {
+      "post": {
+        "operationId": "get_receipt_by_raw_qr_api_receipts_get_receipt_by_raw_qr_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_get_receipt_by_raw_qr_api_receipts_get_receipt_by_raw_qr_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Receipt By Raw Qr",
+        "tags": [
+          "Receipts"
+        ]
+      }
+    },
+    "/api/receipts/{receipt_id}": {
+      "delete": {
+        "operationId": "delete_receipt_api_receipts__receipt_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "receipt_id",
+            "required": true,
+            "schema": {
+              "title": "Receipt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Receipt",
+        "tags": [
+          "Receipts"
+        ]
+      },
+      "get": {
+        "operationId": "get_receipt_api_receipts__receipt_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "receipt_id",
+            "required": true,
+            "schema": {
+              "title": "Receipt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReceiptSchema"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Receipt",
+        "tags": [
+          "Receipts"
+        ]
+      },
+      "patch": {
+        "operationId": "update_receipt_api_receipts__receipt_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "receipt_id",
+            "required": true,
+            "schema": {
+              "title": "Receipt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReceiptSchema"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReceiptSchema"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Receipt",
+        "tags": [
+          "Receipts"
+        ]
+      }
+    },
+    "/api/recipes": {
+      "get": {
+        "description": "Список рецептов.",
+        "operationId": "list_recipes_api_recipes_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "tag",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tag"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RecipeSchema"
+                  },
+                  "title": "Response List Recipes Api Recipes Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Recipes",
+        "tags": [
+          "Knowledge Base"
+        ]
+      },
+      "post": {
+        "description": "Создание нового рецепта.",
+        "operationId": "create_recipe_api_recipes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecipeCreateSchema"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecipeSchema"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Recipe",
+        "tags": [
+          "Knowledge Base"
+        ]
+      }
+    },
+    "/api/recipes/suggest": {
+      "get": {
+        "description": "\"Что приготовить?\" — подбор рецептов по продуктам пользователя.",
+        "operationId": "suggest_recipes_endpoint_api_recipes_suggest_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 5,
+              "maximum": 20,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RecipeSuggestion"
+                  },
+                  "title": "Response Suggest Recipes Endpoint Api Recipes Suggest Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Suggest Recipes Endpoint",
+        "tags": [
+          "Knowledge Base"
+        ]
+      }
+    },
+    "/api/recipes/{recipe_id}": {
+      "get": {
+        "description": "Получение рецепта по ID.",
+        "operationId": "get_recipe_api_recipes__recipe_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recipe_id",
+            "required": true,
+            "schema": {
+              "title": "Recipe Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecipeSchema"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Recipe",
+        "tags": [
+          "Knowledge Base"
+        ]
+      }
+    },
+    "/api/subscription": {
+      "get": {
+        "description": "Get current subscription status.",
+        "operationId": "get_subscription_api_subscription_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Subscription",
+        "tags": [
+          "Subscription"
+        ]
+      }
+    },
+    "/api/subscription/is_premium": {
+      "get": {
+        "description": "Check if user has active premium subscription.",
+        "operationId": "is_premium_api_subscription_is_premium_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PremiumStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Is Premium",
+        "tags": [
+          "Subscription"
+        ]
+      }
+    },
+    "/api/subscription/payment": {
+      "post": {
+        "description": "Create YooKassa payment for premium subscription.",
+        "operationId": "create_payment_api_subscription_payment_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/CreatePaymentRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentConfirmationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Payment",
+        "tags": [
+          "Subscription"
+        ]
+      }
+    },
+    "/api/subscription/yookassa/webhook": {
+      "post": {
+        "description": "Fail closed until YooKassa event authenticity is implemented.",
+        "operationId": "webhook_api_subscription_yookassa_webhook_post",
+        "responses": {
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Webhook",
+        "tags": [
+          "Subscription"
+        ]
+      }
+    },
+    "/api/tags": {
+      "get": {
+        "description": "Список всех тегов (только корневые, без вложенности).",
+        "operationId": "list_tags_api_tags_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductTagSchema"
+                  },
+                  "title": "Response List Tags Api Tags Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Tags",
+        "tags": [
+          "Knowledge Base"
+        ]
+      }
+    },
+    "/api/users/me": {
+      "get": {
+        "operationId": "get_me_api_users_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Me",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/api/users/send-feedback": {
+      "post": {
+        "description": "Send feedback with optional images to the app owner",
+        "operationId": "send_feedback_api_users_send_feedback_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Send Feedback",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    }
+  }
+}
