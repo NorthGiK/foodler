@@ -42,8 +42,4 @@ contract-check: contract
 	git diff --exit-code -- contracts/openapi.json mobile/src/api/generated
 
 secrets:
-	backend/.venv/bin/detect-secrets -c 1 scan \
-		--exclude-files 'mobile/package-lock.json|backend/uv.lock|contracts/openapi.json|mobile/src/api/generated/.*' \
-		--baseline .secrets.baseline
-	git diff --exit-code --ignore-matching-lines='"generated_at":' -- .secrets.baseline
-	git restore -- .secrets.baseline
+	cd backend && .venv/bin/python -m scripts.check_secrets
