@@ -1,11 +1,19 @@
 import { Theme } from "@/themes";
 import React, { useEffect, useRef } from "react";
-import { Animated, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Animated,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type StyleProp,
+  type TextStyle,
+  type ViewStyle,
+} from "react-native";
 import { useTheme } from "./ThemeContext";
 
 interface ShakeInputProps {
   label?: string;
-  labelTextColor?: string;
   error?: string;
   value: string;
   onChangeText: (text: string) => void;
@@ -17,9 +25,9 @@ interface ShakeInputProps {
   autoCorrect?: boolean;
   maxLength?: number;
   autoFocus?: boolean;
-  style?: any;
-  inputStyle?: any;
-  errorStyle?: any;
+  style?: StyleProp<ViewStyle>;
+  inputStyle?: StyleProp<TextStyle>;
+  errorStyle?: StyleProp<TextStyle>;
 }
 
 export function ShakeInput({
@@ -74,7 +82,7 @@ export function ShakeInput({
         }),
       ]).start();
     }
-  }, [error]);
+  }, [error, shakeAnim]);
 
   return (
     <View style={style}>

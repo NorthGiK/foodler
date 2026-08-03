@@ -1,5 +1,6 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState } from "react";
 import {
+  Alert,
   Animated,
   Pressable,
   StyleSheet,
@@ -15,23 +16,19 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../App";
 import { openDb, saveReceipt } from "../storage";
 import { AnimatedPressable } from "../components/animations";
-import { Receipt, ReceiptItem } from "../types";
 import { fmtRub } from "../utils";
 import {
   CashFormScreen,
   CashFormInput,
   CashFormSection,
 } from "../components/ui/CashForm";
-
-interface DraftItem {
-  id: string;
-  name: string;
-  priceRub: string;
-  quantity: string;
-}
-
-const randomChoice = (arr: string[]) =>
-  arr[Math.floor(Math.random() * arr.length)];
+import {
+  buildManualReceipt,
+  calculateManualReceiptTotal,
+  createDraftItem,
+  validateManualReceipt,
+  type ReceiptDraftItem,
+} from "../features/receipts/manualReceipt";
 
 export function NewReceiptScreen() {
   const { theme } = useTheme();
@@ -46,49 +43,13 @@ export function NewReceiptScreen() {
     const day = String(d.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
   });
-  const [draftItems, setDraftItems] = useState<DraftItem[]>([
-    { id: "1", name: "", priceRub: "", quantity: "1" },
+  const [draftItems, setDraftItems] = useState<ReceiptDraftItem[]>(() => [
+    createDraftItem(),
   ]);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
 
   const shakeAnim = useRef(new Animated.Value(0)).current;
-  const itemAnims = useRef<Map<string, Animated.Value>>(new Map()).current;
-
-  const animateItemIn = (id: string) => {
-    const anim = getItemAnim(id);
-    anim.setValue(0);
-    Animated.timing(anim, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const animateItemOut = (id: string): Promise<void> => {
-    return new Promise((resolve) => {
-      const anim = getItemAnim(id);
-      Animated.timing(anim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start(() => {
-        itemAnims.delete(id);
-        resolve();
-      });
-    });
-  };
-
-  const getItemAnim = (id: string) => {
-    if (!itemAnims.has(id)) {
-      itemAnims.set(id, new Animated.Value(0));
-    }
-    return itemAnims.get(id)!;
-  };
-
-  useEffect(() => {
-    draftItems.forEach((item) => animateItemIn(item.id));
-  }, []);
 
   const clearError = (key: string) => {
     if (errors[key]) {
@@ -102,45 +63,29 @@ export function NewReceiptScreen() {
 
   const updateDraftItem = (
     id: string,
-    field: keyof DraftItem,
+    field: keyof ReceiptDraftItem,
     value: string,
   ) => {
     setDraftItems((prev) =>
       prev.map((it) => (it.id === id ? { ...it, [field]: value } : it)),
     );
-    if (errors[id] || errors[id + "_price"]) {
-      setErrors((prev) => {
-        const next = { ...prev };
-        delete next[id];
-        delete next[id + "_price"];
-        return next;
-      });
-    }
+    const errorKey =
+      field === "name"
+        ? id
+        : field === "priceRub"
+          ? `${id}_price`
+          : `${id}_quantity`;
+    clearError(errorKey);
+    clearError("items");
   };
 
   const addDraftItem = () => {
-    const newId = Date.now().toString();
-    const newItem: DraftItem = {
-      id: newId,
-      name: "",
-      priceRub: "",
-      quantity: "1",
-    };
-    setDraftItems((prev) => [...prev, newItem]);
-    setTimeout(() => animateItemIn(newId), 10);
+    setDraftItems((prev) => [...prev, createDraftItem()]);
+    clearError("items");
   };
 
-  const removeDraftItem = async (id: string) => {
-    await animateItemOut(id);
+  const removeDraftItem = (id: string) => {
     setDraftItems((prev) => prev.filter((it) => it.id !== id));
-  };
-
-  const calculateTotal = (): number => {
-    return draftItems.reduce((sum, it) => {
-      const price = parseFloat(it.priceRub.replace(",", ".")) || 0;
-      const qty = parseFloat(it.quantity.replace(",", ".")) || 1;
-      return sum + price * qty;
-    }, 0);
   };
 
   const triggerShake = () => {
@@ -175,38 +120,13 @@ export function NewReceiptScreen() {
   };
 
   const saveReceiptData = async () => {
-    const newErrors: Record<string, boolean> = {};
-    let hasErrors = false;
-
-    if (!org.trim()) {
-      newErrors["org"] = true;
-      hasErrors = true;
-    }
-    if (!date) {
-      newErrors["date"] = true;
-      hasErrors = true;
-    }
-
-    const validItems = draftItems.filter((it) => it.name.trim());
-    if (validItems.length === 0) {
-      newErrors["items"] = true;
-      hasErrors = true;
-    }
-
-    validItems.forEach((it) => {
-      if (!it.name.trim()) {
-        newErrors[it.id] = true;
-        hasErrors = true;
-      }
-      if (!it.priceRub || parseFloat(it.priceRub.replace(",", ".")) <= 0) {
-        newErrors[it.id + "_price"] = true;
-        hasErrors = true;
-      }
-    });
+    if (saving) return;
+    const draft = { organization: org, date, items: draftItems };
+    const newErrors = validateManualReceipt(draft);
 
     setErrors(newErrors);
 
-    if (hasErrors) {
+    if (Object.keys(newErrors).length > 0) {
       triggerShake();
       return;
     }
@@ -214,46 +134,17 @@ export function NewReceiptScreen() {
     setSaving(true);
     try {
       const db = await openDb();
-      const totalRub = calculateTotal();
-      const receiptId = `${new Date().toISOString()}-${Math.random().toString(36).slice(2, 10)}`;
-      const now = new Date();
-      const localISO = new Date(
-        now.getTime() - now.getTimezoneOffset() * 60000,
-      ).toISOString();
-      const receipt: Receipt = {
-        id: receiptId,
-        qrraw: `manual:${receiptId}`,
-        organization: org.trim(),
-        ticketDate: localISO,
-        operationType: 3,
-        totalSumRub: totalRub,
-        sourceCode: 1,
-        createdAt: Date.now(),
-      };
-
-      const receiptItems: ReceiptItem[] = validItems.map((it) => {
-        const priceRub = parseFloat(it.priceRub.replace(",", ".")) || 0;
-        const quantity = parseFloat(it.quantity.replace(",", ".")) || 1;
-        return {
-          receiptId,
-          name: it.name.trim(),
-          category: "ручное",
-          priceRub,
-          quantity,
-          sumRub: priceRub * quantity,
-        };
-      });
-
-      await saveReceipt(db, receipt, receiptItems);
+      const result = buildManualReceipt(draft);
+      await saveReceipt(db, result.receipt, result.items);
       navigation.goBack();
-    } catch (e) {
-      console.error("Failed to save receipt", e);
+    } catch {
+      Alert.alert("Ошибка", "Не удалось сохранить чек. Попробуйте ещё раз.");
     } finally {
       setSaving(false);
     }
   };
 
-  const total = calculateTotal();
+  const total = calculateManualReceiptTotal(draftItems);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
@@ -277,14 +168,10 @@ export function NewReceiptScreen() {
             value={org}
             onChangeText={(v) => {
               setOrg(v);
-              clearError("org");
+              clearError("organization");
             }}
-            placeholder={randomChoice([
-              "Овощной у дома",
-              "Базар",
-              'Гипермаркет "СуперПродукты"',
-            ])}
-            error={errors["org"] ? "Введите название" : undefined}
+            placeholder="Название магазина"
+            error={errors.organization ? "Введите название" : undefined}
           />
           <CashFormInput
             label="Дата"
@@ -294,7 +181,7 @@ export function NewReceiptScreen() {
               clearError("date");
             }}
             placeholder="YYYY-MM-DD"
-            error={errors["date"] ? "Введите дату" : undefined}
+            error={errors.date ? "Введите корректную дату" : undefined}
           />
         </CashFormSection>
 
@@ -315,108 +202,83 @@ export function NewReceiptScreen() {
         </CashFormSection>
 
         <CashFormSection title="Товары">
-          {draftItems.map((it) => {
-            const anim = getItemAnim(it.id);
-            return (
-              <Animated.View
-                key={it.id}
-                style={[
-                  styles.itemDraft,
-                  {
-                    opacity: anim,
-                    transform: [
-                      {
-                        translateY: anim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [-20, 0],
-                        }),
-                      },
-                      {
-                        scale: anim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [0.9, 1],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              >
-                <View style={styles.itemRow}>
-                  <TextInput
-                    value={it.name}
-                    onChangeText={(v) => {
-                      updateDraftItem(it.id, "name", v);
-                      clearError(it.id);
-                    }}
+          {draftItems.map((it) => (
+            <View key={it.id} style={styles.itemDraft}>
+              <View style={styles.itemRow}>
+                <TextInput
+                  value={it.name}
+                  onChangeText={(v) => {
+                    updateDraftItem(it.id, "name", v);
+                    clearError(it.id);
+                  }}
+                  style={[
+                    styles.itemInput,
+                    {
+                      color: theme.text,
+                      borderColor: errors[it.id] ? theme.error : theme.outline,
+                      backgroundColor: theme.surfaceElevated,
+                    },
+                  ]}
+                  placeholder="Название"
+                  placeholderTextColor={theme.muted}
+                />
+                <TextInput
+                  value={it.priceRub}
+                  onChangeText={(v) => {
+                    updateDraftItem(it.id, "priceRub", v);
+                    clearError(it.id + "_price");
+                  }}
+                  keyboardType="decimal-pad"
+                  style={[
+                    styles.itemInput,
+                    {
+                      color: theme.text,
+                      borderColor: errors[it.id + "_price"]
+                        ? theme.error
+                        : theme.outline,
+                      backgroundColor: theme.surfaceElevated,
+                    },
+                  ]}
+                  placeholder="Цена"
+                  placeholderTextColor={theme.muted}
+                />
+                <TextInput
+                  value={it.quantity}
+                  onChangeText={(v) => updateDraftItem(it.id, "quantity", v)}
+                  keyboardType="decimal-pad"
+                  style={[
+                    styles.itemInput,
+                    {
+                      color: theme.text,
+                      borderColor: errors[`${it.id}_quantity`]
+                        ? theme.error
+                        : theme.outline,
+                      backgroundColor: theme.surfaceElevated,
+                    },
+                  ]}
+                  placeholder="Кол-во"
+                  placeholderTextColor={theme.muted}
+                />
+                <AnimatedPressable
+                  scaleTo={0.85}
+                  onPress={() => removeDraftItem(it.id)}
+                >
+                  <View
                     style={[
-                      styles.itemInput,
-                      {
-                        color: theme.text,
-                        borderColor: errors[it.id]
-                          ? theme.error
-                          : theme.outline,
-                        backgroundColor: theme.surfaceElevated,
-                      },
+                      styles.iconButton,
+                      { backgroundColor: theme.error + "15" },
                     ]}
-                    placeholder="Название"
-                    placeholderTextColor={theme.muted}
-                  />
-                  <TextInput
-                    value={it.priceRub}
-                    onChangeText={(v) => {
-                      updateDraftItem(it.id, "priceRub", v);
-                      clearError(it.id + "_price");
-                    }}
-                    keyboardType="decimal-pad"
-                    style={[
-                      styles.itemInput,
-                      {
-                        color: theme.text,
-                        borderColor: errors[it.id + "_price"]
-                          ? theme.error
-                          : theme.outline,
-                        backgroundColor: theme.surfaceElevated,
-                      },
-                    ]}
-                    placeholder="Цена"
-                    placeholderTextColor={theme.muted}
-                  />
-                  <TextInput
-                    value={it.quantity}
-                    onChangeText={(v) => updateDraftItem(it.id, "quantity", v)}
-                    keyboardType="decimal-pad"
-                    style={[
-                      styles.itemInput,
-                      {
-                        color: theme.text,
-                        borderColor: theme.outline,
-                        backgroundColor: theme.surfaceElevated,
-                      },
-                    ]}
-                    placeholder="Кол-во"
-                    placeholderTextColor={theme.muted}
-                  />
-                  <AnimatedPressable
-                    scaleTo={0.85}
-                    onPress={() => removeDraftItem(it.id)}
                   >
-                    <View
-                      style={[
-                        styles.iconButton,
-                        { backgroundColor: theme.error + "15" },
-                      ]}
-                    >
-                      <MaterialIcons
-                        name="delete-outline"
-                        size={18}
-                        color={theme.error}
-                      />
-                    </View>
-                  </AnimatedPressable>
-                </View>
-              </Animated.View>
-            );
-          })}
+                    <MaterialIcons
+                      name="delete-outline"
+                      size={18}
+                      color={theme.error}
+                    />
+                  </View>
+                </AnimatedPressable>
+              </View>
+            </View>
+          ))}
           <AnimatedPressable scaleTo={0.97} onPress={addDraftItem}>
             <View
               style={[
@@ -435,10 +297,19 @@ export function NewReceiptScreen() {
           </AnimatedPressable>
         </CashFormSection>
 
-        <AnimatedPressable scaleTo={0.97} onPress={saveReceiptData}>
-          <View style={[styles.saveButton, { backgroundColor: theme.primary }]}>
+        <AnimatedPressable
+          scaleTo={0.97}
+          onPress={() => void saveReceiptData()}
+          disabled={saving}
+        >
+          <View
+            style={[
+              styles.saveButton,
+              { backgroundColor: theme.primary, opacity: saving ? 0.65 : 1 },
+            ]}
+          >
             <Text style={[styles.saveButtonText, { color: theme.white }]}>
-              Сохранить чек
+              {saving ? "Сохранение…" : "Сохранить чек"}
             </Text>
           </View>
         </AnimatedPressable>

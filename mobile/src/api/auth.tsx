@@ -23,7 +23,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isPremium: boolean;
   login: (email: string, password: string) => Promise<void>;
-  sendCode: (email: string, password: string) => Promise<any>;
+  sendCode: (email: string, password: string) => Promise<void>;
   verifyCode: (email: string, code: string, password?: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -36,7 +36,9 @@ const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   isPremium: false,
   login: async () => {},
-  sendCode: api.sendCode,
+  sendCode: async (email, password) => {
+    await api.sendCode(email, password);
+  },
   verifyCode: async () => {},
   logout: async () => {},
   refreshUser: async () => {},

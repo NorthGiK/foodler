@@ -8,14 +8,12 @@ interface ProfileHeaderCardProps {
   email: string;
   isPremium: boolean;
   subscriptionExpires?: string;
-  onLoginPress?: () => void;
 }
 
 export function ProfileHeaderCard({
   email,
   isPremium,
   subscriptionExpires,
-  onLoginPress,
 }: ProfileHeaderCardProps) {
   const { theme } = useTheme();
 
@@ -71,25 +69,16 @@ export function ProfileGuestCard({
       ]}
     >
       <View
-        style={[
-          styles.avatarLarge,
-          { backgroundColor: theme.primary + "15" },
-        ]}
+        style={[styles.avatarLarge, { backgroundColor: theme.primary + "15" }]}
       >
-        <MaterialIcons
-          name="person-outline"
-          size={48}
-          color={theme.primary}
-        />
+        <MaterialIcons name="person-outline" size={48} color={theme.primary} />
       </View>
       <Text style={[styles.subtitle, { color: theme.text }]}>
         Войдите, чтобы синхронизировать данные и получить доступ ко всем
         функциям
       </Text>
       <AnimatedPressable scaleTo={0.97} onPress={onLoginPress}>
-        <View
-          style={[styles.loginButton, { backgroundColor: theme.primary }]}
-        >
+        <View style={[styles.loginButton, { backgroundColor: theme.primary }]}>
           <MaterialIcons name="login" size={20} color={theme.white} />
           <Text style={[styles.loginButtonText, { color: theme.white }]}>
             Войти

@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 .PHONY: bootstrap dev dev-backend dev-mobile check test backend-check mobile-check \
-	backend-test mobile-test contract contract-check secrets audit backend-audit
+	backend-test mobile-test contract contract-check secrets audit backend-audit mobile-audit
 
 bootstrap:
 	cd backend && uv sync --all-extras
@@ -15,7 +15,7 @@ dev-backend:
 	cd backend && uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
 
 dev-mobile:
-	cd mobile && npm run start
+	cd mobile && npx expo start -ag
 
 check: backend-check mobile-check contract-check secrets
 
@@ -45,7 +45,10 @@ contract-check: contract
 secrets:
 	cd backend && .venv/bin/python -m scripts.check_secrets
 
-audit: backend-audit
+audit: backend-audit mobile-audit
 
 backend-audit:
 	cd backend && uv audit --locked
+
+mobile-audit:
+	cd mobile && npm run audit:prod

@@ -4,7 +4,7 @@ import { useTheme } from './ThemeContext';
 
 interface Props<T extends string> {
     value: T;
-    items: Array<{ value: T; label: string }>;
+    items: { value: T; label: string }[];
     onChange: (value: T) => void;
 }
 

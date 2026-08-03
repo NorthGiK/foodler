@@ -7,7 +7,7 @@ import { useTheme } from "@/components/ThemeContext";
 const screenWidth = Dimensions.get("window").width - 140;
 
 interface Props {
-  points: Array<{ label: string; value: number }>;
+  points: { label: string; value: number }[];
   kind: ChartKind;
 }
 

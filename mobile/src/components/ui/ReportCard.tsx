@@ -4,6 +4,7 @@ import MaterialIcons from "@react-native-vector-icons/material-icons";
 import { AnimatedPressable } from "../animations/AnimatedPressable";
 import { useTheme } from "../ThemeContext";
 import { AiActionType } from "../../ai/types";
+import type { MaterialIconName } from "../icons";
 
 interface ReportCardProps {
   title: string;
@@ -26,7 +27,7 @@ const actionColors: Record<AiActionType, string> = {
   ask: "#FF9500",
 };
 
-const actionIcons: Record<AiActionType, any> = {
+const actionIcons: Record<AiActionType, MaterialIconName> = {
   analysis: "analytics",
   save_money: "savings",
   health: "favorite",

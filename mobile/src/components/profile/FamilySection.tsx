@@ -1,22 +1,20 @@
 import React from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  StyleSheet,
-} from "react-native";
-import MaterialIcons from "@react-native-vector-icons/material-icons";
+import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 import { useTheme } from "../ThemeContext";
 import { AnimatedPressable } from "../animations";
 import { FamilyMember, UserProfile } from "../../types";
-import { FamilyMemberCard, AddButton } from "../ui";
-import { CashFormScreen, CashFormSection, CashFormInput } from "../ui";
+import {
+  AddButton,
+  CashFormInput,
+  CashFormScreen,
+  CashFormSection,
+  FamilyMemberCard,
+} from "../ui";
 import FullModalWindow from "../FullModalWindow";
 
 interface FamilySectionProps {
   profile: UserProfile;
-  onAddMember: (member: FamilyMember) => void;
+  onAddMember: (member: FamilyMember) => Promise<boolean>;
   onRemoveMember: (index: number) => void;
 }
 
@@ -38,12 +36,12 @@ export function FamilySection({
   });
   const [memberError, setMemberError] = React.useState("");
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!newMember.name.trim()) {
       setMemberError("Введите имя члена семьи");
       return;
     }
-    onAddMember(newMember);
+    if (!(await onAddMember(newMember))) return;
     setNewMember({
       name: "",
       age: 0,
@@ -97,10 +95,7 @@ export function FamilySection({
       </View>
 
       {/* Add Member Modal */}
-      <FullModalWindow
-        visible={modalVisible}
-        setVisible={setModalVisible}
-      >
+      <FullModalWindow visible={modalVisible} setVisible={setModalVisible}>
         <CashFormScreen title="Добавить члена семьи">
           <CashFormSection title="Основное">
             <CashFormInput
@@ -247,7 +242,7 @@ export function FamilySection({
             </View>
           </CashFormSection>
 
-          <AnimatedPressable scaleTo={0.97} onPress={handleAdd}>
+          <AnimatedPressable scaleTo={0.97} onPress={() => void handleAdd()}>
             <View
               style={[styles.saveButton, { backgroundColor: theme.primary }]}
             >
@@ -261,7 +256,6 @@ export function FamilySection({
     </>
   );
 }
-
 
 const styles = StyleSheet.create({
   card: {

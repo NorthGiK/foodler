@@ -27,3 +27,7 @@ async def check_database(session: AsyncSession | None = None) -> None:
         return
     async with async_session() as session:
         await session.execute(select(1))
+
+async def init_db():
+    async with async_session.connection() as conn:
+        await conn.run_sync(Base.metadata.create_all)

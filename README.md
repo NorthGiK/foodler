@@ -31,7 +31,7 @@ make dev
 | `make dev` | Применить backend-миграции, затем запустить API и Expo |
 | `make check` | Линтеры, форматирование, typecheck, контракт и секреты |
 | `make test` | Все backend- и mobile-тесты |
-| `make audit` | Проверить backend lockfile по OSV на известные уязвимости |
+| `make audit` | Проверить backend lockfile и production-граф mobile |
 | `make contract` | Перегенерировать OpenAPI и TypeScript API-типы |
 | `make contract-check` | Проверить, что generated-файлы актуальны |
 

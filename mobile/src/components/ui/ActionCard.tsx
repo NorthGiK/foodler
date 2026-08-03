@@ -3,10 +3,11 @@ import { View, Text, StyleSheet, ViewStyle } from "react-native";
 import MaterialIcons from "@react-native-vector-icons/material-icons";
 import { AnimatedPressable } from "../animations/AnimatedPressable";
 import { useTheme } from "../ThemeContext";
+import type { MaterialIconName } from "../icons";
 
 interface ActionCardProps {
   title: string;
-  icon: string;
+  icon: MaterialIconName;
   color: string;
   onPress: () => void;
   style?: ViewStyle;
@@ -36,7 +37,7 @@ export function ActionCard({
       >
         <View style={[styles.iconContainer, { backgroundColor: color + "18" }]}>
           <View style={[styles.iconGlow, { backgroundColor: color + "10" }]} />
-          <MaterialIcons name={icon as any} size={26} color={color} />
+          <MaterialIcons name={icon} size={26} color={color} />
         </View>
         <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
         {subtitle && (

@@ -1,4 +1,4 @@
-const RULES: Array<{ category: string; patterns: RegExp[] }> = [
+const RULES: { category: string; patterns: RegExp[] }[] = [
   {
     category: 'Колбасы',
     patterns: [/колбас/i, /сервелат/i, /сосиск/i, /сардельк/i, /ветчин/i, /балык/i],

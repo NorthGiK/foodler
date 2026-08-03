@@ -50,8 +50,9 @@ export function ForgotPasswordScreen() {
     try {
       await api.forgotPasswordSendCode(email.trim());
       setStep("code");
-    } catch (e: any) {
-      const msg = e.message || "Не удалось отправить код";
+    } catch (error: unknown) {
+      const msg =
+        error instanceof Error ? error.message : "Не удалось отправить код";
       setError(msg);
       Alert.alert("Ошибка", msg);
     } finally {
@@ -71,8 +72,8 @@ export function ForgotPasswordScreen() {
       // Verify the code is valid before allowing password reset
       await api.forgotPasswordVerifyCode(email.trim(), code.trim(), "");
       setStep("newPassword");
-    } catch (e: any) {
-      const msg = e.message || "Неверный код";
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Неверный код";
       setError(msg);
       Alert.alert("Ошибка", msg);
     } finally {
@@ -93,12 +94,17 @@ export function ForgotPasswordScreen() {
     setLoading(true);
     setError("");
     try {
-      await api.forgotPasswordVerifyCode(email.trim(), code.trim(), newPassword);
+      await api.forgotPasswordVerifyCode(
+        email.trim(),
+        code.trim(),
+        newPassword,
+      );
       navigation.goBack();
       reset();
       Alert.alert("Успешно", "Пароль успешно изменен");
-    } catch (e: any) {
-      const msg = e.message || "Не удалось изменить пароль";
+    } catch (error: unknown) {
+      const msg =
+        error instanceof Error ? error.message : "Не удалось изменить пароль";
       setError(msg);
       Alert.alert("Ошибка", msg);
     } finally {

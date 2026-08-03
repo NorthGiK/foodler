@@ -1,5 +1,5 @@
 import MaterialIcons from "@react-native-vector-icons/material-icons";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Animated,
   Pressable,
@@ -9,7 +9,10 @@ import {
   View,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { generateAiResponse } from "../ai/llmService";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { RootStackParamList } from "../../App";
+import { AiServiceError, generateAiResponse } from "../ai/llmService";
+import type { SQLiteDatabase } from "expo-sqlite";
 import {
   deleteAiReport,
   initAiReportsTable,
@@ -27,21 +30,30 @@ import {
 import { loadProfile } from "../profileStorage";
 import { useTheme } from "../components/ThemeContext";
 import { ActionCard, HeroCard, ReportCard } from "../components/ui";
-import type { Receipt, ReceiptItem } from "../types";
+import type { FamilyMember, Receipt, ReceiptItem } from "../types";
 import { useAuth } from "@/api/auth";
+import type { MaterialIconName } from "../components/icons";
 
 interface Props {
-  db: any;
+  db: SQLiteDatabase | null;
   receipts: Receipt[];
   joinedItems: (ReceiptItem & { ticketDate?: string })[];
 }
 
 type ViewMode = "menu" | "result";
 
+interface AssistantAction {
+  title: string;
+  icon: MaterialIconName;
+  color: string;
+  action: AiActionType;
+}
+
 export function AssistantScreen({ db, receipts, joinedItems }: Props) {
   const { theme } = useTheme();
   const { isAuthenticated } = useAuth();
-  const navigation = useNavigation();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [viewMode, setViewMode] = useState<ViewMode>("menu");
   const [currentReport, setCurrentReport] = useState<AiReport | null>(null);
   const [loading, setLoading] = useState(false);
@@ -49,29 +61,42 @@ export function AssistantScreen({ db, receipts, joinedItems }: Props) {
   const [showAllReports, setShowAllReports] = useState(false);
   const [errorKind, setErrorKind] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>("");
-  const scrollY = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (db) {
-      initAiReportsTable(db).catch(console.warn);
-      loadRecentReports();
-    }
-  }, [db]);
 
   const loadRecentReports = useCallback(async () => {
     if (!db) return;
     try {
       const reports = await loadAiReports(db);
       setRecentReports(reports);
-    } catch (e) {
-      console.warn("Failed to load AI reports", e);
+    } catch {
+      console.warn("AI reports could not be loaded");
     }
   }, [db]);
+
+  useEffect(() => {
+    if (db) {
+      void initAiReportsTable(db).catch(() => {
+        console.warn("AI report storage could not be initialized");
+      });
+      void loadRecentReports();
+    }
+  }, [db, loadRecentReports]);
+
+  const openReport = useCallback((report: AiReport) => {
+    setCurrentReport(report);
+    setViewMode("result");
+  }, []);
 
   const runAnalysis = useCallback(
     async (action: AiActionType) => {
       if (!db || receipts.length === 0) return;
-      if (!isAuthenticated) setErrorMessage("Использовать ассистента могут только авторизованные пользователи");
+      if (!isAuthenticated) {
+        setErrorKind("auth");
+        setErrorMessage(
+          "Использовать ассистента могут только авторизованные пользователи",
+        );
+        setViewMode("result");
+        return;
+      }
 
       setLoading(true);
       setErrorKind(null);
@@ -84,7 +109,7 @@ export function AssistantScreen({ db, receipts, joinedItems }: Props) {
           0,
         );
         const dates = receipts
-          .map(r => r.ticketDate)
+          .map((receipt) => receipt.ticketDate)
           .filter(Boolean)
           .sort();
         const snapshot = {
@@ -99,65 +124,25 @@ export function AssistantScreen({ db, receipts, joinedItems }: Props) {
           receiptIds: receipts.map((r) => r.id),
         };
 
-        // Load profile for user and family members
-        let profileMembers: any[] | undefined;
+        let profileMembers: FamilyMember[] | undefined;
         try {
           const profile = await loadProfile();
-          const members: any[] = [];
+          const members: FamilyMember[] = [];
 
-          // Add user profile as first member
           if (profile.name) {
-            const infoParts: string[] = [];
-            const dietaryPrefs = profile.dietaryPreferences || [];
-            const healthGoals = profile.healthGoals || [];
-
-            if (dietaryPrefs.length > 0) {
-              infoParts.push(dietaryPrefs.join(", "));
-            }
-            if (healthGoals.length > 0) {
-              infoParts.push(healthGoals.join(", "));
-            }
-            if (profile.additionalInfo) {
-              infoParts.push(profile.additionalInfo);
-            }
-
             members.push({
               name: profile.name,
               age: profile.age,
-              height: profile.heightCm != null ? profile.heightCm : 0,
-              weight: profile.weightKg != null ? profile.weightKg : 0,
-              gender: profile.gender === "male" ? "Мужской" : "Женский",
-              additional_info: infoParts.join(". "),
+              heightCm: profile.heightCm,
+              weightKg: profile.weightKg,
+              gender: profile.gender,
+              dietaryPreferences: profile.dietaryPreferences,
+              healthGoals: profile.healthGoals,
+              additionalInfo: profile.additionalInfo,
             });
           }
 
-          // Add family members
-          if (profile.familyMembers && profile.familyMembers.length > 0) {
-            profile.familyMembers.forEach(member => {
-              const infoParts: string[] = [];
-              const memberDietaryPrefs = member.dietaryPreferences || [];
-              const memberHealthGoals = member.healthGoals || [];
-
-              if (memberDietaryPrefs.length > 0) {
-                infoParts.push(memberDietaryPrefs.join(", "));
-              }
-              if (memberHealthGoals.length > 0) {
-                infoParts.push(memberHealthGoals.join(", "));
-              }
-              if (member.additionalInfo) {
-                infoParts.push(member.additionalInfo);
-              }
-
-              members.push({
-                name: member.name,
-                age: member.age,
-                height: member.heightCm != null ? member.heightCm : 0,
-                weight: member.weightKg != null ? member.weightKg : 0,
-                gender: member.gender === "male" ? "Мужской" : "Женский",
-                additional_info: infoParts.join(". "),
-              });
-            });
-          }
+          members.push(...profile.familyMembers);
 
           if (members.length > 0) {
             profileMembers = members;
@@ -173,27 +158,21 @@ export function AssistantScreen({ db, receipts, joinedItems }: Props) {
           periodTo: snapshot.periodTo,
           members: profileMembers,
         });
-        console.debug("AssistantScreen.tsx; result is", result);
-
         const report = await saveAiReport(db, action, snapshot, result);
 
         openReport(report);
         await loadRecentReports();
-      } catch (e: any) {
-        const kind = e?.kind || "unknown";
-        setErrorKind(kind);
-        setErrorMessage(e?.message || "Что-то пошло не так.");
+      } catch (error: unknown) {
+        setErrorKind(error instanceof AiServiceError ? error.kind : "unknown");
+        setErrorMessage(
+          error instanceof Error ? error.message : "Что-то пошло не так.",
+        );
       } finally {
         setLoading(false);
       }
     },
-    [db, receipts, joinedItems, loadRecentReports],
+    [db, receipts, joinedItems, isAuthenticated, loadRecentReports, openReport],
   );
-
-  const openReport = useCallback((report: AiReport) => {
-    setCurrentReport(report);
-    setViewMode("result");
-  }, []);
 
   const handlePin = useCallback(
     async (id: string, pinned: boolean) => {
@@ -223,54 +202,54 @@ export function AssistantScreen({ db, receipts, joinedItems }: Props) {
     setCurrentReport(null);
   }, []);
 
-  const actions = [
+  const actions: AssistantAction[] = [
     {
       title: "Оценить покупки",
       icon: "analytics",
       color: "#007AFF",
-      action: "analysis" as AiActionType,
+      action: "analysis",
     },
     {
       title: "Сэкономить",
       icon: "savings",
       color: "#34C759",
-      action: "save_money" as AiActionType,
+      action: "save_money",
     },
     {
       title: "Полезнее",
       icon: "favorite",
       color: "#FF3B30",
-      action: "health" as AiActionType,
+      action: "health",
     },
     {
       title: "Рецепты",
       icon: "restaurant",
       color: "#FF9500",
-      action: "recipe" as AiActionType,
+      action: "recipe",
     },
     {
       title: "Состав",
       icon: "science",
       color: "#007AFF",
-      action: "ingredients" as AiActionType,
+      action: "ingredients",
     },
     {
       title: "Корзина",
       icon: "shopping-cart",
       color: "#AF52DE",
-      action: "cart" as AiActionType,
+      action: "cart",
     },
     {
       title: "Заканчивается",
       icon: "schedule",
       color: "#FF9500",
-      action: "habits" as AiActionType,
+      action: "habits",
     },
     {
       title: "Рацион",
       icon: "spa",
       color: "#34C759",
-      action: "diet" as AiActionType,
+      action: "diet",
     },
   ];
 
@@ -334,11 +313,6 @@ export function AssistantScreen({ db, receipts, joinedItems }: Props) {
     <ScrollView
       style={[styles.container, { backgroundColor: theme.bg }]}
       contentContainerStyle={styles.content}
-      onScroll={Animated.event(
-        [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-        { useNativeDriver: false },
-      )}
-      scrollEventThrottle={16}
       showsVerticalScrollIndicator={false}
     >
       <Animated.View style={cardStyles[0]}>
@@ -391,7 +365,7 @@ export function AssistantScreen({ db, receipts, joinedItems }: Props) {
       <Animated.View style={cardStyles[actions.length + 2]}>
         <AnimatedPressable
           scaleTo={0.97}
-          onPress={() => navigation.navigate("Ask" as never)}
+          onPress={() => navigation.navigate("Ask")}
         >
           <View
             style={[

@@ -2,27 +2,24 @@ import { getReceiptByRawQR, getReceiptFromQR } from "@/api/client";
 import { useTheme } from "@/components/ThemeContext";
 import { Theme } from "@/themes";
 import MaterialIcons from "@react-native-vector-icons/material-icons";
-import {
-  useCameraPermissions
-} from "expo-camera";
+import { useCameraPermissions } from "expo-camera";
+import type { SQLiteDatabase } from "expo-sqlite";
 import {
   launchCameraAsync,
   launchImageLibraryAsync,
   requestCameraPermissionsAsync,
   requestMediaLibraryPermissionsAsync,
 } from "expo-image-picker";
-import * as fs from "expo-file-system";
-import { useCallback, useRef, useState } from "react";
+import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Animated,
-  Dimensions,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  View
+  View,
 } from "react-native";
 import {
   AnimatedPressable,
@@ -31,102 +28,82 @@ import {
 import { normalizeReceiptResponse, saveReceipt } from "../storage";
 
 interface Props {
-  db: any;
-  onReceiptSaved: () => void;
-  switchTab: (tab: string) => void;
+  db: SQLiteDatabase | null;
+  switchTab: (tab: "receipts") => void;
 }
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
-export function ScanScreen({ db, onReceiptSaved, switchTab }: Props) {
+export function ScanScreen({ db, switchTab }: Props) {
   const { theme } = useTheme();
   const styles = getStyles(theme);
   const [camPermission, reqCamPermission] = useCameraPermissions();
   const [busy, setBusy] = useState(false);
   const [qrRaw, setQrRaw] = useState("");
-  const lastScan = useRef(0);
-  const SCAN_THROTTLE_MS = 2000;
-  const scrollY = useRef(new Animated.Value(0));
 
   const pickImage = async (type: "camera" | "image") => {
-    console.debug("querying photo/image")
-    const requestPermissions = type === "image" ? requestMediaLibraryPermissionsAsync : requestCameraPermissionsAsync;
-    console.debug(requestPermissions.toString());
-
-    console.debug("getting permissiongs");
-    const perm = await requestPermissions();
-    console.debug("permissions were got");
-
-    if (!perm) {
-      console.debug("perrmisions not granted")
-      Alert.alert(
-        "Упс...",
-        "Нет доступа к фото — нет сканирования электронных чеков",
-      );
-      return;
-    }
-
-
-    const launcher = type === "image" ? launchImageLibraryAsync : launchCameraAsync;
-    console.debug(launcher.toString());
-    const img = await launcher({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      quality: 1,
-    });
-
-    if (img.canceled) {
-      console.debug("taking image was canceled");
-      return;
-    }
-    if (!img.assets) {
-      console.debug("image has no property `assets`");
-      return;
-    }
-    console.debug(img.assets[0].uri);
-
+    if (busy) return;
     setBusy(true);
     try {
-      if (!db) {
-        console.debug("no db in ScanScreen");
+      const requestPermissions =
+        type === "image"
+          ? requestMediaLibraryPermissionsAsync
+          : requestCameraPermissionsAsync;
+      const permission = await requestPermissions();
+      if (!permission.granted) {
+        Alert.alert(
+          "Нет доступа",
+          type === "image"
+            ? "Разрешите доступ к фотографиям, чтобы выбрать изображение чека."
+            : "Разрешите доступ к камере, чтобы сфотографировать чек.",
+        );
         return;
       }
 
-      console.debug("trying to get receipt by qr");
-      const res = await getReceiptByRawQR(img.assets[0].uri.replace("file://", ""));
+      const launcher =
+        type === "image" ? launchImageLibraryAsync : launchCameraAsync;
+      const image = await launcher({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        quality: 0.85,
+      });
+      const imageUri = image.assets?.[0]?.uri;
+      if (image.canceled || !imageUri || !db) return;
+
+      const res = await getReceiptByRawQR(imageUri.replace("file://", ""));
       const resp = normalizeReceiptResponse(res);
-      if (!resp) return;
+      if (!resp) {
+        Alert.alert("Чек не найден", "Не удалось распознать QR-код на фото.");
+        return;
+      }
 
       await saveReceipt(db, resp.receipt, resp.items);
-      onReceiptSaved();
+      switchTab("receipts");
       return true;
-    }
-    catch (e) {
-      console.debug(e);
+    } catch (error) {
       Alert.alert(
         "Ошибка",
-        (e as Error).message || "Не удалось распознать QR-код. Введите его вручную в поле ниже.",
+        error instanceof Error
+          ? error.message
+          : "Не удалось распознать QR-код. Введите его вручную.",
       );
     } finally {
       setBusy(false);
     }
   };
 
-  async function scanQR(type: "raw" | "parsed", data: string): Promise<undefined | true> {
-    if (!db) return;
+  async function scanQR(type: "raw" | "parsed", data: string) {
+    if (!db) return false;
 
     try {
       const toCall = type === "raw" ? getReceiptByRawQR : getReceiptFromQR;
       const res = await toCall(data);
-      console.log(res);
       const resp = normalizeReceiptResponse(res);
-      if (!resp) return;
+      if (!resp) return false;
 
       await saveReceipt(db, resp.receipt, resp.items);
-      onReceiptSaved();
+      switchTab("receipts");
       return true;
-    } catch (e) {
-      return;
+    } catch {
+      return false;
     }
   }
 
@@ -144,26 +121,10 @@ export function ScanScreen({ db, onReceiptSaved, switchTab }: Props) {
 
   const hasCamera = camPermission?.granted ?? false;
 
-  const handleBarcodeScanned = useCallback(
-    ({ data }: { data: string }) => {
-      const now = Date.now();
-      if (busy || now - lastScan.current < SCAN_THROTTLE_MS) return;
-      lastScan.current = now;
-      setQrRaw(data);
-      handle(data);
-    },
-    [busy],
-  );
-
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: theme.bg }]}
       contentContainerStyle={styles.content}
-      onScroll={Animated.event(
-        [{ nativeEvent: { contentOffset: { y: scrollY.current } } }],
-        { useNativeDriver: false },
-      )}
-      scrollEventThrottle={16}
       showsVerticalScrollIndicator={false}
     >
       <Animated.View style={cardStyles[0]}>
@@ -177,7 +138,15 @@ export function ScanScreen({ db, onReceiptSaved, switchTab }: Props) {
       </Animated.View>
 
       <Animated.View style={cardStyles[1]}>
-        <AnimatedPressable scaleTo={0.98} onPress={hasCamera ? () => pickImage("camera") : reqCamPermission}>
+        <AnimatedPressable
+          scaleTo={0.98}
+          onPress={
+            hasCamera
+              ? () => void pickImage("camera")
+              : () => void reqCamPermission()
+          }
+          disabled={busy}
+        >
           <View
             style={[
               styles.permCard,
@@ -201,10 +170,7 @@ export function ScanScreen({ db, onReceiptSaved, switchTab }: Props) {
             </View>
             <View style={styles.permTextContainer}>
               <Text
-                style={[
-                  styles.permTitle,
-                  { color: theme.onPrimaryContainer },
-                ]}
+                style={[styles.permTitle, { color: theme.onPrimaryContainer }]}
               >
                 {hasCamera ? "Сделать фото" : "Разрешить доступ к камере"}
               </Text>
@@ -214,7 +180,9 @@ export function ScanScreen({ db, onReceiptSaved, switchTab }: Props) {
                   { color: theme.onPrimaryContainer },
                 ]}
               >
-                {hasCamera ? "Сделайте фото с qr-кодом чека и он будет сохранен" : "Без разрешения к камере нельзя сделать фото"}
+                {hasCamera
+                  ? "Сделайте фото с qr-кодом чека и он будет сохранен"
+                  : "Без разрешения к камере нельзя сделать фото"}
               </Text>
             </View>
             <View
@@ -237,7 +205,7 @@ export function ScanScreen({ db, onReceiptSaved, switchTab }: Props) {
       <AnimatedPressable
         style={cardStyles[2]}
         scaleTo={0.97}
-        onPress={() => pickImage("image")}
+        onPress={() => void pickImage("image")}
         disabled={busy}
       >
         <View
@@ -306,7 +274,7 @@ export function ScanScreen({ db, onReceiptSaved, switchTab }: Props) {
               (!qrRaw.trim() || busy) && styles.submitBtnDisabled,
             ]}
             disabled={!qrRaw.trim() || busy}
-            onPress={() => handle(qrRaw.trim())}
+            onPress={() => void handle(qrRaw.trim())}
           >
             {busy ? (
               <ActivityIndicator color="#fff" />
@@ -391,122 +359,6 @@ const getStyles = (theme: Theme) => {
       borderRadius: 16,
       justifyContent: "center",
       alignItems: "center",
-    },
-    cameraCard: {
-      borderRadius: 20,
-      padding: 16,
-      marginBottom: 20,
-      borderWidth: 1,
-      ...shadow(2),
-    },
-    cameraFrame: {
-      height: 350,
-      borderRadius: 16,
-      overflow: "hidden",
-      backgroundColor: "#000",
-      borderWidth: 1,
-      position: "relative",
-    },
-    camera: { flex: 1 },
-    focusOverlay: {
-      position: "absolute",
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      justifyContent: "center",
-      alignItems: "center",
-    },
-    focusFrame: {
-      width: SCREEN_WIDTH - 160,
-      height: SCREEN_WIDTH - 160,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderStyle: "dashed",
-      justifyContent: "center",
-      alignItems: "center",
-    },
-    focusCorner: {
-      position: "absolute",
-      width: 20,
-      height: 20,
-      borderWidth: 3,
-    },
-    focusTopLeft: {
-      top: -2,
-      left: -2,
-      borderBottomWidth: 0,
-      borderRightWidth: 0,
-      borderTopLeftRadius: 12,
-    },
-    focusTopRight: {
-      top: -2,
-      right: -2,
-      borderBottomWidth: 0,
-      borderLeftWidth: 0,
-      borderTopRightRadius: 12,
-    },
-    focusBottomLeft: {
-      bottom: -2,
-      left: -2,
-      borderTopWidth: 0,
-      borderRightWidth: 0,
-      borderBottomLeftRadius: 12,
-    },
-    focusBottomRight: {
-      bottom: -2,
-      right: -2,
-      borderTopWidth: 0,
-      borderLeftWidth: 0,
-      borderBottomRightRadius: 12,
-    },
-    focusHint: {
-      position: "absolute",
-      bottom: -30,
-      fontSize: 13,
-      fontWeight: "600",
-      opacity: 0.9,
-    },
-    zoomContainer: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-      marginTop: 12,
-      paddingHorizontal: 4,
-    },
-    zoomSliderTrack: {
-      flex: 1,
-      height: 4,
-      borderRadius: 2,
-      backgroundColor: theme.border,
-      position: "relative",
-    },
-    zoomSliderFill: {
-      height: "100%",
-      borderRadius: 2,
-    },
-    zoomThumb: {
-      position: "absolute",
-      top: -8,
-      width: 20,
-      height: 20,
-      borderRadius: 10,
-      borderWidth: 3,
-      marginLeft: -10,
-      ...shadow(3),
-    },
-    zoomButtons: {
-      flexDirection: "row",
-      justifyContent: "space-around",
-      marginTop: 8,
-    },
-    zoomButton: {
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-      borderRadius: 8,
-    },
-    zoomButtonText: {
-      fontSize: 12,
     },
     photoPickerCard: {
       flexDirection: "row",

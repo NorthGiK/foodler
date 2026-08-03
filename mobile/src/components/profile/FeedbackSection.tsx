@@ -79,13 +79,21 @@ export function FeedbackSection({
 
     setFeedbackSending(true);
     try {
-      const email = userEmail || "mail@example.com";
-      await onSendFeedback(email, feedbackText.trim(), feedbackImages);
+      if (!userEmail) {
+        Alert.alert("Нужна авторизация", "Войдите, чтобы отправить сообщение.");
+        return;
+      }
+      await onSendFeedback(userEmail, feedbackText.trim(), feedbackImages);
       Alert.alert("Отправлено", "Спасибо за обратную связь!");
       setFeedbackText("");
       setFeedbackImages([]);
-    } catch (e: any) {
-      Alert.alert("Ошибка", e.message || "Не удалось отправить сообщение");
+    } catch (error: unknown) {
+      Alert.alert(
+        "Ошибка",
+        error instanceof Error
+          ? error.message
+          : "Не удалось отправить сообщение",
+      );
     } finally {
       setFeedbackSending(false);
     }

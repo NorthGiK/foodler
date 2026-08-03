@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { Theme } from "@/themes";
 import { useTheme } from "./ThemeContext";
 import MaterialIcons from "@react-native-vector-icons/material-icons";
+import type { MaterialIconName } from "./icons";
 
 export function MiniCard({
   title,
@@ -13,7 +14,7 @@ export function MiniCard({
   title: string;
   value: string;
   hint?: string;
-  icon?: string;
+  icon?: MaterialIconName;
   color?: string;
 }) {
   const { theme } = useTheme();
@@ -32,7 +33,7 @@ export function MiniCard({
     >
       {icon && (
         <View style={[styles.iconWrap, { backgroundColor: iconColor + "15" }]}>
-          <MaterialIcons name={icon as any} size={20} color={iconColor} />
+          <MaterialIcons name={icon} size={20} color={iconColor} />
         </View>
       )}
       <Text style={[styles.title, { color: theme.muted }]}>{title}</Text>

@@ -21,34 +21,32 @@ import { useAuth } from "../api/auth";
 import { useTheme } from "../components/ThemeContext";
 import { policy } from "../config";
 import { AnimatedPressable } from "@/components/animations";
-import { openDb, saveReceipt } from "../storage";
-import { syncAllLocalReceiptsBulk, pullServerReceipts } from "../api/sync";
 
 type Step = "credentials" | "code";
 
 const POLICIES_ACCEPTED_KEY = "@policies_accepted";
 
-const POLICY_ENTRIES: Array<{
+const POLICY_ENTRIES: {
   key: keyof typeof policy;
   label: string;
-}> = [
-    {
-      key: "PRIVACY_POLICY",
-      label: "Политика конфиденциальности",
-    },
-    {
-      key: "TERMS_OF_SERVICE",
-      label: "Пользовательское соглашение",
-    },
-    {
-      key: "CONSENT_TO_THE_PROCESSING_OF_PERSONAL_DATA",
-      label: "Согласие на обработку персональных данных",
-    },
-    {
-      key: "CONSENT_TO_THE_PROCESSING_OF_SPECIAL_CATEGORIES_OF_PERSONAL_DATA",
-      label: "Согласие на обработку специальных категорий персональных данных",
-    },
-  ];
+}[] = [
+  {
+    key: "PRIVACY_POLICY",
+    label: "Политика конфиденциальности",
+  },
+  {
+    key: "TERMS_OF_SERVICE",
+    label: "Пользовательское соглашение",
+  },
+  {
+    key: "CONSENT_TO_THE_PROCESSING_OF_PERSONAL_DATA",
+    label: "Согласие на обработку персональных данных",
+  },
+  {
+    key: "CONSENT_TO_THE_PROCESSING_OF_SPECIAL_CATEGORIES_OF_PERSONAL_DATA",
+    label: "Согласие на обработку специальных категорий персональных данных",
+  },
+];
 
 type Props = {
   skipable?: boolean;
@@ -139,21 +137,18 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
       return;
     }
 
-    console.log("[LoginScreen] Starting sendCode for:", email.trim());
     setLoading(true);
     setError("");
     try {
-      const result = await sendCode(email.trim(), password.trim());
-      console.log("[LoginScreen] sendCode success:", result);
+      await sendCode(email.trim(), password.trim());
       setError("");
       setStep("code");
-    } catch (err) {
-      const e = err as Error;
-
-      console.warn("[LoginScreen] sendCode error:", e?.message || e);
-      if (e.message.includes("fetch failed"))
-        e.message = "Ошибка отправки. Проверьте подключение к интернету";
-      const msg = e.message || "Не удалось отправить код";
+    } catch (error: unknown) {
+      const originalMessage =
+        error instanceof Error ? error.message : "Не удалось отправить код";
+      const msg = originalMessage.includes("fetch failed")
+        ? "Ошибка отправки. Проверьте подключение к интернету"
+        : originalMessage;
       setError(msg);
       errorAlert(msg);
     } finally {
@@ -173,23 +168,11 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
       await verifyCode(email.trim(), code.trim(), password);
       await handlePoliciesAccepted();
 
-      // Sync local receipts to server after successful login
-      try {
-        const db = await openDb();
-        await syncAllLocalReceiptsBulk(db);
-        const { receipts, items } = await pullServerReceipts(db);
-        for (let i = 0; i < receipts.length; i++) {
-          await saveReceipt(db, receipts[i], items.filter(it => it.receiptId === receipts[i].id));
-        }
-      } catch (syncErr) {
-        console.warn("Receipt sync after login failed", syncErr);
-      }
-
       navigation.goBack();
       reset();
       Alert.alert("Успешно", "Вы вошли в аккаунт");
-    } catch (e: any) {
-      setError(e.message || "Неверный код");
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : "Неверный код");
     } finally {
       setLoading(false);
     }
@@ -202,7 +185,7 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
     active,
   }: {
     text: string;
-    onPress: () => any;
+    onPress: () => void | Promise<void>;
     textColor?: string;
     active?: boolean;
   }) => {
@@ -212,12 +195,12 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
         style={styles.toggle}
         disabled={!active}
       >
-        <Text style={[styles.toggleText, { color: (textColor || theme.text) }]}>
+        <Text style={[styles.toggleText, { color: textColor || theme.text }]}>
           {text}
         </Text>
       </AnimatedPressable>
-    )
-  }
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
@@ -290,7 +273,7 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
                 Я принимаю следующие документы:
               </Text>
               <View style={styles.policySection}>
-                {POLICY_ENTRIES.map(entry => (
+                {POLICY_ENTRIES.map((entry) => (
                   <View key={entry.key} style={styles.policyRow}>
                     <Pressable
                       onPress={() => togglePolicy(entry.key)}
@@ -317,10 +300,7 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
                       style={styles.policyLabel}
                     >
                       <Text
-                        style={[
-                          styles.policyText,
-                          { color: theme.primary },
-                        ]}
+                        style={[styles.policyText, { color: theme.primary }]}
                       >
                         {entry.label}
                       </Text>
@@ -417,16 +397,14 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
           </>
         )}
 
-        {step === "credentials"
-          && skipable
-          &&
+        {step === "credentials" && skipable && (
           <MutedButton
             text="Продолжить без авторизации"
             onPress={handleSkipLogin}
             textColor={theme.muted + (allPoliciesAccepted ? "" : "88")}
             active={allPoliciesAccepted}
           />
-        }
+        )}
       </ScrollView>
     </SafeAreaView>
   );

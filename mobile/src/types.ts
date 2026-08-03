@@ -7,12 +7,12 @@ export interface ApiReceiptResponse {
       totalSum?: number;
       user?: string;
       dateTime?: string;
-      items?: Array<{
+      items?: {
         name?: string;
         price?: number;
         sum?: number;
         quantity?: number;
-      }>;
+      }[];
     };
   };
   request?: {
