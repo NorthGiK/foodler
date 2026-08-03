@@ -3,7 +3,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.orm import DeclarativeBase
 
 from .config import DATABASE_URL
-from . import models  # noqa: F401 - ensure models are imported
 
 
 engine = create_async_engine(DATABASE_URL, echo=False)
@@ -32,4 +31,6 @@ async def check_database(session: AsyncSession | None = None) -> None:
 
 async def init_db():
     async with engine.begin() as conn:
+        from . import models  # noqa: F401 - ensure models are imported
+
         await conn.run_sync(Base.metadata.create_all)
