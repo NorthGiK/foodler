@@ -1,7 +1,9 @@
 import { Theme } from "@/themes";
+import MaterialIcons from "@react-native-vector-icons/material-icons";
 import React, { useEffect, useRef } from "react";
 import {
   Animated,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -50,6 +52,7 @@ export function ShakeInput({
   const { theme } = useTheme();
   const styles = getStyles(theme);
   const shakeAnim = useRef(new Animated.Value(0)).current;
+  const [isPasswordVisible, setPasswordVisible] = React.useState(false);
 
   useEffect(() => {
     if (error) {
@@ -100,13 +103,31 @@ export function ShakeInput({
           onChangeText={onChangeText}
           placeholder={placeholder}
           placeholderTextColor={placeholderTextColor}
-          secureTextEntry={secureTextEntry}
+          secureTextEntry={secureTextEntry && !isPasswordVisible}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
           autoCorrect={autoCorrect}
           maxLength={maxLength}
           autoFocus={autoFocus}
         />
+        {secureTextEntry ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              isPasswordVisible ? "Скрыть пароль" : "Показать пароль"
+            }
+            accessibilityHint="Переключает видимость введённого пароля"
+            hitSlop={8}
+            onPress={() => setPasswordVisible((visible) => !visible)}
+            style={styles.passwordToggle}
+          >
+            <MaterialIcons
+              name={isPasswordVisible ? "visibility-off" : "visibility"}
+              size={22}
+              color={theme.muted}
+            />
+          </Pressable>
+        ) : null}
       </Animated.View>
       {error ? <Text style={[styles.error, errorStyle]}>{error}</Text> : null}
     </View>
@@ -126,12 +147,18 @@ const getStyles = (theme: Theme) =>
       borderWidth: 1,
       overflow: "hidden",
       borderColor: theme.outline,
+      flexDirection: "row",
+      alignItems: "center",
     },
     input: {
+      flex: 1,
       paddingHorizontal: 16,
       paddingVertical: 12,
       fontSize: 16,
       color: theme.text,
+    },
+    passwordToggle: {
+      padding: 12,
     },
     inputError: {
       borderColor: "#ef4444",
