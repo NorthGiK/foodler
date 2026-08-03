@@ -3,10 +3,11 @@ import { View, Text, StyleSheet, ViewStyle } from "react-native";
 import MaterialIcons from "@react-native-vector-icons/material-icons";
 import { AnimatedPressable } from "../animations/AnimatedPressable";
 import { useTheme } from "../ThemeContext";
+import type { MaterialIconName } from "../icons";
 
 interface AddButtonProps {
   title: string;
-  icon?: string;
+  icon?: MaterialIconName;
   onPress: () => void;
   style?: ViewStyle;
   variant?: "primary" | "secondary" | "ghost";
@@ -31,7 +32,7 @@ export function AddButton({
               { backgroundColor: theme.primary + "15" },
             ]}
           >
-            <MaterialIcons name={icon as any} size={20} color={theme.primary} />
+            <MaterialIcons name={icon} size={20} color={theme.primary} />
           </View>
           <Text style={[styles.ghostTitle, { color: theme.text }]}>
             {title}
@@ -59,7 +60,7 @@ export function AddButton({
               { backgroundColor: theme.primary + "15" },
             ]}
           >
-            <MaterialIcons name={icon as any} size={28} color={theme.primary} />
+            <MaterialIcons name={icon} size={28} color={theme.primary} />
           </View>
           <Text style={[styles.secondaryTitle, { color: theme.text }]}>
             {title}
@@ -82,7 +83,7 @@ export function AddButton({
         ]}
       >
         <View style={styles.iconCircle}>
-          <MaterialIcons name={icon as any} size={24} color={theme.white} />
+          <MaterialIcons name={icon} size={24} color={theme.white} />
         </View>
         <Text style={[styles.title, { color: theme.white }]}>{title}</Text>
       </View>

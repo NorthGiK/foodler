@@ -1,10 +1,14 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api, getAccessToken } from "./client";
 import type { Receipt, ReceiptItem } from "../types";
 import { openDb, loadReceipts, loadReceiptItems } from "../storage";
 import type { ReceiptItemSchema, ReceiptSchema } from "./generated/types.gen";
+import type { AiActionType, AiResult } from "../ai/types";
+import { parseServerSections } from "../ai/llmService";
 
 type LocalDatabase = Awaited<ReturnType<typeof openDb>>;
 const RECEIPT_PAGE_SIZE = 100;
+const PENDING_DELETED_IDS_KEY = "@pending_deleted_receipt_ids";
 
 /**
  * Checks if user is authenticated by verifying access token exists
@@ -22,25 +26,29 @@ async function isAuthenticated(): Promise<boolean> {
 export async function syncReceiptToServer(
   receipt: Receipt,
   items: ReceiptItem[],
-): Promise<void> {
-  if (!(await isAuthenticated())) return;
+): Promise<boolean> {
+  if (!(await isAuthenticated())) return false;
 
-  try {
-    await api.createReceipt({
-      id: receipt.id,
-      date: receipt.ticketDate,
-      store: receipt.organization,
-      total: Math.abs(receipt.totalSumRub),
-      items: items.map((item) => ({
-        name: item.name,
-        quantity: item.quantity,
-        price: Math.abs(item.priceRub),
-        sum: Math.abs(item.sumRub),
-      })),
-    });
-  } catch (e) {
-    console.warn("Failed to sync receipt to server", e);
-  }
+  await api.createReceipt(toServerReceipt(receipt, items));
+  return true;
+}
+
+function toServerReceipt(
+  receipt: Receipt,
+  items: ReceiptItem[],
+): ReceiptSchema {
+  return {
+    id: receipt.id,
+    date: receipt.ticketDate,
+    store: receipt.organization,
+    total: Math.abs(receipt.totalSumRub),
+    items: items.map((item) => ({
+      name: item.name,
+      quantity: item.quantity,
+      price: Math.abs(item.priceRub),
+      sum: Math.abs(item.sumRub),
+    })),
+  };
 }
 
 /**
@@ -70,9 +78,10 @@ export async function pullServerReceipts(
     // Load existing local IDs to avoid duplicates
     const localReceipts = await loadReceipts(db);
     const localIds = new Set(localReceipts.map((r) => r.id));
+    const pendingDeletedIds = await getPendingDeletedIds();
 
     for (const sr of serverReceipts) {
-      if (localIds.has(sr.id)) continue;
+      if (localIds.has(sr.id) || pendingDeletedIds.has(sr.id)) continue;
 
       const receipt: Receipt = {
         id: sr.id,
@@ -98,8 +107,8 @@ export async function pullServerReceipts(
       );
       result.items.push(...receiptItems);
     }
-  } catch (e) {
-    console.warn("Failed to pull receipts from server", e);
+  } catch {
+    console.warn("Receipt download failed");
   }
 
   return result;
@@ -112,78 +121,128 @@ export async function pullServerReceipts(
 const SYNCED_IDS_KEY = "@synced_receipt_ids";
 
 async function getSyncedIds(): Promise<Set<string>> {
-  const { default: AsyncStorage } =
-    await import("@react-native-async-storage/async-storage");
   const stored = await AsyncStorage.getItem(SYNCED_IDS_KEY);
-  return new Set(stored ? JSON.parse(stored) : []);
+  return parseStoredIds(stored);
 }
 
-async function markAsSynced(id: string): Promise<void> {
-  const { default: AsyncStorage } =
-    await import("@react-native-async-storage/async-storage");
-  const synced = await getSyncedIds();
-  synced.add(id);
-  await AsyncStorage.setItem(SYNCED_IDS_KEY, JSON.stringify([...synced]));
+function parseStoredIds(stored: string | null) {
+  if (!stored) return new Set<string>();
+  try {
+    const value: unknown = JSON.parse(stored);
+    return new Set(
+      Array.isArray(value)
+        ? value.filter((item): item is string => typeof item === "string")
+        : [],
+    );
+  } catch {
+    return new Set<string>();
+  }
 }
 
-export async function syncAllLocalReceiptsBulk(db: any): Promise<void> {
+async function saveSyncedIds(ids: Set<string>): Promise<void> {
+  await AsyncStorage.setItem(SYNCED_IDS_KEY, JSON.stringify([...ids]));
+}
+
+function errorStatus(error: unknown) {
+  if (typeof error !== "object" || error === null) return undefined;
+  const record = error as Record<string, unknown>;
+  const status = record.status ?? record.statusCode;
+  return typeof status === "number" ? status : undefined;
+}
+
+async function getPendingDeletedIds(): Promise<Set<string>> {
+  const stored = await AsyncStorage.getItem(PENDING_DELETED_IDS_KEY);
+  return parseStoredIds(stored);
+}
+
+async function savePendingDeletedIds(ids: Set<string>): Promise<void> {
+  if (ids.size === 0) {
+    await AsyncStorage.removeItem(PENDING_DELETED_IDS_KEY);
+    return;
+  }
+  await AsyncStorage.setItem(PENDING_DELETED_IDS_KEY, JSON.stringify([...ids]));
+}
+
+/**
+ * Persists a local deletion before attempting network work. Pending IDs are
+ * excluded from server pulls, so a failed request cannot resurrect a receipt.
+ */
+export async function queueReceiptDeletion(receiptId: string): Promise<void> {
+  const pendingIds = await getPendingDeletedIds();
+  pendingIds.add(receiptId);
+  await savePendingDeletedIds(pendingIds);
+}
+
+/**
+ * Retries queued deletions. A 404 is success because the desired server state
+ * has already been reached.
+ */
+export async function syncPendingReceiptDeletions(): Promise<void> {
+  if (!(await isAuthenticated())) return;
+
+  const pendingIds = await getPendingDeletedIds();
+  if (pendingIds.size === 0) return;
+
+  for (const receiptId of [...pendingIds]) {
+    try {
+      await api.deleteReceipt(receiptId);
+      pendingIds.delete(receiptId);
+    } catch (error: unknown) {
+      if (errorStatus(error) === 404) {
+        pendingIds.delete(receiptId);
+      }
+    }
+  }
+
+  await savePendingDeletedIds(pendingIds);
+}
+
+export async function syncAllLocalReceiptsBulk(
+  db: LocalDatabase,
+): Promise<void> {
   if (!(await isAuthenticated())) return;
 
   try {
     const receipts = await loadReceipts(db);
     const syncedIds = await getSyncedIds();
 
-    const unsyncedReceipts: any[] = [];
+    const unsyncedReceipts: ReceiptSchema[] = [];
 
     for (const receipt of receipts) {
       if (syncedIds.has(receipt.id)) continue;
 
       const items = await loadReceiptItems(db, receipt.id);
-      unsyncedReceipts.push({
-        id: receipt.id,
-        date: receipt.ticketDate,
-        store: receipt.organization,
-        total: Math.abs(receipt.totalSumRub),
-        items: items.map((item) => ({
-          name: item.name,
-          quantity: item.quantity,
-          price: Math.abs(item.priceRub),
-          sum: Math.abs(item.sumRub),
-        })),
-      });
+      unsyncedReceipts.push(toServerReceipt(receipt, items));
     }
 
     if (unsyncedReceipts.length === 0) return;
 
     try {
       await api.createReceiptsArray(unsyncedReceipts);
-    } catch (e: any) {
+    } catch (error: unknown) {
       // If bulk endpoint is not available (405), fall back to individual sync
-      if (e?.status === 405) {
-        console.debug(
-          "Bulk sync not available, falling back to individual sync",
-        );
+      if (errorStatus(error) === 405) {
         for (const receipt of receipts) {
           if (syncedIds.has(receipt.id)) continue;
           const items = await loadReceiptItems(db, receipt.id);
-          await syncReceiptToServer(receipt, items);
-          await markAsSynced(receipt.id);
+          if (await syncReceiptToServer(receipt, items)) {
+            syncedIds.add(receipt.id);
+          }
         }
+        await saveSyncedIds(syncedIds);
         return;
       }
-      throw e;
+      throw error;
     }
 
-    // Mark all as synced
-    for (const r of unsyncedReceipts) {
-      await markAsSynced(r.id);
-    }
-  } catch (e) {
-    console.warn("Failed to bulk sync receipts", e);
+    unsyncedReceipts.forEach((receipt) => syncedIds.add(receipt.id));
+    await saveSyncedIds(syncedIds);
+  } catch {
+    console.warn("Receipt upload failed");
   }
 }
 
-export async function syncAllLocalReceipts(db: any): Promise<void> {
+export async function syncAllLocalReceipts(db: LocalDatabase): Promise<void> {
   if (!(await isAuthenticated())) return;
 
   try {
@@ -194,11 +253,13 @@ export async function syncAllLocalReceipts(db: any): Promise<void> {
       if (syncedIds.has(receipt.id)) continue;
 
       const items = await loadReceiptItems(db, receipt.id);
-      await syncReceiptToServer(receipt, items);
-      await markAsSynced(receipt.id);
+      if (await syncReceiptToServer(receipt, items)) {
+        syncedIds.add(receipt.id);
+      }
     }
-  } catch (e) {
-    console.warn("Failed to sync all local receipts", e);
+    await saveSyncedIds(syncedIds);
+  } catch {
+    console.warn("Receipt upload failed");
   }
 }
 
@@ -209,25 +270,21 @@ export async function syncAllLocalReceipts(db: any): Promise<void> {
 const SYNCED_AI_IDS_KEY = "@synced_ai_report_ids";
 
 async function getSyncedAiIds(): Promise<Set<string>> {
-  const { default: AsyncStorage } =
-    await import("@react-native-async-storage/async-storage");
   const stored = await AsyncStorage.getItem(SYNCED_AI_IDS_KEY);
-  return new Set(stored ? JSON.parse(stored) : []);
+  return parseStoredIds(stored);
 }
 
 async function markAiAsSynced(id: string): Promise<void> {
-  const { default: AsyncStorage } =
-    await import("@react-native-async-storage/async-storage");
   const synced = await getSyncedAiIds();
   synced.add(id);
   await AsyncStorage.setItem(SYNCED_AI_IDS_KEY, JSON.stringify([...synced]));
 }
 
-export async function syncAiReports(db: any): Promise<void> {
+export async function syncAiReports(db: LocalDatabase): Promise<void> {
   if (!(await isAuthenticated())) return;
 
   try {
-    const serverReports: any[] = await api.getAiHistory();
+    const serverReports = await api.getAiHistory();
     const syncedIds = await getSyncedAiIds();
 
     for (const sr of serverReports) {
@@ -238,40 +295,32 @@ export async function syncAiReports(db: any): Promise<void> {
       const { ACTION_TO_SERVER, ACTION_LABELS } = await import("../ai/types");
 
       // Find the local action type from server action
+      const actionEntries = Object.entries(ACTION_TO_SERVER) as [
+        AiActionType,
+        string,
+      ][];
       const localAction =
-        Object.entries(ACTION_TO_SERVER).find(
-          ([_, v]) => v === sr.action,
-        )?.[0] || "analysis";
+        actionEntries.find(
+          ([, serverAction]) => serverAction === sr.action,
+        )?.[0] ?? "analysis";
 
       const snapshot = {
         receiptCount: 0,
         receiptIds: [],
       };
 
-      const response = {
+      const response: AiResult = {
         id: sr.id,
-        type: localAction as any,
-        title:
-          ACTION_LABELS[localAction as keyof typeof ACTION_LABELS] || "Анализ",
+        type: localAction,
+        title: ACTION_LABELS[localAction] || "Анализ",
         summary: "",
-        sections: (sr.sections || []).map((s: any) => ({
-          type: s.type || "text",
-          title: s.title || "",
-          text: s.text,
-          value: s.value,
-          max: s.max,
-          items: s.items,
-          products: s.products,
-          labels: s.labels,
-          values: s.values,
-          kind: s.kind,
-        })),
+        sections: parseServerSections(sr.sections || []),
       };
 
-      await saveAiReport(db, localAction as any, snapshot, response);
+      await saveAiReport(db, localAction, snapshot, response);
       await markAiAsSynced(sr.id);
     }
-  } catch (e) {
-    console.warn("Failed to sync AI reports", e);
+  } catch {
+    console.warn("AI report synchronization failed");
   }
 }

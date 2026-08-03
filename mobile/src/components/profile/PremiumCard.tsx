@@ -47,8 +47,8 @@ export function PremiumCard({
       }
 
       await Linking.openURL(purchaseUrl);
-    } catch (e) {
-      console.warn("Failed to open subscription payment", e);
+    } catch {
+      console.warn("Subscription payment page could not be opened");
       Alert.alert("Ошибка", "Не удалось открыть страницу оплаты");
     } finally {
       setProcessing(false);

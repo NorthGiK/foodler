@@ -61,14 +61,14 @@ export function AskScreen() {
   const [errorMessage, setErrorMessage] = useState<string>("");
   const scrollRef = useRef<ScrollView>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
-  const [keyboardStatus, setKeyboardStatus] = useState('Keyboard Hidden');
+  const [keyboardStatus, setKeyboardStatus] = useState("Keyboard Hidden");
 
   useEffect(() => {
-    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
-      setKeyboardStatus('Keyboard Shown');
+    const showSubscription = Keyboard.addListener("keyboardDidShow", () => {
+      setKeyboardStatus("Keyboard Shown");
     });
-    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
-      setKeyboardStatus('Keyboard Hidden');
+    const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
+      setKeyboardStatus("Keyboard Hidden");
     });
 
     return () => {
@@ -90,8 +90,8 @@ export function AskScreen() {
         setMessages(pinned);
         messagesRef.current = pinned;
       }
-    } catch (e) {
-      console.warn("Failed to load pinned messages", e);
+    } catch {
+      console.warn("Pinned messages could not be loaded");
     }
   };
 
@@ -99,8 +99,8 @@ export function AskScreen() {
     try {
       const pinned = msgs.filter((m) => m.role === "assistant" && m.pinned);
       await AsyncStorage.setItem(PINNED_MESSAGES_KEY, JSON.stringify(pinned));
-    } catch (e) {
-      console.warn("Failed to save pinned messages", e);
+    } catch {
+      console.warn("Pinned messages could not be saved");
     }
   };
 
@@ -108,21 +108,14 @@ export function AskScreen() {
   useEffect(() => {
     return () => {
       const currentMessages = messagesRef.current;
-      savePinnedMessages(currentMessages);
+      void savePinnedMessages(currentMessages);
     };
   }, []);
 
   // Скрываем навигационную панель при открытии экрана
   useEffect(() => {
-    NavigationBar.setHidden(true);
+    void NavigationBar.setHidden(true);
   }, []);
-
-  const handleKeyPress = (e: any) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
 
   const sendMessage = async () => {
     const text = input.trim();
@@ -137,10 +130,10 @@ export function AskScreen() {
     setLoading(true);
 
     try {
-      const history = [...messagesRef.current, userMessage];
+      const history = updatedMessages;
 
-      // Load profile for family members
-      let profileMembers: any[] | undefined;
+      let profileMembers:
+        ReturnType<typeof familyMemberToApiMember>[] | undefined;
       try {
         const profile = await loadProfile();
         if (profile.familyMembers && profile.familyMembers.length > 0) {
@@ -159,9 +152,10 @@ export function AskScreen() {
       const answer: ChatMessage = {
         role: "assistant",
         text:
-          (result as any).sections?.[0]?.data?.text ||
-          (result as any).sections?.[0]?.text ||
-          "Не удалось получить ответ",
+          result.sections?.find(
+            (section) =>
+              section.type === "text" && typeof section.text === "string",
+          )?.text || "Не удалось получить ответ",
         pinned: false,
       };
       const withAnswer = [...updatedMessages, answer];
@@ -169,10 +163,13 @@ export function AskScreen() {
       messagesRef.current = withAnswer;
       setErrorKind(null);
       setErrorMessage("");
-    } catch (e: any) {
-      const kind = e?.kind || "unknown";
-      setErrorKind(kind);
-      setErrorMessage(e?.message || "Что-то пошло не так. Попробуйте ещё раз.");
+    } catch (error: unknown) {
+      setErrorKind("unknown");
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Что-то пошло не так. Попробуйте ещё раз.",
+      );
     } finally {
       setLoading(false);
     }
@@ -318,9 +315,7 @@ export function AskScreen() {
                       style={styles.pinBtn}
                     >
                       <MaterialIcons
-                        name={
-                          msg.pinned ? "push-pin" : "bookmark-outline"
-                        }
+                        name={msg.pinned ? "push-pin" : "bookmark-outline"}
                         size={16}
                         color={msg.pinned ? theme.primary : theme.muted}
                       />
@@ -340,21 +335,18 @@ export function AskScreen() {
 
             {/* Поле ввода */}
             <Animated.View
-                style={[
-                  styles.inputBar,
-                  {
-                    backgroundColor: theme.surface,
-                    borderColor: theme.border,
-                    position: "absolute",
-                    bottom: keyboardStatus === "Keyboard Hidden"? 15 : 50,
-                  },
-                ]}
+              style={[
+                styles.inputBar,
+                {
+                  backgroundColor: theme.surface,
+                  borderColor: theme.border,
+                  position: "absolute",
+                  bottom: keyboardStatus === "Keyboard Hidden" ? 15 : 50,
+                },
+              ]}
             >
               <TextInput
-                style={[
-                  styles.chatInput,
-                  { color: theme.text },
-                ]}
+                style={[styles.chatInput, { color: theme.text }]}
                 value={input}
                 onChangeText={setInput}
                 placeholder="Напишите вопрос..."
@@ -363,7 +355,7 @@ export function AskScreen() {
                 maxLength={1000}
                 returnKeyType="send"
                 blurOnSubmit={false}
-                onKeyPress={handleKeyPress}
+                onSubmitEditing={() => void sendMessage()}
               />
               <Pressable
                 onPress={sendMessage}
@@ -376,11 +368,7 @@ export function AskScreen() {
                 ]}
                 disabled={loading || !input.trim()}
               >
-                <MaterialIcons
-                  name="send"
-                  size={22}
-                  color={theme.white}
-                />
+                <MaterialIcons name="send" size={22} color={theme.white} />
               </Pressable>
             </Animated.View>
           </>
@@ -493,7 +481,7 @@ const styles = StyleSheet.create({
   inputBar: {
     flexDirection: "row",
     alignItems: "flex-end",
-    alignSelf: 'center',
+    alignSelf: "center",
     borderRadius: 20,
     borderWidth: 1,
     padding: 8,
@@ -505,7 +493,7 @@ const styles = StyleSheet.create({
     maxHeight: 100,
     paddingHorizontal: 8,
     paddingVertical: 6,
-    alignSelf: 'center'
+    alignSelf: "center",
   },
   sendBtn: {
     width: 40,

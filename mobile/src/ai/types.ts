@@ -31,11 +31,11 @@ export interface AiSectionList {
 export interface AiSectionProducts {
   type: "products";
   title: string;
-  products: Array<{
+  products: {
     name: string;
     reason: string;
     price?: number;
-  }>;
+  }[];
 }
 
 export interface AiSectionChart {

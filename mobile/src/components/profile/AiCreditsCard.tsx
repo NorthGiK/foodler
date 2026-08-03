@@ -1,5 +1,12 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Animated, Easing } from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Animated,
+  Easing,
+  Pressable,
+} from "react-native";
 import MaterialIcons from "@react-native-vector-icons/material-icons";
 import { useTheme } from "../ThemeContext";
 import { getAvaibleCredits } from "@/api/client";
@@ -21,57 +28,47 @@ export function AiCreditsCard() {
   const [credits, setCredits] = useState<number | null>(null);
   const [maxCredits, setMaxCredits] = useState<number>(10);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   // Animated values for the loading/charging effect
-  const pulseAnim = React.useRef(new Animated.Value(0)).current;
   const rotateAnim = React.useRef(new Animated.Value(0)).current;
   const progressAnim = React.useRef(new Animated.Value(0)).current;
   const chargeAnim = React.useRef(new Animated.Value(0)).current;
-  const shimmerAnim = React.useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    loadCredits();
+  const loadCredits = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const creditsData = await getAvaibleCredits();
+      setCredits(creditsData.remaining);
+      setMaxCredits(creditsData.limit);
+    } catch {
+      setCredits(null);
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    if (loading) {
-      // Pulsing animation for loading state
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 1000,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 0,
-            duration: 1000,
-            easing: Easing.inOut(Easing.ease),
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
+    void loadCredits();
+  }, [loadCredits]);
 
-      // Rotating animation for loading icon
-      Animated.loop(
+  useEffect(() => {
+    if (loading) {
+      const rotation = Animated.loop(
         Animated.timing(rotateAnim, {
           toValue: 1,
           duration: 2000,
           easing: Easing.linear,
           useNativeDriver: true,
-        })
-      ).start();
+        }),
+      );
+      rotation.start();
 
-      // Shimmer effect for loading
-      Animated.loop(
-        Animated.timing(shimmerAnim, {
-          toValue: 1,
-          duration: 1500,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        })
-      ).start();
+      return () => {
+        rotation.stop();
+      };
     } else if (credits !== null) {
       // Charging animation when credits are loaded
       const progress = Math.min(credits / maxCredits, 1);
@@ -81,7 +78,7 @@ export function AiCreditsCard() {
         toValue: progress,
         duration: 1500,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
+        useNativeDriver: true,
       }).start();
 
       // Charging pulse effect
@@ -101,43 +98,11 @@ export function AiCreditsCard() {
         }),
       ]).start();
     }
-  }, [loading, credits]);
-
-  const loadCredits = async () => {
-    try {
-      const creditsData = await getAvaibleCredits();
-      // API returns { remaining: number, limit: number }
-      const availableCredits = typeof creditsData === 'object'
-        ? creditsData.remaining
-        : creditsData;
-      const limit = typeof creditsData === 'object'
-        ? creditsData.limit
-        : 10;
-
-      setCredits(availableCredits);
-      setMaxCredits(limit);
-    } catch (error) {
-      console.warn("Failed to load credits", error);
-      setCredits(0);
-      setMaxCredits(10);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const pulseInterpolate = pulseAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 1.15],
-  });
+  }, [chargeAnim, credits, loading, maxCredits, progressAnim, rotateAnim]);
 
   const rotateInterpolate = rotateAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ["0deg", "360deg"],
-  });
-
-  const progressWidth = progressAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["0%", "100%"],
   });
 
   const chargeInterpolate = chargeAnim.interpolate({
@@ -145,13 +110,7 @@ export function AiCreditsCard() {
     outputRange: [1, 1.2],
   });
 
-  const shimmerInterpolate = shimmerAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-200, 200],
-  });
-
   const displayCredits = credits ?? 0;
-  const progress = Math.min(displayCredits / maxCredits, 1);
   const isLowCredits = displayCredits <= 2 && displayCredits > 0;
   const isEmptyCredits = displayCredits === 0;
 
@@ -199,12 +158,14 @@ export function AiCreditsCard() {
             <Text style={[styles.subtitle, { color: theme.muted }]}>
               {loading
                 ? "Загрузка..."
-                : `${displayCredits} из ${maxCredits} доступно`}
+                : loadError
+                  ? "Данные временно недоступны"
+                  : `${displayCredits} из ${maxCredits} доступно`}
             </Text>
           </View>
         </View>
 
-        {!loading && (
+        {!loading && !loadError && (
           <Animated.View
             style={[
               styles.creditsBadge,
@@ -237,46 +198,34 @@ export function AiCreditsCard() {
       </View>
 
       {/* Progress Bar with Charging Effect */}
-      <View style={styles.progressContainer}>
-        <View style={[styles.progressTrack, { backgroundColor: theme.border }]}>
-          <Animated.View
-            style={[
-              styles.progressFill,
-              {
-                width: progressWidth,
-                backgroundColor: isEmptyCredits
-                  ? theme.error
-                  : isLowCredits
-                    ? theme.accent2
-                    : theme.primary,
-              },
-            ]}
-          >
-            {/* Shimmer effect on progress bar */}
-            {!loading && displayCredits > 0 && (
-              <Animated.View
-                style={[
-                  styles.shimmer,
-                  {
-                    transform: [{ translateX: shimmerInterpolate }],
-                  },
-                ]}
-              />
-            )}
-          </Animated.View>
+      {!loadError && (
+        <View style={styles.progressContainer}>
+          <View style={[styles.progressTrack, { backgroundColor: theme.border }]}>
+            <Animated.View
+              style={[
+                styles.progressFill,
+                {
+                  transform: [{ scaleX: progressAnim }],
+                  backgroundColor: isEmptyCredits
+                    ? theme.error
+                    : isLowCredits
+                      ? theme.accent2
+                      : theme.primary,
+                },
+              ]}
+            />
+          </View>
+          <View style={styles.progressLabels}>
+            <Text style={[styles.progressLabel, { color: theme.muted }]}>0</Text>
+            <Text style={[styles.progressLabel, { color: theme.muted }]}>
+              {maxCredits}
+            </Text>
+          </View>
         </View>
-        <View style={styles.progressLabels}>
-          <Text style={[styles.progressLabel, { color: theme.muted }]}>
-            0
-          </Text>
-          <Text style={[styles.progressLabel, { color: theme.muted }]}>
-            {maxCredits}
-          </Text>
-        </View>
-      </View>
+      )}
 
       {/* Credits Grid */}
-      {!loading && (
+      {!loading && !loadError && (
         <View style={styles.creditsGrid}>
           {CREDIT_ACTIONS.map((action, index) => {
             const isAvailable = index < displayCredits;
@@ -310,19 +259,13 @@ export function AiCreditsCard() {
                     "help-outline"
                   }
                   size={18}
-                  color={
-                    isAvailable
-                      ? theme.primary
-                      : theme.muted
-                  }
+                  color={isAvailable ? theme.primary : theme.muted}
                 />
                 <Text
                   style={[
                     styles.creditLabel,
                     {
-                      color: isAvailable
-                        ? theme.text
-                        : theme.muted,
+                      color: isAvailable ? theme.text : theme.muted,
                     },
                   ]}
                   numberOfLines={1}
@@ -356,53 +299,71 @@ export function AiCreditsCard() {
               ]}
             >
               <View
-                style={[
-                  styles.skeletonIcon,
-                  { backgroundColor: theme.border },
-                ]}
+                style={[styles.skeletonIcon, { backgroundColor: theme.border }]}
               />
               <View
-                style={[
-                  styles.skeletonText,
-                  { backgroundColor: theme.border },
-                ]}
+                style={[styles.skeletonText, { backgroundColor: theme.border }]}
               />
             </View>
           ))}
         </View>
       )}
 
-      {/* Info Text */}
-      {!loading && isEmptyCredits && (
+      {!loading && loadError && (
         <View
           style={[
             styles.infoBox,
-            { backgroundColor: theme.error + "10", borderColor: theme.error + "20" },
+            {
+              backgroundColor: theme.error + "10",
+              borderColor: theme.error + "20",
+            },
           ]}
         >
-          <MaterialIcons
-            name="info-outline"
-            size={16}
-            color={theme.error}
-          />
+          <MaterialIcons name="cloud-off" size={18} color={theme.error} />
+          <Text style={[styles.infoText, { color: theme.text }]}>
+            Не удалось получить доступное количество AI-действий.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => void loadCredits()}
+            hitSlop={8}
+          >
+            <Text style={[styles.retryText, { color: theme.primary }]}>
+              Повторить
+            </Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* Info Text */}
+      {!loading && !loadError && isEmptyCredits && (
+        <View
+          style={[
+            styles.infoBox,
+            {
+              backgroundColor: theme.error + "10",
+              borderColor: theme.error + "20",
+            },
+          ]}
+        >
+          <MaterialIcons name="info-outline" size={16} color={theme.error} />
           <Text style={[styles.infoText, { color: theme.error }]}>
             Кредиты закончились. Оформите подписку или подождите.
           </Text>
         </View>
       )}
 
-      {!loading && isLowCredits && (
+      {!loading && !loadError && isLowCredits && (
         <View
           style={[
             styles.infoBox,
-            { backgroundColor: theme.accent2 + "10", borderColor: theme.accent2 + "20" },
+            {
+              backgroundColor: theme.accent2 + "10",
+              borderColor: theme.accent2 + "20",
+            },
           ]}
         >
-          <MaterialIcons
-            name="warning-amber"
-            size={16}
-            color={theme.accent2}
-          />
+          <MaterialIcons name="warning-amber" size={16} color={theme.accent2} />
           <Text style={[styles.infoText, { color: theme.accent2 }]}>
             Осталось мало кредитов. Оформите подписку или подождите.
           </Text>
@@ -477,14 +438,8 @@ const styles = StyleSheet.create({
     height: "100%",
     borderRadius: 4,
     overflow: "hidden",
-  },
-  shimmer: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    width: 100,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
-    transform: [{ skewX: "-20deg" }],
+    transformOrigin: "left center",
+    width: "100%",
   },
   progressLabels: {
     flexDirection: "row",
@@ -548,5 +503,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "500",
     lineHeight: 18,
+  },
+  retryText: {
+    fontSize: 13,
+    fontWeight: "700",
   },
 });

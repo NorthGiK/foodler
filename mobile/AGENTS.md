@@ -13,7 +13,9 @@
   редактируется.
 - Внешние API изолируются от Foodler transport отдельным адаптером.
 - SQLite — первичный источник для local-first UI. После mutation обновите
-  observable экранное состояние до сетевой синхронизации.
+  observable экранное состояние до сетевой синхронизации. Запись чеков идёт
+  через `storage.ts`, а подписка экранов — через
+  `features/receipts/receiptChanges.ts`; отдельный refresh-поток не создавайте.
 - Компоненты не выполняют SQL или `fetch` напрямую.
 - Для длинных данных используйте виртуализированные списки; не создавайте
   анимацию на каждый render и предпочитайте native/reanimated path.
@@ -28,7 +30,11 @@
 npm run typecheck
 npm run lint
 npm run test -- --runInBand
+npm run audit:prod
 ```
+
+Для изменения UI производительности проверьте бюджеты и release-сценарий из
+`PERFORMANCE.md`. `npm run lint` должен завершаться без warnings.
 
 Для API-изменения дополнительно выполните из корня `make contract-check`.
 

@@ -28,15 +28,22 @@ npm run typecheck
 npm run lint
 npm run format:check
 npm run test -- --runInBand
+npm run audit:prod
+npx expo install --check
 ```
 
 ## Данные и API
 
-- `src/storage.ts` и `src/ai/storage.ts` — локальные SQLite-данные.
+- `src/storage.ts` и `src/ai/storage.ts` — транзакционные локальные
+  SQLite-данные.
+- `src/features/receipts/receiptChanges.ts` — batched observable-сигнал
+  изменений чеков; активные экраны перечитывают SQLite без повторного входа.
+- `src/features/receipts/manualReceipt.ts` — валидация и создание ручного чека.
 - `src/api/transport.ts` — JWT, refresh, timeout и нормализация ошибок.
 - `src/api/client.ts` — публичный адаптер приложения.
 - `src/api/generated/` — generated Foodler SDK; вручную не редактировать.
-- `src/api/sync.ts` — синхронизация local-first данных.
+- `src/api/sync.ts` — синхронизация local-first данных и персистентная очередь
+  удалений: удалённый офлайн чек не возвращается из server pull.
 
 Для изменения Foodler API сначала меняют FastAPI/Pydantic, затем из корня
 выполняют `make contract`. Прямой `fetch` к Foodler API и ручные копии backend
@@ -44,6 +51,20 @@ DTO запрещены.
 
 Expo public variables попадают в bundle и не могут содержать секреты. Ключ
 проверки чеков хранится только на backend.
+
+Списки чеков и товарных позиций виртуализированы. Анимации навигации,
+нажатий и progress используют native driver; обработчик прокрутки нельзя
+добавлять без фактического потребителя значения. Бюджеты и процедура проверки
+на устройстве описаны в [PERFORMANCE.md](PERFORMANCE.md).
+
+## Зависимости
+
+`npm run audit:prod` обязан завершаться без advisory и выполняется в CI.
+Полный `npm audit` на 2026-08-02 содержит одно принятое moderate-исключение
+только для devDependency `@hey-api/openapi-ts@0.97.0`: исправляющая его версия
+попадает под более серьёзный advisory транзитивного parser. Владелец —
+mobile maintainers, срок пересмотра — 2026-09-01. Генератор запускается только
+на доверенном локальном `contracts/openapi.json`.
 
 При любом изменении mobile-кода обязательно проверьте README, changelog,
 guides, `.env.example`, legal-тексты и корневые `docs/`. Пользовательское

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
   Animated,
   KeyboardAvoidingView,
   Platform,
@@ -9,11 +10,16 @@ import {
   View,
 } from "react-native";
 import MaterialIcons from "@react-native-vector-icons/material-icons";
-import { useNavigation, NavigationProp } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { RootStackParamList } from "../../App";
 import { useAuth } from "../api/auth";
 import { api } from "../api/client";
 import { useTheme } from "../components/ThemeContext";
-import { AnimatedPressable, useStaggeredFadeIn } from "../components/animations";
+import {
+  AnimatedPressable,
+  useStaggeredFadeIn,
+} from "../components/animations";
 import {
   ProfileHeaderCard,
   ProfileGuestCard,
@@ -30,13 +36,15 @@ import { FamilyMember, UserProfile, defaultProfile } from "../types";
 export function ProfileScreen() {
   const { theme } = useTheme();
   const { user, logout, isAuthenticated } = useAuth();
-  const navigation = useNavigation<NavigationProp<any>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [profile, setProfile] = useState<UserProfile>(defaultProfile);
   const [editing, setEditing] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
-  const [deleteConfirmIndex, setDeleteConfirmIndex] = useState<number | null>(null);
+  const [deleteConfirmIndex, setDeleteConfirmIndex] = useState<number | null>(
+    null,
+  );
   const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
-  const scrollY = React.useRef(new Animated.Value(0)).current;
   const cardStyles = useStaggeredFadeIn(8, 80);
 
   useEffect(() => {
@@ -44,14 +52,27 @@ export function ProfileScreen() {
   }, []);
 
   const handleSaveProfile = async () => {
-    await saveProfile(profile);
-    setEditing(false);
+    try {
+      await saveProfile(profile);
+      setEditing(false);
+    } catch {
+      Alert.alert("Ошибка", "Не удалось сохранить профиль.");
+    }
   };
 
   const handleAddMember = async (member: FamilyMember) => {
-    const updated = { ...profile, familyMembers: [...profile.familyMembers, member] };
-    setProfile(updated);
-    await saveProfile(updated);
+    const updated = {
+      ...profile,
+      familyMembers: [...profile.familyMembers, member],
+    };
+    try {
+      await saveProfile(updated);
+      setProfile(updated);
+      return true;
+    } catch {
+      Alert.alert("Ошибка", "Не удалось сохранить члена семьи.");
+      return false;
+    }
   };
 
   const handleRemoveMember = (index: number) => {
@@ -63,10 +84,17 @@ export function ProfileScreen() {
     if (deleteConfirmIndex !== null) {
       const updated = {
         ...profile,
-        familyMembers: profile.familyMembers.filter((_, i) => i !== deleteConfirmIndex),
+        familyMembers: profile.familyMembers.filter(
+          (_, i) => i !== deleteConfirmIndex,
+        ),
       };
-      setProfile(updated);
-      await saveProfile(updated);
+      try {
+        await saveProfile(updated);
+        setProfile(updated);
+      } catch {
+        Alert.alert("Ошибка", "Не удалось удалить члена семьи.");
+        return;
+      }
     }
     setDeleteConfirmVisible(false);
     setDeleteConfirmIndex(null);
@@ -79,7 +107,11 @@ export function ProfileScreen() {
     await logout();
   };
 
-  const handleSendFeedback = async (email: string, text: string, images: string[]) => {
+  const handleSendFeedback = async (
+    email: string,
+    text: string,
+    images: string[],
+  ) => {
     await api.sendFeedback(email, text, images);
   };
 
@@ -88,11 +120,6 @@ export function ProfileScreen() {
       <Animated.ScrollView
         style={{ flex: 1, backgroundColor: theme.bg }}
         contentContainerStyle={styles.content}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false },
-        )}
-        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
       >
         <Animated.View style={cardStyles[0]}>
@@ -103,7 +130,7 @@ export function ProfileScreen() {
 
         <Animated.View style={cardStyles[1]}>
           <ProfileGuestCard onLoginPress={() => navigation.navigate("Login")} />
-            <AiCreditsCard />
+          <AiCreditsCard />
         </Animated.View>
 
         <Animated.View style={cardStyles[2]}>
@@ -124,11 +151,6 @@ export function ProfileScreen() {
     >
       <ScrollView
         contentContainerStyle={styles.content}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false },
-        )}
-        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
       >
         <Animated.View style={cardStyles[0]}>

@@ -7,44 +7,58 @@ import {
 } from "@react-navigation/native-stack";
 import { LinearGradient } from "expo-linear-gradient";
 import { NavigationBar } from "expo-navigation-bar";
+import type { SQLiteDatabase } from "expo-sqlite";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useRef, useState } from "react";
+import {
+  type ComponentProps,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Animated,
   Dimensions,
   StyleSheet,
+  Text,
   View,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { TamaguiProvider } from "tamagui";
 import { initAiReportsTable } from "./src/ai/storage";
 import { AuthProvider, useAuth } from "./src/api/auth";
 import {
   pullServerReceipts,
   syncAiReports,
   syncAllLocalReceiptsBulk,
+  syncPendingReceiptDeletions,
 } from "./src/api/sync";
 import { ThemeProvider, useTheme } from "./src/components/ThemeContext";
 import { AnimatedPressable } from "./src/components/animations/AnimatedPressable";
 import { springSnappy } from "./src/components/animations/animations";
 import { AssistantScreen } from "./src/screens/AssistantScreen";
+import { AskScreen } from "./src/screens/AskScreen";
+import { ForgotPasswordScreen } from "./src/screens/ForgotPasswordScreen";
 import { LoginScreen } from "./src/screens/LoginScreen";
+import { NewReceiptScreen } from "./src/screens/NewReceiptScreen";
 import { ProfileScreen } from "./src/screens/ProfileScreen";
+import { ReceiptDetailScreen } from "./src/screens/ReceiptDetailScreen";
 import { ReceiptsScreen } from "./src/screens/ReceiptsScreen";
 import { ScanScreen } from "./src/screens/ScanScreen";
 import { StatsScreen } from "./src/screens/StatsScreen";
 import { TypesScreen } from "./src/screens/TypesScreen";
 import {
+  batchReceiptChanges,
   loadJoinedItems,
   loadReceipts,
   openDb,
   saveReceipt,
+  subscribeToReceiptChanges,
 } from "./src/storage";
 import type { Receipt, ReceiptItem } from "./src/types";
-import tamaguiConfig from "./tamagui.config";
 
 type Tab = "scan" | "stats" | "types" | "receipts" | "profile" | "assistant";
+type MaterialIconName = ComponentProps<typeof MaterialIcons>["name"];
 
 export type RootStackParamList = {
   Main: undefined;
@@ -55,7 +69,7 @@ export type RootStackParamList = {
   Ask: undefined;
 };
 
-const TABS: Array<{ key: Tab; icon: string }> = [
+const TABS: { key: Tab; icon: MaterialIconName }[] = [
   { key: "scan", icon: "camera-alt" },
   { key: "stats", icon: "bar-chart" },
   { key: "types", icon: "category" },
@@ -79,35 +93,53 @@ function TabContent() {
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { isAuthenticated } = useAuth();
   const [tab, setTab] = useState<Tab>("scan");
-  const [db, setDb] = useState<any>(null);
+  const [db, setDb] = useState<SQLiteDatabase | null>(null);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [joined, setJoined] = useState<
     (ReceiptItem & { ticketDate?: string })[]
   >([]);
   const [loading, setLoading] = useState(true);
-  const tabAnim = useRef(new Animated.Value(0)).current;
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const refreshSequence = useRef(0);
+  const contentProgress = useRef(new Animated.Value(1)).current;
   const indicatorPosition = useRef(new Animated.Value(0)).current;
   const tabBarOpacity = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    NavigationBar.setHidden(true);
-    let active = true;
-    (async () => {
-      try {
-        const d = await openDb();
-        if (!active) return;
-        setDb(d);
-        await refresh(d);
-      } catch (e) {
-        // ignore
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
+  const refresh = useCallback(async (database: SQLiteDatabase) => {
+    const sequence = ++refreshSequence.current;
+    try {
+      const [nextReceipts, nextJoined] = await Promise.all([
+        loadReceipts(database),
+        loadJoinedItems(database),
+      ]);
+      if (sequence !== refreshSequence.current) return;
+      setReceipts(nextReceipts);
+      setJoined(nextJoined);
+      setLoadError(null);
+    } catch {
+      if (sequence !== refreshSequence.current) return;
+      setLoadError("Не удалось загрузить локальные данные");
+    }
   }, []);
+
+  const initializeStorage = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const database = await openDb();
+      setDb(database);
+      await refresh(database);
+    } catch {
+      setLoadError("Не удалось открыть локальное хранилище");
+    } finally {
+      setLoading(false);
+    }
+  }, [refresh]);
+
+  useEffect(() => {
+    void NavigationBar.setHidden(true);
+    void initializeStorage();
+  }, [initializeStorage]);
 
   useEffect(() => {
     Animated.spring(tabBarOpacity, {
@@ -115,49 +147,52 @@ function TabContent() {
       ...springSnappy,
       delay: 300,
     }).start();
-  }, []);
+  }, [tabBarOpacity]);
 
-  const refresh = async (d = db) => {
-    if (!d) return;
-    const [r, j] = await Promise.all([loadReceipts(d), loadJoinedItems(d)]);
-    setReceipts(r);
-    setJoined(j);
-  };
+  useEffect(() => {
+    contentProgress.setValue(0);
+    Animated.timing(contentProgress, {
+      toValue: 1,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+  }, [contentProgress, tab]);
 
-  // Delete @synced_receipt_ids key so bulk sync re-syncs everything after login
-  const clearSyncedIds = async () => {
-    try {
-      await AsyncStorage.removeItem("@synced_receipt_ids");
-    } catch {}
-  };
+  useEffect(() => {
+    if (!db) return;
+    return subscribeToReceiptChanges(() => {
+      void refresh(db);
+    });
+  }, [db, refresh]);
 
   useEffect(() => {
     if (!isAuthenticated || !db) return;
-    (async () => {
-      await clearSyncedIds();
-      await syncAllLocalReceiptsBulk(db);
-      const serverData = await pullServerReceipts(db);
-      if (serverData.receipts.length > 0) {
-        for (let i = 0; i < serverData.receipts.length; i++) {
-          const receipt = serverData.receipts[i];
-          const items = serverData.items.filter(
-            (it) => it.receiptId === receipt.id,
-          );
-          await saveReceipt(db, receipt, items);
-        }
-        await refresh(db);
-      }
-      // Initialize AI reports table before syncing
+    void (async () => {
       try {
+        await syncPendingReceiptDeletions();
+        await syncAllLocalReceiptsBulk(db);
+        const serverData = await pullServerReceipts(db);
+        if (serverData.receipts.length > 0) {
+          await batchReceiptChanges(async () => {
+            for (const receipt of serverData.receipts) {
+              const items = serverData.items.filter(
+                (item) => item.receiptId === receipt.id,
+              );
+              await saveReceipt(db, receipt, items);
+            }
+          });
+        }
         await initAiReportsTable(db);
-      } catch (e) {
-        console.warn("Failed to init AI reports table", e);
+        await syncAiReports(db);
+      } catch {
+        // Local receipts remain available when background sync is unavailable.
+        console.warn("Background synchronization failed");
       }
-      await syncAiReports(db);
     })();
   }, [isAuthenticated, db]);
 
   const switchTab = (newTab: Tab) => {
+    if (newTab === tab) return;
     const tabIndex = TABS.findIndex((t) => t.key === newTab);
     // Add 6 to account for the left: 6 in indicator style
     Animated.spring(indicatorPosition, {
@@ -165,12 +200,6 @@ function TabContent() {
       ...springSnappy,
     }).start();
 
-    tabAnim.setValue(0);
-    Animated.timing(tabAnim, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
     setTab(newTab);
     if ((newTab === "stats" || newTab === "types") && db) {
       refresh(db);
@@ -185,23 +214,80 @@ function TabContent() {
     );
   }
 
+  if (!db) {
+    return (
+      <SafeAreaView
+        style={[
+          styles.center,
+          styles.storageError,
+          { backgroundColor: theme.bg },
+        ]}
+      >
+        <Text style={[styles.storageErrorTitle, { color: theme.text }]}>
+          Локальные данные недоступны
+        </Text>
+        <Text style={[styles.storageErrorText, { color: theme.muted }]}>
+          {loadError ?? "Не удалось открыть локальное хранилище"}
+        </Text>
+        <AnimatedPressable onPress={() => void initializeStorage()}>
+          <View
+            style={[styles.retryButton, { backgroundColor: theme.primary }]}
+          >
+            <Text style={[styles.retryButtonText, { color: theme.white }]}>
+              Повторить
+            </Text>
+          </View>
+        </AnimatedPressable>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.bg }]}>
       <StatusBar style="auto" />
-      <View style={styles.body}>
-        {tab === "scan" && (
-          <ScanScreen
-            db={db}
-            onReceiptSaved={refresh}
-            switchTab={(t: string) => setTab(t as Tab)}
-          />
+      <Animated.View
+        style={[
+          styles.body,
+          {
+            opacity: contentProgress,
+            transform: [
+              {
+                translateY: contentProgress.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [6, 0],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+        {loadError && (
+          <View
+            style={[
+              styles.refreshError,
+              {
+                backgroundColor: theme.surface,
+                borderColor: theme.error,
+              },
+            ]}
+          >
+            <Text style={[styles.refreshErrorText, { color: theme.text }]}>
+              Не удалось обновить локальные данные.
+            </Text>
+            <AnimatedPressable onPress={() => void refresh(db)}>
+              <Text style={[styles.refreshRetryText, { color: theme.primary }]}>
+                Повторить
+              </Text>
+            </AnimatedPressable>
+          </View>
         )}
+        {tab === "scan" && <ScanScreen db={db} switchTab={switchTab} />}
         {tab === "stats" && (
           <StatsScreen
             key={receipts.length + joined.length}
             receipts={receipts}
             joinedItems={joined}
-            onRefresh={refresh}
+            onRefresh={() => refresh(db)}
           />
         )}
         {tab === "types" && (
@@ -209,14 +295,13 @@ function TabContent() {
             key={receipts.length + joined.length}
             receipts={receipts}
             joinedItems={joined}
-            onRefresh={refresh}
+            onRefresh={() => refresh(db)}
           />
         )}
         {tab === "receipts" && (
           <ReceiptsScreen
-            db={db}
             receipts={receipts}
-            onSaved={refresh}
+            onRefresh={() => refresh(db)}
             onOpenReceiptDetail={(receipt) =>
               navigation.navigate("ReceiptDetail", { receipt })
             }
@@ -227,7 +312,7 @@ function TabContent() {
         {tab === "assistant" && (
           <AssistantScreen db={db} receipts={receipts} joinedItems={joined} />
         )}
-      </View>
+      </Animated.View>
 
       {/* Bottom overlay for content behind tab bar - darkens in dark mode, lightens in light */}
       <Animated.View
@@ -284,7 +369,7 @@ function TabContent() {
               >
                 <View style={[styles.tabItemInner]}>
                   <MaterialIcons
-                    name={t.icon as any}
+                    name={t.icon}
                     size={22}
                     color={isActive ? theme.primary : theme.muted}
                     style={isActive ? styles.activeIcon : undefined}
@@ -310,7 +395,9 @@ function TabContent() {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
-  const [policiesAccepted, setPoliciesAccepted] = useState<boolean | null>(null);
+  const [policiesAccepted, setPoliciesAccepted] = useState<boolean | null>(
+    null,
+  );
 
   useEffect(() => {
     (async () => {
@@ -328,76 +415,82 @@ export default function App() {
   };
 
   return (
-    <TamaguiProvider config={tamaguiConfig} defaultTheme="light">
-      <SafeAreaProvider>
-        <ThemeProvider>
-          <AuthProvider>
-            <NavigationContainer>
-              {policiesAccepted === false ? (
-                <LoginScreen
-                  skipable={true}
-                  onPoliciesAccepted={handlePoliciesAccepted}
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <NavigationContainer>
+            {policiesAccepted === false ? (
+              <LoginScreen
+                skipable={true}
+                onPoliciesAccepted={handlePoliciesAccepted}
+              />
+            ) : (
+              <Stack.Navigator
+                screenOptions={{
+                  headerShown: false,
+                  animation: "slide_from_bottom",
+                  contentStyle: { backgroundColor: "transparent" },
+                }}
+              >
+                <Stack.Screen name="Main" component={TabContent} />
+                <Stack.Screen
+                  name="Login"
+                  component={LoginScreen}
+                  options={{ animation: "slide_from_bottom" }}
                 />
-              ) : (
-                <Stack.Navigator
-                  screenOptions={{
-                    headerShown: false,
-                    animation: "slide_from_bottom",
-                    contentStyle: { backgroundColor: "transparent" },
-                  }}
-                >
-                  <Stack.Screen name="Main" component={TabContent} />
-                  <Stack.Screen
-                    name="Login"
-                    getComponent={() =>
-                      require("./src/screens/LoginScreen").LoginScreen
-                    }
-                    options={{ animation: "slide_from_bottom" }}
-                  />
-                  <Stack.Screen
-                    name="ForgotPassword"
-                    getComponent={() =>
-                      require("./src/screens/ForgotPasswordScreen")
-                        .ForgotPasswordScreen
-                    }
-                    options={{ animation: "slide_from_bottom" }}
-                  />
-                  <Stack.Screen
-                    name="ReceiptDetail"
-                    getComponent={() =>
-                      require("./src/screens/ReceiptDetailScreen")
-                        .ReceiptDetailScreen
-                    }
-                    options={{ animation: "slide_from_right" }}
-                  />
-                  <Stack.Screen
-                    name="NewReceipt"
-                    getComponent={() =>
-                      require("./src/screens/NewReceiptScreen").NewReceiptScreen
-                    }
-                    options={{ animation: "slide_from_bottom" }}
-                  />
-                  <Stack.Screen
-                    name="Ask"
-                    getComponent={() =>
-                      require("./src/screens/AskScreen").AskScreen
-                    }
-                    options={{ animation: "slide_from_right" }}
-                  />
-                </Stack.Navigator>
-              )}
-            </NavigationContainer>
-          </AuthProvider>
-        </ThemeProvider>
-      </SafeAreaProvider>
-    </TamaguiProvider>
+                <Stack.Screen
+                  name="ForgotPassword"
+                  component={ForgotPasswordScreen}
+                  options={{ animation: "slide_from_bottom" }}
+                />
+                <Stack.Screen
+                  name="ReceiptDetail"
+                  component={ReceiptDetailScreen}
+                  options={{ animation: "slide_from_right" }}
+                />
+                <Stack.Screen
+                  name="NewReceipt"
+                  component={NewReceiptScreen}
+                  options={{ animation: "slide_from_bottom" }}
+                />
+                <Stack.Screen
+                  name="Ask"
+                  component={AskScreen}
+                  options={{ animation: "slide_from_right" }}
+                />
+              </Stack.Navigator>
+            )}
+          </NavigationContainer>
+        </AuthProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  storageError: { paddingHorizontal: 32 },
+  storageErrorTitle: { fontSize: 20, fontWeight: "700", textAlign: "center" },
+  storageErrorText: { fontSize: 14, marginTop: 8, textAlign: "center" },
+  retryButton: {
+    borderRadius: 14,
+    marginTop: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  retryButtonText: { fontSize: 15, fontWeight: "700" },
   body: { flex: 1 },
+  refreshError: {
+    alignItems: "center",
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  refreshErrorText: { flex: 1, fontSize: 13 },
+  refreshRetryText: { fontSize: 13, fontWeight: "700", marginLeft: 12 },
   bottomOverlay: {
     position: "absolute",
     bottom: 0,

@@ -38,6 +38,8 @@ Generated-файлы коммитятся, чтобы изменение кон�
 - Mobile unit: transport, storage и преобразование данных.
 - Mobile component: loading/empty/error/success и обновление после локальной
   записи.
+- Mobile performance: release-профиль по бюджетам из
+  `mobile/PERFORMANCE.md`.
 - Contract: воспроизводимость OpenAPI и TypeScript generated-кода.
 
 Тест не должен обращаться к production, ждать реальные таймеры или зависеть от
@@ -75,5 +77,6 @@ head`.
   сравнить median/p95 с сохранённым результатом той же среды.
 - Runtime: безопасные HTTP counters/duration доступны в `/metrics` только с
   отдельным `METRICS_TOKEN`.
-- Dependency security: `make audit` проверяет зафиксированный backend lockfile
-  через OSV; CI блокирует новую известную уязвимость.
+- Dependency security: `make audit` проверяет backend lockfile через OSV и
+  production-граф mobile через npm; CI блокирует новую production-уязвимость.
+  Полный dev-граф и принятые исключения описаны в `mobile/README.md`.

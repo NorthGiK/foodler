@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Animated } from "react-native";
+import { Animated, type StyleProp, type ViewStyle } from "react-native";
 import {
   timingConfig,
   entranceInterpolation,
@@ -51,7 +51,7 @@ export function useFadeIn(options: Options = {}) {
 
 type FadeInViewProps = Options & {
   children: React.ReactNode;
-  style?: any;
+  style?: StyleProp<ViewStyle>;
 };
 
 export function FadeInView({ children, style, ...options }: FadeInViewProps) {

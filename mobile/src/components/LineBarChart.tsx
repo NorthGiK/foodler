@@ -4,7 +4,7 @@ import { useTheme } from '@/components/ThemeContext';
 import { ChartKind } from '@/types'
 
 interface LineBarChartProps {
-    points: Array<{ label: string; value: number }>;
+    points: { label: string; value: number }[];
     kind: ChartKind;
 }
 

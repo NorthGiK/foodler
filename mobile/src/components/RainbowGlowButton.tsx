@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { StyleSheet, Text, Pressable, View, ViewStyle } from "react-native";
+import { StyleSheet, Text, View, ViewStyle } from "react-native";
 import AnimatedGlow, { type GlowEvent } from "react-native-animated-glow";
 import { useTheme } from "./ThemeContext";
 import { Theme } from "@/themes";

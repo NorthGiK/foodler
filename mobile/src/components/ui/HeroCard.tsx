@@ -4,11 +4,12 @@ import MaterialIcons from "@react-native-vector-icons/material-icons";
 import { AnimatedPressable } from "../animations/AnimatedPressable";
 import { useTheme } from "../ThemeContext";
 import AnimatedGlow from "react-native-animated-glow";
+import type { MaterialIconName } from "../icons";
 
 interface HeroCardProps {
   title: string;
   subtitle: string;
-  icon: string;
+  icon: MaterialIconName;
   iconColor?: string;
   onPress: () => void;
   style?: ViewStyle;
@@ -65,7 +66,7 @@ export function HeroCard({
             <View
               style={[styles.iconGlow, { backgroundColor: iconColor + "10" }]}
             />
-            <MaterialIcons name={icon as any} size={32} color={iconColor} />
+            <MaterialIcons name={icon} size={32} color={iconColor} />
           </View>
           <View style={styles.textContainer}>
             <Text

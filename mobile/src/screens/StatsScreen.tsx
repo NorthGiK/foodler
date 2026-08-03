@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Animated, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Theme } from "@/themes";
 import { useTheme } from "@/components/ThemeContext";
@@ -13,7 +13,7 @@ import {
   fmtRub,
   sumBy,
 } from "../utils";
-import { FadeInView, useStaggeredFadeIn } from "../components/animations";
+import { useStaggeredFadeIn } from "../components/animations";
 
 interface Props {
   receipts: Receipt[];
@@ -21,14 +21,14 @@ interface Props {
   onRefresh?: () => void;
 }
 
-const periodItems: Array<{ value: Period; label: string }> = [
+const periodItems: { value: Period; label: string }[] = [
   { value: "day", label: "День" },
   { value: "week", label: "Неделя" },
   { value: "month", label: "Месяц" },
   { value: "year", label: "Год" },
 ];
 
-const chartKindItems: Array<{ value: ChartKind; label: string }> = [
+const chartKindItems: { value: ChartKind; label: string }[] = [
   { value: "bar", label: "Столбцы" },
   { value: "line", label: "Линия" },
 ];
@@ -40,7 +40,6 @@ export function StatsScreen({ receipts, joinedItems }: Props) {
   const styles = getStyles(theme);
   const [period, setPeriod] = useState<Period>("month");
   const [chartKind, setChartKind] = useState<ChartKind>("bar");
-  const scrollY = useRef(new Animated.Value(0)).current;
 
   const filtered = useMemo(
     () => filterReceiptsByPeriod(receipts, period),
@@ -72,11 +71,6 @@ export function StatsScreen({ receipts, joinedItems }: Props) {
     <ScrollView
       style={[styles.container, { backgroundColor: theme.bg }]}
       contentContainerStyle={styles.content}
-      onScroll={Animated.event(
-        [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-        { useNativeDriver: false },
-      )}
-      scrollEventThrottle={16}
       showsVerticalScrollIndicator={false}
     >
       <Animated.View style={cardStyles[0]}>

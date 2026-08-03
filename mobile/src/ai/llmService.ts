@@ -54,64 +54,137 @@ export class AiServiceError extends Error {
  * JSON-строку с массивом под-секций. Эта функция рекурсивно разворачивает такие
  * секции в плоский массив AiSection.
  */
-function parseServerSections(serverSections: any[]): AiSection[] {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function sectionTitle(section: Record<string, unknown>) {
+  return typeof section.title === "string" ? section.title : "";
+}
+
+function listItemToText(item: unknown) {
+  if (typeof item === "string") return item;
+  if (!isRecord(item)) return String(item);
+
+  const name = typeof item.name === "string" ? item.name : "";
+  if (!name) return JSON.stringify(item);
+  const ingredients = Array.isArray(item.ingredients)
+    ? item.ingredients.filter(
+        (ingredient): ingredient is string => typeof ingredient === "string",
+      )
+    : [];
+  const preparation =
+    typeof item.preparation === "string" ? item.preparation : "";
+  return `${name}${ingredients.length ? `: ${ingredients.join(", ")}` : ""}${
+    preparation ? ` — ${preparation}` : ""
+  }`;
+}
+
+export function parseServerSections(serverSections: unknown[]): AiSection[] {
   const result: AiSection[] = [];
 
-  for (const section of serverSections) {
-    // Если это секция с типом text, и её text — JSON-массив, парсим вложенные секции
+  for (const rawSection of serverSections) {
+    if (!isRecord(rawSection) || typeof rawSection.type !== "string") continue;
+    const section = rawSection;
+
     if (
-      section.type === 'text' &&
-      typeof section.text === 'string' &&
-      section.text.trim().startsWith('[')
+      section.type === "text" &&
+      typeof section.text === "string" &&
+      section.text.trim().startsWith("[")
     ) {
       try {
-        const nested = JSON.parse(section.text);
+        const nested: unknown = JSON.parse(section.text);
         if (Array.isArray(nested)) {
           result.push(...parseServerSections(nested));
           continue;
         }
       } catch {
-        // Если не удалось распарсить — падаем в обычную обработку
+        // Preserve malformed nested JSON as ordinary text.
       }
     }
 
-    // Для list-секций: сервер может вернуть items как массив объектов (рецепты),
-    // а нам нужен массив строк. Преобразуем объекты в строки.
-    let items: string[] | undefined;
-    if (section.type === 'list' && Array.isArray(section.items)) {
-      items = section.items.map((item: any) => {
-        if (typeof item === 'string') return item;
-        // Если это объект рецепта — форматируем в строку
-        if (item.name) {
-          let str = item.name;
-          if (item.ingredients && Array.isArray(item.ingredients)) {
-            str += `: ${item.ingredients.join(', ')}`;
-          }
-          if (item.preparation) {
-            str += ` — ${item.preparation}`;
-          }
-          return str;
-        }
-        return JSON.stringify(item);
+    if (section.type === "text" && typeof section.text === "string") {
+      result.push({
+        type: "text",
+        title: sectionTitle(section),
+        text: section.text,
       });
+      continue;
     }
 
-    // Собираем AiSection, распространяя все возможные поля
-    result.push({
-      type: section.type,
-      title: section.title || '',
-      text: section.text,
-      items: items ?? section.items,
-      value: section.value,
-      max: section.max,
-      products: section.products,
-      labels: section.labels,
-      values: section.values,
-      kind: section.kind,
-    } as AiSection);
+    if (section.type === "list" && Array.isArray(section.items)) {
+      result.push({
+        type: "list",
+        title: sectionTitle(section),
+        items: section.items.map(listItemToText),
+      });
+      continue;
+    }
+
+    if (section.type === "score" && typeof section.value === "number") {
+      result.push({
+        type: "score",
+        title: sectionTitle(section),
+        value: section.value,
+        max: typeof section.max === "number" ? section.max : undefined,
+      });
+      continue;
+    }
+
+    if (section.type === "products" && Array.isArray(section.products)) {
+      const products = section.products.flatMap((product) => {
+        if (
+          !isRecord(product) ||
+          typeof product.name !== "string" ||
+          typeof product.reason !== "string"
+        ) {
+          return [];
+        }
+        return [
+          {
+            name: product.name,
+            reason: product.reason,
+            price:
+              typeof product.price === "number" ? product.price : undefined,
+          },
+        ];
+      });
+      result.push({
+        type: "products",
+        title: sectionTitle(section),
+        products,
+      });
+      continue;
+    }
+
+    if (
+      section.type === "chart" &&
+      Array.isArray(section.labels) &&
+      section.labels.every((label) => typeof label === "string") &&
+      Array.isArray(section.values) &&
+      section.values.every((value) => typeof value === "number")
+    ) {
+      result.push({
+        type: "chart",
+        title: sectionTitle(section),
+        labels: section.labels,
+        values: section.values,
+        kind: section.kind === "line" ? "line" : "bar",
+      });
+    }
   }
 
   return result;
+}
+
+function getErrorDetails(error: unknown) {
+  if (!isRecord(error)) return { message: "", status: undefined };
+  const message =
+    typeof error.message === "string" ? error.message.toLowerCase() : "";
+  const statusCandidate = error.status ?? error.statusCode ?? error.code;
+  const status =
+    typeof statusCandidate === "number" ? statusCandidate : undefined;
+  return { message, status };
 }
 
 /**
@@ -133,7 +206,6 @@ export async function generateAiResponse(
 
   try {
     const result = await api.runAiAction(serverAction, parameters);
-    console.debug("llmService.ts; generateAiResponse; ---", "result is", result);
 
     return {
       id:
@@ -144,28 +216,20 @@ export async function generateAiResponse(
       summary: "",
       sections: parseServerSections(result.sections || []),
     };
-  } catch (e: any) {
-    console.debug("error catched", (e as Error).message);
-    const message = (e?.message || "").toLowerCase();
-    const status = e?.status || e?.statusCode || e?.code;
+  } catch (error: unknown) {
+    const { message, status } = getErrorDetails(error);
 
     let kind: AiErrorKind = "unknown";
-    console.debug("llmService; generateAiResponse;", "message is", message);
-    if (
-      message.includes("network") ||
-      message.includes("fetch")
-    ) {
+    if (message.includes("network") || message.includes("fetch")) {
       kind = "network";
-    }
-    else if (
-      ["429"].some(c => message.includes(c)) ||
+    } else if (
+      message.includes("429") ||
       (typeof status === "number" && status === 429)
     ) {
       kind = "rate_limit";
-    }
-    else if (
+    } else if (
       message.includes("server") ||
-      ["502", "503", "504"].some(c => message.includes(c)) ||
+      ["502", "503", "504"].some((code) => message.includes(code)) ||
       (typeof status === "number" && status >= 500) ||
       status === 401
     ) {
@@ -177,10 +241,10 @@ export async function generateAiResponse(
         ? "Проблема с интернетом. Проверьте подключение и попробуйте снова."
         : kind === "server"
           ? "Сервер сейчас недоступен. Попробуйте позже."
-        : kind === "rate_limit"
-          ? "Заакончились действия. Подождите или оформите подписку"
-          : "Что-то пошло не так. Попробуйте ещё раз.";
+          : kind === "rate_limit"
+            ? "Закончились действия. Подождите или оформите подписку."
+            : "Что-то пошло не так. Попробуйте ещё раз.";
 
-    throw new AiServiceError(kind, userMessage, e);
+    throw new AiServiceError(kind, userMessage, error);
   }
 }

@@ -5,12 +5,20 @@ import { useTheme } from "../components/ThemeContext";
 import FullModalWindow from "@/components/FullModalWindow";
 import { AiActionType } from "../ai/types";
 import { ActionCard, HeroCard } from "@/components/ui";
+import type { MaterialIconName } from "../components/icons";
 
 type AnalysisProps = {
   analysisVisible: boolean;
   setAnalysisVisible: React.Dispatch<React.SetStateAction<boolean>>;
   onAction?: (action: AiActionType) => void;
 };
+
+interface AnalysisAction {
+  icon: MaterialIconName;
+  color: string;
+  title: string;
+  action: AiActionType;
+}
 
 export function AnalysisScreen({
   analysisVisible,
@@ -24,30 +32,30 @@ export function AnalysisScreen({
     onAction?.(action);
   };
 
-  const cards = [
+  const cards: AnalysisAction[] = [
     {
       icon: "savings",
       color: "#34C759",
       title: "Экономия",
-      action: "save_money" as AiActionType,
+      action: "save_money",
     },
     {
       icon: "favorite",
       color: "#FF3B30",
       title: "Рацион",
-      action: "diet" as AiActionType,
+      action: "diet",
     },
     {
       icon: "analytics",
       color: "#007AFF",
       title: "Привычки",
-      action: "habits" as AiActionType,
+      action: "habits",
     },
     {
       icon: "shopping-cart",
       color: "#FF9500",
       title: "Корзина",
-      action: "cart" as AiActionType,
+      action: "cart",
     },
   ];
 

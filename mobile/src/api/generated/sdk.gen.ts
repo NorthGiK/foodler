@@ -2,10 +2,8 @@
 
 import {
   type Client,
-  type ClientMeta,
   formDataBodySerializer,
   type Options as Options2,
-  type RequestResult,
   type TDataShape,
 } from "./client";
 import { client } from "./client.gen";
@@ -149,7 +147,7 @@ export type Options<
    * You can pass arbitrary values through the `meta` object. This can be
    * used to access values that aren't defined as part of the SDK function.
    */
-  meta?: keyof ClientMeta extends never ? Record<string, unknown> : ClientMeta;
+  meta?: Record<string, unknown>;
 };
 
 class HeyApiClient {
@@ -181,8 +179,7 @@ class HeyApiRegistry<T> {
 }
 
 export class Sdk extends HeyApiClient {
-  public static readonly __registry: HeyApiRegistry<Sdk> =
-    new HeyApiRegistry<Sdk>();
+  public static readonly __registry = new HeyApiRegistry<Sdk>();
 
   constructor(args?: { client?: Client; key?: string }) {
     super(args);
@@ -194,7 +191,7 @@ export class Sdk extends HeyApiClient {
    */
   public getActionsApiAiActionsGet<ThrowOnError extends boolean = false>(
     options?: Options<GetActionsApiAiActionsGetData, ThrowOnError>,
-  ): RequestResult<GetActionsApiAiActionsGetResponses, unknown, ThrowOnError> {
+  ) {
     return (options?.client ?? this.client).get<
       GetActionsApiAiActionsGetResponses,
       unknown,
@@ -207,7 +204,7 @@ export class Sdk extends HeyApiClient {
    */
   public getCreditsApiAiCreditsGet<ThrowOnError extends boolean = false>(
     options?: Options<GetCreditsApiAiCreditsGetData, ThrowOnError>,
-  ): RequestResult<GetCreditsApiAiCreditsGetResponses, unknown, ThrowOnError> {
+  ) {
     return (options?.client ?? this.client).get<
       GetCreditsApiAiCreditsGetResponses,
       unknown,
@@ -224,11 +221,7 @@ export class Sdk extends HeyApiClient {
    */
   public getHistoryApiAiHistoryGet<ThrowOnError extends boolean = false>(
     options?: Options<GetHistoryApiAiHistoryGetData, ThrowOnError>,
-  ): RequestResult<
-    GetHistoryApiAiHistoryGetResponses,
-    GetHistoryApiAiHistoryGetErrors,
-    ThrowOnError
-  > {
+  ) {
     return (options?.client ?? this.client).get<
       GetHistoryApiAiHistoryGetResponses,
       GetHistoryApiAiHistoryGetErrors,
@@ -247,11 +240,7 @@ export class Sdk extends HeyApiClient {
     ThrowOnError extends boolean = false,
   >(
     options: Options<DeleteReportApiAiHistoryReportIdDeleteData, ThrowOnError>,
-  ): RequestResult<
-    DeleteReportApiAiHistoryReportIdDeleteResponses,
-    DeleteReportApiAiHistoryReportIdDeleteErrors,
-    ThrowOnError
-  > {
+  ) {
     return (options.client ?? this.client).delete<
       DeleteReportApiAiHistoryReportIdDeleteResponses,
       DeleteReportApiAiHistoryReportIdDeleteErrors,
@@ -268,11 +257,7 @@ export class Sdk extends HeyApiClient {
    */
   public getReportApiAiHistoryReportIdGet<ThrowOnError extends boolean = false>(
     options: Options<GetReportApiAiHistoryReportIdGetData, ThrowOnError>,
-  ): RequestResult<
-    GetReportApiAiHistoryReportIdGetResponses,
-    GetReportApiAiHistoryReportIdGetErrors,
-    ThrowOnError
-  > {
+  ) {
     return (options.client ?? this.client).get<
       GetReportApiAiHistoryReportIdGetResponses,
       GetReportApiAiHistoryReportIdGetErrors,
@@ -289,11 +274,7 @@ export class Sdk extends HeyApiClient {
    */
   public runAiApiAiRunPost<ThrowOnError extends boolean = false>(
     options: Options<RunAiApiAiRunPostData, ThrowOnError>,
-  ): RequestResult<
-    RunAiApiAiRunPostResponses,
-    RunAiApiAiRunPostErrors,
-    ThrowOnError
-  > {
+  ) {
     return (options.client ?? this.client).post<
       RunAiApiAiRunPostResponses,
       RunAiApiAiRunPostErrors,
@@ -321,11 +302,7 @@ export class Sdk extends HeyApiClient {
       NutritionAnalysisApiAnalyticsNutritionGetData,
       ThrowOnError
     >,
-  ): RequestResult<
-    NutritionAnalysisApiAnalyticsNutritionGetResponses,
-    NutritionAnalysisApiAnalyticsNutritionGetErrors,
-    ThrowOnError
-  > {
+  ) {
     return (options?.client ?? this.client).get<
       NutritionAnalysisApiAnalyticsNutritionGetResponses,
       NutritionAnalysisApiAnalyticsNutritionGetErrors,
@@ -349,11 +326,7 @@ export class Sdk extends HeyApiClient {
       SpendingAnalysisApiAnalyticsSpendingGetData,
       ThrowOnError
     >,
-  ): RequestResult<
-    SpendingAnalysisApiAnalyticsSpendingGetResponses,
-    SpendingAnalysisApiAnalyticsSpendingGetErrors,
-    ThrowOnError
-  > {
+  ) {
     return (options?.client ?? this.client).get<
       SpendingAnalysisApiAnalyticsSpendingGetResponses,
       SpendingAnalysisApiAnalyticsSpendingGetErrors,
@@ -377,11 +350,7 @@ export class Sdk extends HeyApiClient {
       ForgotPasswordSendCodeApiAuthForgotPasswordSendCodePostData,
       ThrowOnError
     >,
-  ): RequestResult<
-    ForgotPasswordSendCodeApiAuthForgotPasswordSendCodePostResponses,
-    ForgotPasswordSendCodeApiAuthForgotPasswordSendCodePostErrors,
-    ThrowOnError
-  > {
+  ) {
     return (options.client ?? this.client).post<
       ForgotPasswordSendCodeApiAuthForgotPasswordSendCodePostResponses,
       ForgotPasswordSendCodeApiAuthForgotPasswordSendCodePostErrors,
@@ -408,11 +377,7 @@ export class Sdk extends HeyApiClient {
       ForgotPasswordVerifyCodeApiAuthForgotPasswordVerifyCodePostData,
       ThrowOnError
     >,
-  ): RequestResult<
-    ForgotPasswordVerifyCodeApiAuthForgotPasswordVerifyCodePostResponses,
-    ForgotPasswordVerifyCodeApiAuthForgotPasswordVerifyCodePostErrors,
-    ThrowOnError
-  > {
+  ) {
     return (options.client ?? this.client).post<
       ForgotPasswordVerifyCodeApiAuthForgotPasswordVerifyCodePostResponses,
       ForgotPasswordVerifyCodeApiAuthForgotPasswordVerifyCodePostErrors,
@@ -434,11 +399,7 @@ export class Sdk extends HeyApiClient {
    */
   public loginApiAuthLoginPost<ThrowOnError extends boolean = false>(
     options: Options<LoginApiAuthLoginPostData, ThrowOnError>,
-  ): RequestResult<
-    LoginApiAuthLoginPostResponses,
-    LoginApiAuthLoginPostErrors,
-    ThrowOnError
-  > {
+  ) {
     return (options.client ?? this.client).post<
       LoginApiAuthLoginPostResponses,
       LoginApiAuthLoginPostErrors,
@@ -458,11 +419,7 @@ export class Sdk extends HeyApiClient {
    */
   public refreshApiAuthRefreshPost<ThrowOnError extends boolean = false>(
     options: Options<RefreshApiAuthRefreshPostData, ThrowOnError>,
-  ): RequestResult<
-    RefreshApiAuthRefreshPostResponses,
-    RefreshApiAuthRefreshPostErrors,
-    ThrowOnError
-  > {
+  ) {
     return (options.client ?? this.client).post<
       RefreshApiAuthRefreshPostResponses,
       RefreshApiAuthRefreshPostErrors,
@@ -484,11 +441,7 @@ export class Sdk extends HeyApiClient {
    */
   public sendCodeApiAuthSendCodePost<ThrowOnError extends boolean = false>(
     options: Options<SendCodeApiAuthSendCodePostData, ThrowOnError>,
-  ): RequestResult<
-    SendCodeApiAuthSendCodePostResponses,
-    SendCodeApiAuthSendCodePostErrors,
-    ThrowOnError
-  > {
+  ) {
     return (options.client ?? this.client).post<
       SendCodeApiAuthSendCodePostResponses,
       SendCodeApiAuthSendCodePostErrors,
@@ -510,11 +463,7 @@ export class Sdk extends HeyApiClient {
    */
   public verifyCodeApiAuthVerifyCodePost<ThrowOnError extends boolean = false>(
     options: Options<VerifyCodeApiAuthVerifyCodePostData, ThrowOnError>,
-  ): RequestResult<
-    VerifyCodeApiAuthVerifyCodePostResponses,
-    VerifyCodeApiAuthVerifyCodePostErrors,
-    ThrowOnError
-  > {
+  ) {
     return (options.client ?? this.client).post<
       VerifyCodeApiAuthVerifyCodePostResponses,
       VerifyCodeApiAuthVerifyCodePostErrors,
@@ -534,7 +483,7 @@ export class Sdk extends HeyApiClient {
    */
   public listDevicesApiDevicesGet<ThrowOnError extends boolean = false>(
     options?: Options<ListDevicesApiDevicesGetData, ThrowOnError>,
-  ): RequestResult<ListDevicesApiDevicesGetResponses, unknown, ThrowOnError> {
+  ) {
     return (options?.client ?? this.client).get<
       ListDevicesApiDevicesGetResponses,
       unknown,
@@ -551,13 +500,7 @@ export class Sdk extends HeyApiClient {
    */
   public registerDeviceApiDevicesRegisterPost<
     ThrowOnError extends boolean = false,
-  >(
-    options: Options<RegisterDeviceApiDevicesRegisterPostData, ThrowOnError>,
-  ): RequestResult<
-    RegisterDeviceApiDevicesRegisterPostResponses,
-    RegisterDeviceApiDevicesRegisterPostErrors,
-    ThrowOnError
-  > {
+  >(options: Options<RegisterDeviceApiDevicesRegisterPostData, ThrowOnError>) {
     return (options.client ?? this.client).post<
       RegisterDeviceApiDevicesRegisterPostResponses,
       RegisterDeviceApiDevicesRegisterPostErrors,
@@ -578,13 +521,7 @@ export class Sdk extends HeyApiClient {
    */
   public removeDeviceApiDevicesDeviceIdDelete<
     ThrowOnError extends boolean = false,
-  >(
-    options: Options<RemoveDeviceApiDevicesDeviceIdDeleteData, ThrowOnError>,
-  ): RequestResult<
-    RemoveDeviceApiDevicesDeviceIdDeleteResponses,
-    RemoveDeviceApiDevicesDeviceIdDeleteErrors,
-    ThrowOnError
-  > {
+  >(options: Options<RemoveDeviceApiDevicesDeviceIdDeleteData, ThrowOnError>) {
     return (options.client ?? this.client).delete<
       RemoveDeviceApiDevicesDeviceIdDeleteResponses,
       RemoveDeviceApiDevicesDeviceIdDeleteErrors,
@@ -603,7 +540,7 @@ export class Sdk extends HeyApiClient {
    */
   public fridgeStatusApiFridgeGet<ThrowOnError extends boolean = false>(
     options?: Options<FridgeStatusApiFridgeGetData, ThrowOnError>,
-  ): RequestResult<FridgeStatusApiFridgeGetResponses, unknown, ThrowOnError> {
+  ) {
     return (options?.client ?? this.client).get<
       FridgeStatusApiFridgeGetResponses,
       unknown,
@@ -622,11 +559,7 @@ export class Sdk extends HeyApiClient {
    */
   public createProductApiProductsPost<ThrowOnError extends boolean = false>(
     options: Options<CreateProductApiProductsPostData, ThrowOnError>,
-  ): RequestResult<
-    CreateProductApiProductsPostResponses,
-    CreateProductApiProductsPostErrors,
-    ThrowOnError
-  > {
+  ) {
     return (options.client ?? this.client).post<
       CreateProductApiProductsPostResponses,
       CreateProductApiProductsPostErrors,
@@ -653,11 +586,7 @@ export class Sdk extends HeyApiClient {
       MatchProductEndpointApiProductsMatchPostData,
       ThrowOnError
     >,
-  ): RequestResult<
-    MatchProductEndpointApiProductsMatchPostResponses,
-    MatchProductEndpointApiProductsMatchPostErrors,
-    ThrowOnError
-  > {
+  ) {
     return (options.client ?? this.client).post<
       MatchProductEndpointApiProductsMatchPostResponses,
       MatchProductEndpointApiProductsMatchPostErrors,
@@ -679,13 +608,7 @@ export class Sdk extends HeyApiClient {
    */
   public searchProductsApiProductsSearchGet<
     ThrowOnError extends boolean = false,
-  >(
-    options: Options<SearchProductsApiProductsSearchGetData, ThrowOnError>,
-  ): RequestResult<
-    SearchProductsApiProductsSearchGetResponses,
-    SearchProductsApiProductsSearchGetErrors,
-    ThrowOnError
-  > {
+  >(options: Options<SearchProductsApiProductsSearchGetData, ThrowOnError>) {
     return (options.client ?? this.client).get<
       SearchProductsApiProductsSearchGetResponses,
       SearchProductsApiProductsSearchGetErrors,
@@ -700,13 +623,7 @@ export class Sdk extends HeyApiClient {
    */
   public getProductApiProductsProductIdGet<
     ThrowOnError extends boolean = false,
-  >(
-    options: Options<GetProductApiProductsProductIdGetData, ThrowOnError>,
-  ): RequestResult<
-    GetProductApiProductsProductIdGetResponses,
-    GetProductApiProductsProductIdGetErrors,
-    ThrowOnError
-  > {
+  >(options: Options<GetProductApiProductsProductIdGetData, ThrowOnError>) {
     return (options.client ?? this.client).get<
       GetProductApiProductsProductIdGetResponses,
       GetProductApiProductsProductIdGetErrors,
@@ -726,11 +643,7 @@ export class Sdk extends HeyApiClient {
       GetSubstitutesApiProductsProductIdSubstitutesGetData,
       ThrowOnError
     >,
-  ): RequestResult<
-    GetSubstitutesApiProductsProductIdSubstitutesGetResponses,
-    GetSubstitutesApiProductsProductIdSubstitutesGetErrors,
-    ThrowOnError
-  > {
+  ) {
     return (options.client ?? this.client).get<
       GetSubstitutesApiProductsProductIdSubstitutesGetResponses,
       GetSubstitutesApiProductsProductIdSubstitutesGetErrors,
@@ -743,11 +656,7 @@ export class Sdk extends HeyApiClient {
    */
   public getReceiptsApiReceiptsGet<ThrowOnError extends boolean = false>(
     options?: Options<GetReceiptsApiReceiptsGetData, ThrowOnError>,
-  ): RequestResult<
-    GetReceiptsApiReceiptsGetResponses,
-    GetReceiptsApiReceiptsGetErrors,
-    ThrowOnError
-  > {
+  ) {
     return (options?.client ?? this.client).get<
       GetReceiptsApiReceiptsGetResponses,
       GetReceiptsApiReceiptsGetErrors,
@@ -764,11 +673,7 @@ export class Sdk extends HeyApiClient {
    */
   public uploadReceiptApiReceiptsPost<ThrowOnError extends boolean = false>(
     options: Options<UploadReceiptApiReceiptsPostData, ThrowOnError>,
-  ): RequestResult<
-    UploadReceiptApiReceiptsPostResponses,
-    UploadReceiptApiReceiptsPostErrors,
-    ThrowOnError
-  > {
+  ) {
     return (options.client ?? this.client).post<
       UploadReceiptApiReceiptsPostResponses,
       UploadReceiptApiReceiptsPostErrors,
@@ -789,13 +694,7 @@ export class Sdk extends HeyApiClient {
    */
   public uploadReceiptsApiReceiptsArrayPost<
     ThrowOnError extends boolean = false,
-  >(
-    options: Options<UploadReceiptsApiReceiptsArrayPostData, ThrowOnError>,
-  ): RequestResult<
-    UploadReceiptsApiReceiptsArrayPostResponses,
-    UploadReceiptsApiReceiptsArrayPostErrors,
-    ThrowOnError
-  > {
+  >(options: Options<UploadReceiptsApiReceiptsArrayPostData, ThrowOnError>) {
     return (options.client ?? this.client).post<
       UploadReceiptsApiReceiptsArrayPostResponses,
       UploadReceiptsApiReceiptsArrayPostErrors,
@@ -821,11 +720,7 @@ export class Sdk extends HeyApiClient {
       GetReceiptByQrApiReceiptsGetReceiptByQrPostData,
       ThrowOnError
     >,
-  ): RequestResult<
-    GetReceiptByQrApiReceiptsGetReceiptByQrPostResponses,
-    GetReceiptByQrApiReceiptsGetReceiptByQrPostErrors,
-    ThrowOnError
-  > {
+  ) {
     return (options.client ?? this.client).post<
       GetReceiptByQrApiReceiptsGetReceiptByQrPostResponses,
       GetReceiptByQrApiReceiptsGetReceiptByQrPostErrors,
@@ -851,11 +746,7 @@ export class Sdk extends HeyApiClient {
       GetReceiptByRawQrApiReceiptsGetReceiptByRawQrPostData,
       ThrowOnError
     >,
-  ): RequestResult<
-    GetReceiptByRawQrApiReceiptsGetReceiptByRawQrPostResponses,
-    GetReceiptByRawQrApiReceiptsGetReceiptByRawQrPostErrors,
-    ThrowOnError
-  > {
+  ) {
     return (options.client ?? this.client).post<
       GetReceiptByRawQrApiReceiptsGetReceiptByRawQrPostResponses,
       GetReceiptByRawQrApiReceiptsGetReceiptByRawQrPostErrors,
@@ -879,11 +770,7 @@ export class Sdk extends HeyApiClient {
     ThrowOnError extends boolean = false,
   >(
     options: Options<DeleteReceiptApiReceiptsReceiptIdDeleteData, ThrowOnError>,
-  ): RequestResult<
-    DeleteReceiptApiReceiptsReceiptIdDeleteResponses,
-    DeleteReceiptApiReceiptsReceiptIdDeleteErrors,
-    ThrowOnError
-  > {
+  ) {
     return (options.client ?? this.client).delete<
       DeleteReceiptApiReceiptsReceiptIdDeleteResponses,
       DeleteReceiptApiReceiptsReceiptIdDeleteErrors,
@@ -900,13 +787,7 @@ export class Sdk extends HeyApiClient {
    */
   public getReceiptApiReceiptsReceiptIdGet<
     ThrowOnError extends boolean = false,
-  >(
-    options: Options<GetReceiptApiReceiptsReceiptIdGetData, ThrowOnError>,
-  ): RequestResult<
-    GetReceiptApiReceiptsReceiptIdGetResponses,
-    GetReceiptApiReceiptsReceiptIdGetErrors,
-    ThrowOnError
-  > {
+  >(options: Options<GetReceiptApiReceiptsReceiptIdGetData, ThrowOnError>) {
     return (options.client ?? this.client).get<
       GetReceiptApiReceiptsReceiptIdGetResponses,
       GetReceiptApiReceiptsReceiptIdGetErrors,
@@ -925,11 +806,7 @@ export class Sdk extends HeyApiClient {
     ThrowOnError extends boolean = false,
   >(
     options: Options<UpdateReceiptApiReceiptsReceiptIdPatchData, ThrowOnError>,
-  ): RequestResult<
-    UpdateReceiptApiReceiptsReceiptIdPatchResponses,
-    UpdateReceiptApiReceiptsReceiptIdPatchErrors,
-    ThrowOnError
-  > {
+  ) {
     return (options.client ?? this.client).patch<
       UpdateReceiptApiReceiptsReceiptIdPatchResponses,
       UpdateReceiptApiReceiptsReceiptIdPatchErrors,
@@ -952,11 +829,7 @@ export class Sdk extends HeyApiClient {
    */
   public listRecipesApiRecipesGet<ThrowOnError extends boolean = false>(
     options?: Options<ListRecipesApiRecipesGetData, ThrowOnError>,
-  ): RequestResult<
-    ListRecipesApiRecipesGetResponses,
-    ListRecipesApiRecipesGetErrors,
-    ThrowOnError
-  > {
+  ) {
     return (options?.client ?? this.client).get<
       ListRecipesApiRecipesGetResponses,
       ListRecipesApiRecipesGetErrors,
@@ -971,11 +844,7 @@ export class Sdk extends HeyApiClient {
    */
   public createRecipeApiRecipesPost<ThrowOnError extends boolean = false>(
     options: Options<CreateRecipeApiRecipesPostData, ThrowOnError>,
-  ): RequestResult<
-    CreateRecipeApiRecipesPostResponses,
-    CreateRecipeApiRecipesPostErrors,
-    ThrowOnError
-  > {
+  ) {
     return (options.client ?? this.client).post<
       CreateRecipeApiRecipesPostResponses,
       CreateRecipeApiRecipesPostErrors,
@@ -1002,11 +871,7 @@ export class Sdk extends HeyApiClient {
       SuggestRecipesEndpointApiRecipesSuggestGetData,
       ThrowOnError
     >,
-  ): RequestResult<
-    SuggestRecipesEndpointApiRecipesSuggestGetResponses,
-    SuggestRecipesEndpointApiRecipesSuggestGetErrors,
-    ThrowOnError
-  > {
+  ) {
     return (options?.client ?? this.client).get<
       SuggestRecipesEndpointApiRecipesSuggestGetResponses,
       SuggestRecipesEndpointApiRecipesSuggestGetErrors,
@@ -1025,11 +890,7 @@ export class Sdk extends HeyApiClient {
    */
   public getRecipeApiRecipesRecipeIdGet<ThrowOnError extends boolean = false>(
     options: Options<GetRecipeApiRecipesRecipeIdGetData, ThrowOnError>,
-  ): RequestResult<
-    GetRecipeApiRecipesRecipeIdGetResponses,
-    GetRecipeApiRecipesRecipeIdGetErrors,
-    ThrowOnError
-  > {
+  ) {
     return (options.client ?? this.client).get<
       GetRecipeApiRecipesRecipeIdGetResponses,
       GetRecipeApiRecipesRecipeIdGetErrors,
@@ -1044,13 +905,7 @@ export class Sdk extends HeyApiClient {
    */
   public getSubscriptionApiSubscriptionGet<
     ThrowOnError extends boolean = false,
-  >(
-    options?: Options<GetSubscriptionApiSubscriptionGetData, ThrowOnError>,
-  ): RequestResult<
-    GetSubscriptionApiSubscriptionGetResponses,
-    unknown,
-    ThrowOnError
-  > {
+  >(options?: Options<GetSubscriptionApiSubscriptionGetData, ThrowOnError>) {
     return (options?.client ?? this.client).get<
       GetSubscriptionApiSubscriptionGetResponses,
       unknown,
@@ -1069,13 +924,7 @@ export class Sdk extends HeyApiClient {
    */
   public isPremiumApiSubscriptionIsPremiumGet<
     ThrowOnError extends boolean = false,
-  >(
-    options?: Options<IsPremiumApiSubscriptionIsPremiumGetData, ThrowOnError>,
-  ): RequestResult<
-    IsPremiumApiSubscriptionIsPremiumGetResponses,
-    unknown,
-    ThrowOnError
-  > {
+  >(options?: Options<IsPremiumApiSubscriptionIsPremiumGetData, ThrowOnError>) {
     return (options?.client ?? this.client).get<
       IsPremiumApiSubscriptionIsPremiumGetResponses,
       unknown,
@@ -1099,11 +948,7 @@ export class Sdk extends HeyApiClient {
       CreatePaymentApiSubscriptionPaymentPostData,
       ThrowOnError
     >,
-  ): RequestResult<
-    CreatePaymentApiSubscriptionPaymentPostResponses,
-    CreatePaymentApiSubscriptionPaymentPostErrors,
-    ThrowOnError
-  > {
+  ) {
     return (options?.client ?? this.client).post<
       CreatePaymentApiSubscriptionPaymentPostResponses,
       CreatePaymentApiSubscriptionPaymentPostErrors,
@@ -1131,11 +976,7 @@ export class Sdk extends HeyApiClient {
       WebhookApiSubscriptionYookassaWebhookPostData,
       ThrowOnError
     >,
-  ): RequestResult<
-    WebhookApiSubscriptionYookassaWebhookPostResponses,
-    WebhookApiSubscriptionYookassaWebhookPostErrors,
-    ThrowOnError
-  > {
+  ) {
     return (options.client ?? this.client).post<
       WebhookApiSubscriptionYookassaWebhookPostResponses,
       WebhookApiSubscriptionYookassaWebhookPostErrors,
@@ -1157,7 +998,7 @@ export class Sdk extends HeyApiClient {
    */
   public listTagsApiTagsGet<ThrowOnError extends boolean = false>(
     options?: Options<ListTagsApiTagsGetData, ThrowOnError>,
-  ): RequestResult<ListTagsApiTagsGetResponses, unknown, ThrowOnError> {
+  ) {
     return (options?.client ?? this.client).get<
       ListTagsApiTagsGetResponses,
       unknown,
@@ -1170,7 +1011,7 @@ export class Sdk extends HeyApiClient {
    */
   public getMeApiUsersMeGet<ThrowOnError extends boolean = false>(
     options?: Options<GetMeApiUsersMeGetData, ThrowOnError>,
-  ): RequestResult<GetMeApiUsersMeGetResponses, unknown, ThrowOnError> {
+  ) {
     return (options?.client ?? this.client).get<
       GetMeApiUsersMeGetResponses,
       unknown,
@@ -1189,13 +1030,7 @@ export class Sdk extends HeyApiClient {
    */
   public sendFeedbackApiUsersSendFeedbackPost<
     ThrowOnError extends boolean = false,
-  >(
-    options: Options<SendFeedbackApiUsersSendFeedbackPostData, ThrowOnError>,
-  ): RequestResult<
-    SendFeedbackApiUsersSendFeedbackPostResponses,
-    SendFeedbackApiUsersSendFeedbackPostErrors,
-    ThrowOnError
-  > {
+  >(options: Options<SendFeedbackApiUsersSendFeedbackPostData, ThrowOnError>) {
     return (options.client ?? this.client).post<
       SendFeedbackApiUsersSendFeedbackPostResponses,
       SendFeedbackApiUsersSendFeedbackPostErrors,
@@ -1216,7 +1051,7 @@ export class Sdk extends HeyApiClient {
    */
   public healthHealthGet<ThrowOnError extends boolean = false>(
     options?: Options<HealthHealthGetData, ThrowOnError>,
-  ): RequestResult<HealthHealthGetResponses, unknown, ThrowOnError> {
+  ) {
     return (options?.client ?? this.client).get<
       HealthHealthGetResponses,
       unknown,
@@ -1229,7 +1064,7 @@ export class Sdk extends HeyApiClient {
    */
   public readinessReadyGet<ThrowOnError extends boolean = false>(
     options?: Options<ReadinessReadyGetData, ThrowOnError>,
-  ): RequestResult<ReadinessReadyGetResponses, unknown, ThrowOnError> {
+  ) {
     return (options?.client ?? this.client).get<
       ReadinessReadyGetResponses,
       unknown,

@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Animated, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Theme } from "@/themes";
 import { useTheme } from "@/components/ThemeContext";
@@ -14,14 +14,14 @@ interface TypesScreenProps {
   onRefresh?: () => void;
 }
 
-const periodItems: Array<{ label: string; value: string }> = [
+const periodItems: { label: string; value: string }[] = [
   { label: "День", value: "day" },
   { label: "Неделя", value: "week" },
   { label: "Месяц", value: "month" },
   { label: "Год", value: "year" },
 ];
 
-const modeItems: Array<{ label: string; value: string }> = [
+const modeItems: { label: string; value: string }[] = [
   { label: "Частота", value: "count" },
   { label: "Сумма", value: "spend" },
 ];
@@ -31,7 +31,6 @@ export function TypesScreen({ receipts, joinedItems }: TypesScreenProps) {
   const styles = getStyles(theme);
   const [period, setPeriod] = useState<Period>("month");
   const [mode, setMode] = useState<CategoryMode>("count");
-  const scrollY = useRef(new Animated.Value(0)).current;
 
   const filteredReceipts = useMemo(
     () => filterReceiptsByPeriod(receipts, period),
@@ -62,11 +61,6 @@ export function TypesScreen({ receipts, joinedItems }: TypesScreenProps) {
   return (
     <ScrollView
       contentContainerStyle={styles.content}
-      onScroll={Animated.event(
-        [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-        { useNativeDriver: false },
-      )}
-      scrollEventThrottle={16}
       showsVerticalScrollIndicator={false}
     >
       <Animated.View style={cardStyles[0]}>
@@ -118,7 +112,7 @@ export function TypesScreen({ receipts, joinedItems }: TypesScreenProps) {
   );
 }
 
-const getStyles = (theme: Theme) =>
+const getStyles = (_theme: Theme) =>
   StyleSheet.create({
     content: {
       paddingHorizontal: 16,

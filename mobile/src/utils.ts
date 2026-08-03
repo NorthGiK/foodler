@@ -1,5 +1,3 @@
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
 import { CategoryMode, Period, Receipt, ReceiptItem } from "./types";
 
 export function isValidEmail(email: string): boolean {
@@ -7,15 +5,11 @@ export function isValidEmail(email: string): boolean {
   return emailRegex.test(email);
 }
 
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
-
 // Группировка чеков по дням / неделям / месяцам
 export function buildAllTimeSeries(
   receipts: Receipt[],
   step: Period,
-): Array<{ label: string; value: number; date: Date }> {
+): { label: string; value: number; date: Date }[] {
   if (receipts.length === 0) return [];
 
   const sorted = [...receipts].sort(
@@ -27,24 +21,33 @@ export function buildAllTimeSeries(
   const maxDate = new Date();
   maxDate.setHours(23, 59, 59, 999);
 
-  const points: Array<{ label: string; value: number; date: Date }> = [];
+  const points: { label: string; value: number; date: Date }[] = [];
+  const totals = new Map<number, number>();
+  const bucketStart = (receipt: Receipt) => {
+    const date = startOfDay(new Date(receipt.ticketDate));
+    if (step === "week") {
+      date.setDate(date.getDate() - ((date.getDay() + 6) % 7));
+    } else if (step === "month") {
+      date.setDate(1);
+    } else if (step === "year") {
+      date.setMonth(0, 1);
+    }
+    return date.getTime();
+  };
+  for (const receipt of receipts) {
+    const key = bucketStart(receipt);
+    totals.set(key, (totals.get(key) ?? 0) + receipt.totalSumRub);
+  }
 
   if (step === "day") {
     const cursor = new Date(minDate);
     while (cursor <= maxDate) {
-      const next = addDays(cursor, 1);
-      const value = receipts
-        .filter((r) => {
-          const d = new Date(r.ticketDate);
-          return d >= cursor && d < next;
-        })
-        .reduce((sum, r) => sum + r.totalSumRub, 0);
       points.push({
         label: cursor.toLocaleDateString("ru", {
           day: "2-digit",
           month: "2-digit",
         }),
-        value,
+        value: totals.get(cursor.getTime()) ?? 0,
         date: new Date(cursor),
       });
       cursor.setDate(cursor.getDate() + 1);
@@ -54,16 +57,9 @@ export function buildAllTimeSeries(
     const cursor = new Date(minDate);
     cursor.setDate(cursor.getDate() - ((cursor.getDay() + 6) % 7)); // пн
     while (cursor <= maxDate) {
-      const weekEnd = addDays(cursor, 7);
-      const value = receipts
-        .filter((r) => {
-          const d = new Date(r.ticketDate);
-          return d >= cursor && d < weekEnd;
-        })
-        .reduce((sum, r) => sum + r.totalSumRub, 0);
       points.push({
         label: `${cursor.toLocaleDateString("ru", { day: "2-digit", month: "2-digit" })}`,
-        value,
+        value: totals.get(cursor.getTime()) ?? 0,
         date: new Date(cursor),
       });
       cursor.setDate(cursor.getDate() + 7);
@@ -71,19 +67,12 @@ export function buildAllTimeSeries(
   } else if (step === "month") {
     const cursor = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
     while (cursor <= maxDate) {
-      const next = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
-      const value = receipts
-        .filter((r) => {
-          const d = new Date(r.ticketDate);
-          return d >= cursor && d < next;
-        })
-        .reduce((sum, r) => sum + r.totalSumRub, 0);
       points.push({
         label: cursor.toLocaleDateString("ru", {
           month: "short",
           year: "2-digit",
         }),
-        value,
+        value: totals.get(cursor.getTime()) ?? 0,
         date: new Date(cursor),
       });
       cursor.setMonth(cursor.getMonth() + 1);
@@ -94,16 +83,9 @@ export function buildAllTimeSeries(
     const endYear = maxDate.getFullYear();
     for (let y = startYear; y <= endYear; y++) {
       const first = new Date(y, 0, 1);
-      const last = new Date(y, 11, 31, 23, 59, 59);
-      const value = receipts
-        .filter((r) => {
-          const d = new Date(r.ticketDate);
-          return d >= first && d <= last;
-        })
-        .reduce((sum, r) => sum + r.totalSumRub, 0);
       points.push({
         label: String(y),
-        value,
+        value: totals.get(first.getTime()) ?? 0,
         date: first,
       });
     }
@@ -160,12 +142,6 @@ function startOfYear(date = new Date()): Date {
   return d;
 }
 
-function addDays(date: Date, days: number): Date {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
-
 // Получение диапазона дат для периода
 export function getRange(period: Period): { start: Date; end: Date } {
   const end = new Date();
@@ -199,7 +175,7 @@ export function sumBy<T>(
   items: T[],
   getKey: (item: T) => string,
   getValue: (item: T) => number,
-): Array<{ label: string; value: number }> {
+): { label: string; value: number }[] {
   const map = new Map<string, number>();
 
   for (const item of items) {
@@ -218,7 +194,7 @@ export function buildCategoryStats(
   items: (ReceiptItem & { ticketDate?: string })[],
   period: Period,
   mode: CategoryMode,
-): Array<{ label: string; value: number }> {
+): { label: string; value: number }[] {
   const filteredReceipts = filterReceiptsByPeriod(receipts, period);
   const allowedIds = new Set(filteredReceipts.map((r) => r.id));
   const filteredItems = items.filter((item) => allowedIds.has(item.receiptId));

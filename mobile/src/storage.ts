@@ -1,10 +1,16 @@
 import * as SQLite from "expo-sqlite";
 import { detectCategory } from "./category";
+import {
+  batchReceiptChanges,
+  notifyReceiptChange,
+  subscribeToReceiptChanges,
+} from "./features/receipts/receiptChanges";
 import { ApiReceiptResponse, Receipt, ReceiptItem } from "./types";
 
 const DB_NAME = "food_spend_tracker.db";
 
 let _db: SQLite.SQLiteDatabase | null = null;
+export { batchReceiptChanges, subscribeToReceiptChanges };
 
 export async function openDb() {
   if (_db) return _db;
@@ -67,7 +73,6 @@ export function normalizeReceiptResponse(
   if (!data || response.code !== 1) return null;
 
   const qrraw = response.request?.qrraw;
-  console.debug(response.request?.qrraw);
   if (!qrraw) return null;
 
   const ticketDate = toIsoDate(data.ticketDate);
@@ -106,44 +111,48 @@ export async function saveReceipt(
   receipt: Receipt,
   items: ReceiptItem[],
 ) {
-  await db.runAsync(
-    `INSERT OR REPLACE INTO receipts (id, qrraw, organization, ticketDate, operationType, totalSumRub, sourceCode, createdAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      receipt.id,
-      receipt.qrraw,
-      receipt.organization,
-      receipt.ticketDate,
-      receipt.operationType,
-      receipt.totalSumRub,
-      receipt.sourceCode,
-      receipt.createdAt,
-    ],
-  );
+  await db.withExclusiveTransactionAsync(async (transaction) => {
+    await transaction.runAsync(
+      `INSERT OR REPLACE INTO receipts (id, qrraw, organization, ticketDate, operationType, totalSumRub, sourceCode, createdAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        receipt.id,
+        receipt.qrraw,
+        receipt.organization,
+        receipt.ticketDate,
+        receipt.operationType,
+        receipt.totalSumRub,
+        receipt.sourceCode,
+        receipt.createdAt,
+      ],
+    );
 
-  await db.runAsync(`DELETE FROM receipt_items WHERE receiptId = ?`, [
-    receipt.id,
-  ]);
+    await transaction.runAsync(
+      `DELETE FROM receipt_items WHERE receiptId = ?`,
+      [receipt.id],
+    );
 
-  const statement = await db.prepareAsync(
-    `INSERT INTO receipt_items (receiptId, name, category, priceRub, quantity, sumRub)
-     VALUES ($receiptId, $name, $category, $priceRub, $quantity, $sumRub)`,
-  );
+    const statement = await transaction.prepareAsync(
+      `INSERT INTO receipt_items (receiptId, name, category, priceRub, quantity, sumRub)
+       VALUES ($receiptId, $name, $category, $priceRub, $quantity, $sumRub)`,
+    );
 
-  try {
-    for (const item of items) {
-      await statement.executeAsync({
-        $receiptId: item.receiptId,
-        $name: item.name,
-        $category: item.category,
-        $priceRub: item.priceRub,
-        $quantity: item.quantity,
-        $sumRub: item.sumRub,
-      });
+    try {
+      for (const item of items) {
+        await statement.executeAsync({
+          $receiptId: receipt.id,
+          $name: item.name,
+          $category: item.category,
+          $priceRub: item.priceRub,
+          $quantity: item.quantity,
+          $sumRub: item.sumRub,
+        });
+      }
+    } finally {
+      await statement.finalizeAsync();
     }
-  } finally {
-    await statement.finalizeAsync();
-  }
+  });
+  notifyReceiptChange();
 }
 
 export async function loadReceipts(db: SQLite.SQLiteDatabase) {
@@ -180,8 +189,14 @@ export async function deleteReceipt(
   db: SQLite.SQLiteDatabase,
   receiptId: string,
 ) {
-  await db.runAsync(`DELETE FROM receipt_items WHERE receiptId = ?`, [
-    receiptId,
-  ]);
-  await db.runAsync(`DELETE FROM receipts WHERE id = ?`, [receiptId]);
+  await db.withExclusiveTransactionAsync(async (transaction) => {
+    await transaction.runAsync(
+      `DELETE FROM receipt_items WHERE receiptId = ?`,
+      [receiptId],
+    );
+    await transaction.runAsync(`DELETE FROM receipts WHERE id = ?`, [
+      receiptId,
+    ]);
+  });
+  notifyReceiptChange();
 }

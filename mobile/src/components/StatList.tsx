@@ -5,7 +5,7 @@ import { Theme } from '@/themes';
 
 interface StatListProps {
     title: string;
-    data: Array<{ label: string; value: number }>;
+    data: { label: string; value: number }[];
 }
 
 export function StatList({ title, data }: StatListProps) {

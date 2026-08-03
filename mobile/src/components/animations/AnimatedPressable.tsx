@@ -2,6 +2,7 @@ import React, { useRef, useCallback } from "react";
 import {
   Pressable,
   Animated,
+  GestureResponderEvent,
   PressableProps,
   ViewStyle,
   StyleProp,
@@ -26,23 +27,23 @@ export function AnimatedPressable({
   const scale = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = useCallback(
-    (e: any) => {
+    (event: GestureResponderEvent) => {
       Animated.spring(scale, {
         toValue: scaleTo,
         ...springSnappy,
       }).start();
-      onPressIn?.(e);
+      onPressIn?.(event);
     },
     [scale, scaleTo, onPressIn],
   );
 
   const handlePressOut = useCallback(
-    (e: any) => {
+    (event: GestureResponderEvent) => {
       Animated.spring(scale, {
         toValue: 1,
         ...springSnappy,
       }).start();
-      onPressOut?.(e);
+      onPressOut?.(event);
     },
     [scale, onPressOut],
   );
@@ -54,7 +55,7 @@ export function AnimatedPressable({
       onPressOut={handlePressOut}
       {...props}
     >
-      <Animated.View style={[{ transform: [{ scale }] }, style as any]}>
+      <Animated.View style={[{ transform: [{ scale }] }, style]}>
         {children}
       </Animated.View>
     </Pressable>
