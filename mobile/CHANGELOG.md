@@ -4,6 +4,8 @@
 
 - AI-agent changes require documentation review before commit and are delivered
   through a pushed `agent/...` branch, never directly to `main`.
+- Receipt synchronization now sends a calendar date accepted by the API, and
+  AI report storage is initialized before it is queried.
 
 ## [1.3.0] — 2026-08-02
 

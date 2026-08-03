@@ -39,7 +39,7 @@ function toServerReceipt(
 ): ReceiptSchema {
   return {
     id: receipt.id,
-    date: receipt.ticketDate,
+    date: receipt.ticketDate.slice(0, 10),
     store: receipt.organization,
     total: Math.abs(receipt.totalSumRub),
     items: items.map((item) => ({

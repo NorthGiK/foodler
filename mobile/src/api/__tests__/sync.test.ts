@@ -61,7 +61,7 @@ describe("receipt synchronization", () => {
     await expect(syncReceiptToServer(receipt, items)).resolves.toBe(true);
     expect(api.createReceipt).toHaveBeenCalledWith({
       id: receipt.id,
-      date: receipt.ticketDate,
+      date: "2026-08-01",
       store: receipt.organization,
       total: 100,
       items: [

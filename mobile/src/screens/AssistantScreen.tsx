@@ -73,12 +73,21 @@ export function AssistantScreen({ db, receipts, joinedItems }: Props) {
   }, [db]);
 
   useEffect(() => {
-    if (db) {
-      void initAiReportsTable(db).catch(() => {
+    if (!db) return;
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        await initAiReportsTable(db);
+        if (!cancelled) await loadRecentReports();
+      } catch {
         console.warn("AI report storage could not be initialized");
-      });
-      void loadRecentReports();
-    }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [db, loadRecentReports]);
 
   const openReport = useCallback((report: AiReport) => {

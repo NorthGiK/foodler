@@ -6,6 +6,8 @@
   through a pushed `agent/...` branch, never directly to `main`.
 - Email-code confirmation now validates a password only when registering a new
   account; existing users can sign in without an unintended password reset.
+- Added a compatibility migration for the AI cache/report fields required by
+  AI requests and history reads on legacy SQLite databases.
 
 ## v1.5.1 — Subscription simplification and documentation alignment
 

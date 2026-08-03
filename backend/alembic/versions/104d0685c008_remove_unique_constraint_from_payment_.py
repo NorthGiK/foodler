@@ -99,8 +99,11 @@ def _create_legacy_baseline() -> None:
         ),
         "ai_reports": (
             sa.Column("id", sa.String(), primary_key=True),
+            sa.Column("action", sa.String(), nullable=False),
             sa.Column("user_id", sa.String(), nullable=False),
             sa.Column("created_at", sa.DateTime(), nullable=False),
+            sa.Column("snapshot", sa.String()),
+            sa.Column("response", sa.String()),
         ),
         "subcription_in_process": (
             sa.Column("id", sa.String(), primary_key=True),
@@ -114,6 +117,8 @@ def _create_legacy_baseline() -> None:
             sa.Column("action", sa.String(), nullable=False),
             sa.Column("context_hash", sa.String(), nullable=False),
             sa.Column("question_hash", sa.String()),
+            sa.Column("response", sa.Text(), nullable=False),
+            sa.Column("created_at", sa.DateTime(), nullable=False),
             sa.Column("expires_at", sa.DateTime(), nullable=False),
         ),
     }.items():

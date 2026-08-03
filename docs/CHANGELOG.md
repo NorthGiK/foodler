@@ -1,5 +1,15 @@
 # Changelog
 
+# v0.0.6 — AI storage and receipt-sync repair
+
+### fixes
+- Legacy backend SQLite databases gain the AI cache/report fields required by
+  AI runs and history reads.
+- Mobile sync sends receipt dates in the API's calendar-date format, and local
+  AI report storage is initialized before loading reports.
+
+###
+
 # v0.0.5 — confirmation-code login fix
 
 ### fixes
