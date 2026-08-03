@@ -70,6 +70,17 @@ def _create_legacy_baseline() -> None:
         sa.Column("product_id", sa.String()),
     )
     op.create_table(
+        "ai_credit_usage",
+        sa.Column("id", sa.String(), primary_key=True),
+        sa.Column("user_id", sa.String(), nullable=True),
+        sa.Column("ip_hash", sa.String(), nullable=True),
+        sa.Column("action", sa.String(), nullable=False),
+        sa.Column("credits", sa.Float(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+    )
+    op.create_index("ix_ai_credit_usage_user_id", "ai_credit_usage", ["user_id"])
+    op.create_index("ix_ai_credit_usage_ip_hash", "ai_credit_usage", ["ip_hash"])
+    op.create_table(
         "subscriptions",
         sa.Column("id", sa.String(), primary_key=True),
         sa.Column("user_id", sa.String(), nullable=False, unique=True),

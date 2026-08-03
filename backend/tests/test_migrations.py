@@ -179,12 +179,13 @@ def test_migrations_create_schema_for_empty_database(tmp_path):
         "users",
         "receipts",
         "receipt_items",
+        "ai_credit_usage",
         "ai_credit_balances",
         "rate_limit_buckets",
     } <= set(inspector.get_table_names())
     with engine.connect() as connection:
         assert connection.execute(sa.text("SELECT version_num FROM alembic_version")).scalar_one() == (
-            "d4b7a9c2e610"
+            "e6f2b8a3d901"
         )
     engine.dispose()
 

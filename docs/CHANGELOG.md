@@ -6,6 +6,8 @@
 - Fresh backend SQLite databases are now created through the Alembic migration
   chain, so the deployment migration service can initialize its persistent
   volume before the API starts.
+- The migration chain now creates the AI credit usage ledger required by
+  `GET /api/ai/credits`.
 - A newly saved local receipt queues an upload while the user is signed in;
   receipts downloaded from the server are marked as already synchronized.
 
