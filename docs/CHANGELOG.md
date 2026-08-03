@@ -1,5 +1,16 @@
 # Changelog
 
+# v0.0.3 — reliable receipt synchronization
+
+### fixes
+- Fresh backend SQLite databases are now created through the Alembic migration
+  chain, so the deployment migration service can initialize its persistent
+  volume before the API starts.
+- A newly saved local receipt queues an upload while the user is signed in;
+  receipts downloaded from the server are marked as already synchronized.
+
+###
+
 # v0.0.2 — fix init_db
 
 ### fixes

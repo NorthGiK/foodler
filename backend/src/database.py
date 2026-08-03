@@ -4,7 +4,6 @@ from sqlalchemy.orm import DeclarativeBase
 
 from .config import DATABASE_URL
 
-
 engine = create_async_engine(DATABASE_URL, echo=False)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
@@ -28,9 +27,3 @@ async def check_database(session: AsyncSession | None = None) -> None:
         return
     async with async_session() as session:
         await session.execute(select(1))
-
-async def init_db():
-    async with engine.begin() as conn:
-        from . import models  # noqa: F401 - ensure models are imported
-
-        await conn.run_sync(Base.metadata.create_all)

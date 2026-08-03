@@ -11,7 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import CORS_ORIGINS, METRICS_TOKEN, RECEIPT_CLEANUP_INTERVAL_SECONDS
-from .database import async_session, check_database, get_db, init_db
+from .database import async_session, check_database, get_db
 from .integrations.http import close_http_session
 from .logging_config import configure_logging, request_id_context
 from .metrics import record_http_request, render_prometheus
@@ -29,7 +29,6 @@ _REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 async def lifespan(app: FastAPI):
     cleanup_task = asyncio.create_task(_periodic_cleanup(), name="database-cleanup")
     try:
-        await init_db()
         yield
     finally:
         cleanup_task.cancel()

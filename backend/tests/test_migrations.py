@@ -165,6 +165,30 @@ def test_hardening_migrations_upgrade_previous_schema_and_data(tmp_path):
     engine.dispose()
 
 
+def test_migrations_create_schema_for_empty_database(tmp_path):
+    database = tmp_path / "fresh.sqlite"
+    url = f"sqlite:///{database}"
+    config = Config("alembic.ini")
+    config.attributes["database_url"] = url
+
+    command.upgrade(config, "head")
+
+    engine = create_engine(url)
+    inspector = inspect(engine)
+    assert {
+        "users",
+        "receipts",
+        "receipt_items",
+        "ai_credit_balances",
+        "rate_limit_buckets",
+    } <= set(inspector.get_table_names())
+    with engine.connect() as connection:
+        assert connection.execute(sa.text("SELECT version_num FROM alembic_version")).scalar_one() == (
+            "d4b7a9c2e610"
+        )
+    engine.dispose()
+
+
 def test_removed_subscription_provider_is_revoked_during_upgrade(tmp_path):
     database = tmp_path / "removed-provider.sqlite"
     url = f"sqlite:///{database}"

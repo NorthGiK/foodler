@@ -79,8 +79,12 @@ export async function pullServerReceipts(
     const localReceipts = await loadReceipts(db);
     const localIds = new Set(localReceipts.map((r) => r.id));
     const pendingDeletedIds = await getPendingDeletedIds();
+    const syncedIds = await getSyncedIds();
 
     for (const sr of serverReceipts) {
+      // A successful server listing is confirmation that this ID is already
+      // persisted remotely, including receipts downloaded from another device.
+      syncedIds.add(sr.id);
       if (localIds.has(sr.id) || pendingDeletedIds.has(sr.id)) continue;
 
       const receipt: Receipt = {
@@ -107,6 +111,7 @@ export async function pullServerReceipts(
       );
       result.items.push(...receiptItems);
     }
+    await saveSyncedIds(syncedIds);
   } catch {
     console.warn("Receipt download failed");
   }

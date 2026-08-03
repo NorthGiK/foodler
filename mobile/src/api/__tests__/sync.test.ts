@@ -1,7 +1,10 @@
 import { api, getAccessToken } from "../client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { loadReceiptItems, loadReceipts } from "../../storage";
 import {
+  pullServerReceipts,
   queueReceiptDeletion,
+  syncAllLocalReceiptsBulk,
   syncPendingReceiptDeletions,
   syncReceiptToServer,
 } from "../sync";
@@ -10,15 +13,17 @@ import type { Receipt, ReceiptItem } from "../../types";
 jest.mock("../client", () => ({
   api: {
     createReceipt: jest.fn(),
+    createReceiptsArray: jest.fn(),
     deleteReceipt: jest.fn(),
+    getReceipts: jest.fn(),
   },
   getAccessToken: jest.fn(),
 }));
 
 jest.mock("../../storage", () => ({
   openDb: jest.fn(),
-  loadReceipts: jest.fn(),
   loadReceiptItems: jest.fn(),
+  loadReceipts: jest.fn(),
 }));
 
 const receipt: Receipt = {
@@ -101,5 +106,26 @@ describe("receipt synchronization", () => {
     await expect(
       AsyncStorage.getItem("@pending_deleted_receipt_ids"),
     ).resolves.toBeNull();
+  });
+
+  it("does not re-upload receipts confirmed by a server pull", async () => {
+    jest.mocked(api.getReceipts).mockResolvedValue([
+      {
+        id: receipt.id,
+        date: "2026-08-01",
+        store: receipt.organization,
+        total: receipt.totalSumRub,
+        items: [],
+      },
+    ]);
+    jest.mocked(loadReceipts).mockResolvedValue([]);
+
+    await pullServerReceipts({} as never);
+
+    jest.mocked(loadReceipts).mockResolvedValue([receipt]);
+    jest.mocked(loadReceiptItems).mockResolvedValue(items);
+    await syncAllLocalReceiptsBulk({} as never);
+
+    expect(api.createReceiptsArray).not.toHaveBeenCalled();
   });
 });

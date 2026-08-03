@@ -167,10 +167,30 @@ function TabContent() {
 
   useEffect(() => {
     if (!isAuthenticated || !db) return;
+    let synchronizing = false;
+    let syncQueued = false;
+
+    const pushLocalReceipts = async () => {
+      if (synchronizing) {
+        syncQueued = true;
+        return;
+      }
+      synchronizing = true;
+      try {
+        await syncAllLocalReceiptsBulk(db);
+      } finally {
+        synchronizing = false;
+        if (syncQueued) {
+          syncQueued = false;
+          void pushLocalReceipts();
+        }
+      }
+    };
+
     void (async () => {
       try {
         await syncPendingReceiptDeletions();
-        await syncAllLocalReceiptsBulk(db);
+        await pushLocalReceipts();
         const serverData = await pullServerReceipts(db);
         if (serverData.receipts.length > 0) {
           await batchReceiptChanges(async () => {
@@ -189,6 +209,10 @@ function TabContent() {
         console.warn("Background synchronization failed");
       }
     })();
+
+    return subscribeToReceiptChanges(() => {
+      void pushLocalReceipts();
+    });
   }, [isAuthenticated, db]);
 
   const switchTab = (newTab: Tab) => {
