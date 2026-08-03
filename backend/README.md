@@ -86,3 +86,8 @@ FOODLER_LOAD_TOKEN=... uv run python -m scripts.load_smoke \
 При любом изменении backend-кода обязательно обновите связанные README,
 changelog, guides, `docs/`, `.env.example`, migration notes и OpenAPI. Документ
 не может описывать endpoint, поле или гарантию, которых больше нет в коде.
+
+Перед коммитом AI-агент проверяет этот список документации. После успешных
+проверок он создаёт отдельную `agent/...` ветку, коммитит только текущую задачу
+и отправляет её в `origin`; прямой push в `main` запрещён. Точные правила и
+формат handoff определены в корневом [AGENTS.md](../AGENTS.md).

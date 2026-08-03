@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- AI-agent changes require documentation review before commit and are delivered
+  through a pushed `agent/...` branch, never directly to `main`.
+
 ## v1.5.1 — Subscription simplification and documentation alignment
 
 - YooKassa is the only supported payment provider; the unused alternative

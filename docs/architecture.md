@@ -21,6 +21,10 @@ UI -> transaction SQLite -> observable state -> sync queue -> typed client -> Fa
                                                 +-> external service adapters
 ```
 
+Изменения в этой архитектуре поставляются через task-ветки `agent/...`: AI-агент
+обновляет связанную документацию до коммита, запускает релевантные проверки и
+самостоятельно push-ит готовую ветку в `origin`. В `main` напрямую не push-ят.
+
 ## Источники правды
 
 - Публичный API: FastAPI routes и Pydantic schemas.

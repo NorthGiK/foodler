@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- AI-agent changes require documentation review before commit and are delivered
+  through a pushed `agent/...` branch, never directly to `main`.
+
 ## [1.3.0] — 2026-08-02
 
 ### Fixed
