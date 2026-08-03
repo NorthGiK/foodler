@@ -78,6 +78,49 @@ class TestVerifyCode:
         assert "user" in data
         assert data["user"]["email"] == "test@example.com"
 
+    @pytest.mark.asyncio
+    async def test_verify_code_logs_in_existing_user_without_revalidating_password(
+        self,
+        client: AsyncClient,
+        async_session,
+        monkeypatch,
+        test_user,
+    ):
+        """Legacy passwords remain usable after stricter registration rules."""
+        from src.auth import hash_email_code, hash_password
+        from src.models import EmailCodesStorage
+
+        legacy_password = "Aa1short"
+        test_user.password_hash = hash_password(legacy_password)
+        test_user.auth_version = 3
+        original_hash = test_user.password_hash
+        code = "12345678"
+        monkeypatch.setattr(
+            "src.routers.auth.issue_tokens",
+            AsyncMock(return_value=("access-token", "refresh-token")),
+        )
+        async_session.add(
+            EmailCodesStorage(
+                email=test_user.email,
+                code_hash=hash_email_code(test_user.email, code),
+            )
+        )
+        await async_session.commit()
+
+        response = await client.post(
+            "/api/auth/verify-code",
+            json={
+                "email": test_user.email,
+                "code": code,
+                "password": legacy_password,
+            },
+        )
+
+        assert response.status_code == 200
+        await async_session.refresh(test_user)
+        assert test_user.password_hash == original_hash
+        assert test_user.auth_version == 3
+
 
 class TestLogin:
     """Tests for POST /api/auth/login"""

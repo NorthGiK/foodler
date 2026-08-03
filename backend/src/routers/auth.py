@@ -115,25 +115,19 @@ async def verify_code(body: VerifyCodeRequest, db: AsyncSession = Depends(get_db
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Password is required for registration",
             )
+        try:
+            validate_password(body.password)
+        except PasswordValidationError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e),
+            ) from e
         user = User(
             email=body.email,
             password_hash=hash_password(body.password),
         )
         db.add(user)
         await db.flush()
-    else:
-        # Update password if provided (for password reset flow)
-        if body.password:
-            # Validate password
-            try:
-                validate_password(body.password)
-            except PasswordValidationError as e:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=str(e),
-                ) from e
-            user.password_hash = hash_password(body.password)
-            await revoke_user_sessions(db, user)
 
     access_token, refresh_token_str = await issue_tokens(db, user)
 

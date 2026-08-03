@@ -1,5 +1,13 @@
 # Changelog
 
+# v0.0.5 — confirmation-code login fix
+
+### fixes
+- Confirming an email code no longer applies new-password requirements to an
+  existing account or replaces its password during sign-in.
+
+###
+
 # v0.0.4 — AI-agent delivery workflow
 
 ### changed

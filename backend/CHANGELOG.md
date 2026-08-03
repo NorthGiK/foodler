@@ -4,6 +4,8 @@
 
 - AI-agent changes require documentation review before commit and are delivered
   through a pushed `agent/...` branch, never directly to `main`.
+- Email-code confirmation now validates a password only when registering a new
+  account; existing users can sign in without an unintended password reset.
 
 ## v1.5.1 — Subscription simplification and documentation alignment
 
