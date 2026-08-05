@@ -1,5 +1,13 @@
 # Changelog
 
+# v0.0.7 — guest receipt-image recognition
+
+### changed
+- Receipt QR recognition from an image no longer requires an account. It
+  returns recognition data without retaining the image or creating a receipt.
+
+###
+
 # v0.0.6 — AI storage and receipt-sync repair
 
 ### fixes

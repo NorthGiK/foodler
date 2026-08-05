@@ -6,6 +6,8 @@
   through a pushed `agent/...` branch, never directly to `main`.
 - Receipt synchronization now sends a calendar date accepted by the API, and
   AI report storage is initialized before it is queried.
+- Guests can recognize a receipt QR code from a photo before creating or
+  signing in to an account.
 
 ## [1.3.0] — 2026-08-02
 

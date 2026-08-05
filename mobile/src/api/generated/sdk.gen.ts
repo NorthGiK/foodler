@@ -753,7 +753,6 @@ export class Sdk extends HeyApiClient {
       ThrowOnError
     >({
       ...formDataBodySerializer,
-      security: [{ scheme: "bearer", type: "http" }],
       url: "/api/receipts/get_receipt_by_raw_qr",
       ...options,
       headers: {

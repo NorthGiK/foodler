@@ -7,6 +7,9 @@ import uuid
 import pytest
 from httpx import AsyncClient
 
+from src.integrations.receipts import get_receipt_gateway
+from src.main import app
+
 
 class TestListReceipts:
     """Tests for GET /api/receipts"""
@@ -85,6 +88,28 @@ class TestCreateReceipt:
         }
         response = await client.post("/api/receipts", headers=auth_headers, json=receipt_data)
         assert response.status_code == 201
+
+
+class TestGetReceiptByRawQr:
+    """Tests for POST /api/receipts/get_receipt_by_raw_qr."""
+
+    @pytest.mark.asyncio
+    async def test_anonymous_user_can_recognize_receipt_image(self, client: AsyncClient):
+        class Gateway:
+            async def recognize_image(self, *_args, **_kwargs):
+                return {"code": 0, "data": None}
+
+        app.dependency_overrides[get_receipt_gateway] = Gateway
+        try:
+            response = await client.post(
+                "/api/receipts/get_receipt_by_raw_qr",
+                files={"qrfile": ("receipt.jpg", b"image", "image/jpeg")},
+            )
+        finally:
+            app.dependency_overrides.pop(get_receipt_gateway, None)
+
+        assert response.status_code == 200
+        assert response.json() == {"code": 0, "data": None}
 
 
 class TestGetReceipt:

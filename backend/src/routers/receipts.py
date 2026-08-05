@@ -58,7 +58,6 @@ async def get_receipt_by_qr(
 @post("/receipts/get_receipt_by_raw_qr")
 async def get_receipt_by_raw_qr(
     qrfile: UploadFile,
-    user: User = Depends(get_current_user),
     gateway: ReceiptGateway = Depends(get_receipt_gateway),
 ):
     contents = await qrfile.read(QR_UPLOAD_MAX_BYTES + 1)

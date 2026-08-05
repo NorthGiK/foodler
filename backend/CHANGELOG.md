@@ -8,6 +8,8 @@
   account; existing users can sign in without an unintended password reset.
 - Added a compatibility migration for the AI cache/report fields required by
   AI requests and history reads on legacy SQLite databases.
+- Receipt-image recognition is available to guests and does not persist the
+  uploaded image or receipt on the backend.
 
 ## v1.5.1 — Subscription simplification and documentation alignment
 

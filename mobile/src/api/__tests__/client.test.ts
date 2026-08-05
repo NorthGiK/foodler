@@ -2,7 +2,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { uploadAsync } from "expo-file-system/legacy";
 
 import { getReceiptByRawQR } from "../client";
-import { setTokens } from "../transport";
 
 jest.mock("expo-file-system/legacy", () => ({
   FileSystemUploadType: { MULTIPART: 1 },
@@ -15,15 +14,7 @@ describe("receipt image upload", () => {
     jest.mocked(uploadAsync).mockReset();
   });
 
-  it("requires authentication before uploading", async () => {
-    await expect(getReceiptByRawQR("/receipt.jpg")).rejects.toThrow(
-      "Authentication is required",
-    );
-    expect(uploadAsync).not.toHaveBeenCalled();
-  });
-
-  it("sends the access token with the multipart upload", async () => {
-    await setTokens("access-token", "refresh-token");
+  it("uploads a receipt image without authentication", async () => {
     jest.mocked(uploadAsync).mockResolvedValue({
       body: JSON.stringify({ code: 0, data: null }),
       headers: {},
@@ -37,8 +28,10 @@ describe("receipt image upload", () => {
       expect.stringMatching(/\/receipts\/get_receipt_by_raw_qr$/),
       "file:///receipt.jpg",
       expect.objectContaining({
-        headers: { Authorization: "Bearer access-token" },
+        fieldName: "qrfile",
+        httpMethod: "POST",
       }),
     );
+    expect(jest.mocked(uploadAsync).mock.calls[0][2]?.headers).toBeUndefined();
   });
 });
