@@ -51,6 +51,7 @@ export async function getReceiptByRawQR(
   imgPath: string,
 ): Promise<ApiReceiptResponse> {
   const fileUri = imgPath.startsWith("file://") ? imgPath : `file://${imgPath}`;
+  const accessToken = await getAccessToken();
   const result = await uploadAsync(
     `${API_BASE}/receipts/get_receipt_by_raw_qr`,
     fileUri,
@@ -58,6 +59,9 @@ export async function getReceiptByRawQR(
       httpMethod: "POST",
       uploadType: FileSystemUploadType.MULTIPART,
       fieldName: "qrfile",
+      headers: accessToken
+        ? { Authorization: `Bearer ${accessToken}` }
+        : undefined,
     },
   );
 

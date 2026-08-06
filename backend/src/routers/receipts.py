@@ -1,4 +1,7 @@
 import logging
+from datetime import date
+from decimal import Decimal
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy import func, select
@@ -11,7 +14,7 @@ from src.config import (
 )
 from src.utils import DatabaseRateLimiter, with_rate_limit
 
-from ..auth import get_current_user
+from ..auth import get_current_user, get_current_user_optional_from_request
 from ..database import get_db
 from ..integrations.receipts import (
     ReceiptGateway,
@@ -31,8 +34,10 @@ from ..schemas import (
 from ..services.entitlements import get_entitlement
 
 router = APIRouter(tags=["Receipts"])
+legacy_router = APIRouter(tags=["Receipts"])
 get = with_rate_limit(router.get, DatabaseRateLimiter(100, 1))
 post = with_rate_limit(router.post, DatabaseRateLimiter(100, 1))
+legacy_post = with_rate_limit(legacy_router.post, DatabaseRateLimiter(100, 1))
 delete = with_rate_limit(router.delete, DatabaseRateLimiter(50, 1))
 patch = with_rate_limit(router.patch, DatabaseRateLimiter(50, 1))
 
@@ -55,11 +60,50 @@ async def get_receipt_by_qr(
         ) from exc
 
 
-@post("/receipts/get_receipt_by_raw_qr")
-async def get_receipt_by_raw_qr(
+async def _save_recognized_receipt(
+    result: ReceiptRawResponseSchema,
+    user: User,
+    db: AsyncSession,
+) -> None:
+    if result.code != 1 or result.data is None:
+        return
+
+    data = result.data["json"]
+    try:
+        receipt_date = date.fromisoformat(data.ticketDate[:10])
+    except ValueError:
+        logger.warning("Recognized receipt had an invalid date")
+        return
+
+    entitlement = await get_entitlement(db, user)
+    receipt = Receipt(
+        id=uuid4().hex,
+        date=receipt_date,
+        store=data.user.strip() or None,
+        total=Decimal(data.totalSum) / 100,
+        user_id=user.id,
+        receipt_expires_at=compute_receipt_expiry(entitlement.active),
+    )
+    db.add(receipt)
+    for item in data.items:
+        db.add(
+            ReceiptItem(
+                receipt_id=receipt.id,
+                name=item.name,
+                quantity=item.quantity,
+                unit=item.unit,
+                price=Decimal(str(item.price)) / 100,
+            )
+        )
+    await db.commit()
+
+
+async def _get_receipt_by_raw_qr(
     qrfile: UploadFile,
     gateway: ReceiptGateway = Depends(get_receipt_gateway),
-):
+    user: User | None = Depends(get_current_user_optional_from_request),
+    db: AsyncSession = Depends(get_db),
+) -> ReceiptRawResponseSchema:
     contents = await qrfile.read(QR_UPLOAD_MAX_BYTES + 1)
     if len(contents) > QR_UPLOAD_MAX_BYTES:
         raise HTTPException(
@@ -68,10 +112,12 @@ async def get_receipt_by_raw_qr(
         )
 
     try:
-        return await gateway.recognize_image(
-            contents,
-            filename=qrfile.filename or "receipt.jpg",
-            content_type=qrfile.content_type or "image/jpeg",
+        result = ReceiptRawResponseSchema.model_validate(
+            await gateway.recognize_image(
+                contents,
+                filename=qrfile.filename or "receipt.jpg",
+                content_type=qrfile.content_type or "image/jpeg",
+            )
         )
     except ReceiptProviderError as exc:
         logger.warning("Receipt provider request failed", extra={"provider": "receipt_api"})
@@ -79,6 +125,30 @@ async def get_receipt_by_raw_qr(
             status.HTTP_502_BAD_GATEWAY,
             detail="Receipt provider unavailable",
         ) from exc
+
+    if user is not None:
+        await _save_recognized_receipt(result, user, db)
+    return result
+
+
+@post("/receipts/get_receipt_by_raw_qr", response_model=ReceiptRawResponseSchema)
+async def get_receipt_by_raw_qr(
+    qrfile: UploadFile,
+    gateway: ReceiptGateway = Depends(get_receipt_gateway),
+    user: User | None = Depends(get_current_user_optional_from_request),
+    db: AsyncSession = Depends(get_db),
+) -> ReceiptRawResponseSchema:
+    return await _get_receipt_by_raw_qr(qrfile, gateway, user, db)
+
+
+@legacy_post("/receipts/get_receipt_by_raw_qr", response_model=ReceiptRawResponseSchema)
+async def get_receipt_by_raw_qr_legacy(
+    qrfile: UploadFile,
+    gateway: ReceiptGateway = Depends(get_receipt_gateway),
+    user: User | None = Depends(get_current_user_optional_from_request),
+    db: AsyncSession = Depends(get_db),
+) -> ReceiptRawResponseSchema:
+    return await _get_receipt_by_raw_qr(qrfile, gateway, user, db)
 
 
 @get("/receipts", response_model=list[ReceiptSchema])

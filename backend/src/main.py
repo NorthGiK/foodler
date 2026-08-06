@@ -16,7 +16,7 @@ from .integrations.http import close_http_session
 from .logging_config import configure_logging, request_id_context
 from .metrics import record_http_request, render_prometheus
 from .receipt_retention import cleanup_expired_receipts
-from .routers import ROUTERS
+from .routers import ROUTERS, legacy_router
 from .schemas import StatusResponse
 from .utils import cleanup_rate_limit_buckets
 
@@ -74,6 +74,10 @@ app.add_middleware(
 
 for router in ROUTERS:
     app.include_router(router, prefix="/api")
+
+# Temporary compatibility endpoint for mobile builds configured without `/api`.
+# Only the public image-recognition route is exposed outside the API prefix.
+app.include_router(legacy_router)
 
 
 @app.middleware("http")

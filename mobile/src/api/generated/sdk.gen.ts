@@ -52,6 +52,9 @@ import type {
   GetReceiptByRawQrApiReceiptsGetReceiptByRawQrPostData,
   GetReceiptByRawQrApiReceiptsGetReceiptByRawQrPostErrors,
   GetReceiptByRawQrApiReceiptsGetReceiptByRawQrPostResponses,
+  GetReceiptByRawQrLegacyReceiptsGetReceiptByRawQrPostData,
+  GetReceiptByRawQrLegacyReceiptsGetReceiptByRawQrPostErrors,
+  GetReceiptByRawQrLegacyReceiptsGetReceiptByRawQrPostResponses,
   GetReceiptsApiReceiptsGetData,
   GetReceiptsApiReceiptsGetErrors,
   GetReceiptsApiReceiptsGetResponses,
@@ -1069,5 +1072,31 @@ export class Sdk extends HeyApiClient {
       unknown,
       ThrowOnError
     >({ url: "/ready", ...options });
+  }
+
+  /**
+   * Get Receipt By Raw Qr Legacy
+   */
+  public getReceiptByRawQrLegacyReceiptsGetReceiptByRawQrPost<
+    ThrowOnError extends boolean = false,
+  >(
+    options: Options<
+      GetReceiptByRawQrLegacyReceiptsGetReceiptByRawQrPostData,
+      ThrowOnError
+    >,
+  ) {
+    return (options.client ?? this.client).post<
+      GetReceiptByRawQrLegacyReceiptsGetReceiptByRawQrPostResponses,
+      GetReceiptByRawQrLegacyReceiptsGetReceiptByRawQrPostErrors,
+      ThrowOnError
+    >({
+      ...formDataBodySerializer,
+      url: "/receipts/get_receipt_by_raw_qr",
+      ...options,
+      headers: {
+        "Content-Type": null,
+        ...options.headers,
+      },
+    });
   }
 }

@@ -299,6 +299,20 @@
         "title": "Body_get_receipt_by_raw_qr_api_receipts_get_receipt_by_raw_qr_post",
         "type": "object"
       },
+      "Body_get_receipt_by_raw_qr_legacy_receipts_get_receipt_by_raw_qr_post": {
+        "properties": {
+          "qrfile": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Qrfile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "qrfile"
+        ],
+        "title": "Body_get_receipt_by_raw_qr_legacy_receipts_get_receipt_by_raw_qr_post",
+        "type": "object"
+      },
       "CreatePaymentRequest": {
         "description": "Request to create a payment via YooKassa.\n\npaymentMethod values: bank_card, sbp, sberbank, tinkoff_bank, yoo_money\nIf None, YooKassa will show all available payment methods.",
         "properties": {
@@ -3297,7 +3311,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ReceiptRawResponseSchema"
+                }
               }
             },
             "description": "Successful Response"
@@ -3946,6 +3962,47 @@
           }
         },
         "summary": "Readiness"
+      }
+    },
+    "/receipts/get_receipt_by_raw_qr": {
+      "post": {
+        "operationId": "get_receipt_by_raw_qr_legacy_receipts_get_receipt_by_raw_qr_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_get_receipt_by_raw_qr_legacy_receipts_get_receipt_by_raw_qr_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReceiptRawResponseSchema"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Receipt By Raw Qr Legacy",
+        "tags": [
+          "Receipts"
+        ]
       }
     }
   }

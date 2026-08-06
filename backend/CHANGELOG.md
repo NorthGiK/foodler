@@ -8,8 +8,11 @@
   account; existing users can sign in without an unintended password reset.
 - Added a compatibility migration for the AI cache/report fields required by
   AI requests and history reads on legacy SQLite databases.
-- Receipt-image recognition is available to guests and does not persist the
-  uploaded image or receipt on the backend.
+- Guest receipt-image recognition does not persist the uploaded image or a
+  receipt on the backend.
+- Receipt-image recognition now accepts the legacy path without `/api`; a valid
+  access JWT saves the recognized receipt to the account while guests receive
+  the result without backend persistence.
 
 ## v1.5.1 — Subscription simplification and documentation alignment
 

@@ -160,6 +160,16 @@ export type BodyGetReceiptByRawQrApiReceiptsGetReceiptByRawQrPost = {
 };
 
 /**
+ * Body_get_receipt_by_raw_qr_legacy_receipts_get_receipt_by_raw_qr_post
+ */
+export type BodyGetReceiptByRawQrLegacyReceiptsGetReceiptByRawQrPost = {
+  /**
+   * Qrfile
+   */
+  qrfile: Blob | File;
+};
+
+/**
  * CreatePaymentRequest
  *
  * Request to create a payment via YooKassa.
@@ -1954,8 +1964,11 @@ export type GetReceiptByRawQrApiReceiptsGetReceiptByRawQrPostResponses = {
   /**
    * Successful Response
    */
-  200: unknown;
+  200: ReceiptRawResponseSchema;
 };
+
+export type GetReceiptByRawQrApiReceiptsGetReceiptByRawQrPostResponse =
+  GetReceiptByRawQrApiReceiptsGetReceiptByRawQrPostResponses[keyof GetReceiptByRawQrApiReceiptsGetReceiptByRawQrPostResponses];
 
 export type DeleteReceiptApiReceiptsReceiptIdDeleteData = {
   body?: never;
@@ -2371,3 +2384,30 @@ export type ReadinessReadyGetResponses = {
 
 export type ReadinessReadyGetResponse =
   ReadinessReadyGetResponses[keyof ReadinessReadyGetResponses];
+
+export type GetReceiptByRawQrLegacyReceiptsGetReceiptByRawQrPostData = {
+  body: BodyGetReceiptByRawQrLegacyReceiptsGetReceiptByRawQrPost;
+  path?: never;
+  query?: never;
+  url: "/receipts/get_receipt_by_raw_qr";
+};
+
+export type GetReceiptByRawQrLegacyReceiptsGetReceiptByRawQrPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetReceiptByRawQrLegacyReceiptsGetReceiptByRawQrPostError =
+  GetReceiptByRawQrLegacyReceiptsGetReceiptByRawQrPostErrors[keyof GetReceiptByRawQrLegacyReceiptsGetReceiptByRawQrPostErrors];
+
+export type GetReceiptByRawQrLegacyReceiptsGetReceiptByRawQrPostResponses = {
+  /**
+   * Successful Response
+   */
+  200: ReceiptRawResponseSchema;
+};
+
+export type GetReceiptByRawQrLegacyReceiptsGetReceiptByRawQrPostResponse =
+  GetReceiptByRawQrLegacyReceiptsGetReceiptByRawQrPostResponses[keyof GetReceiptByRawQrLegacyReceiptsGetReceiptByRawQrPostResponses];

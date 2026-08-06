@@ -91,7 +91,7 @@ class TestCreateReceipt:
 
 
 class TestGetReceiptByRawQr:
-    """Tests for POST /api/receipts/get_receipt_by_raw_qr."""
+    """Tests for the receipt image-recognition routes."""
 
     @pytest.mark.asyncio
     async def test_anonymous_user_can_recognize_receipt_image(self, client: AsyncClient):
@@ -102,7 +102,7 @@ class TestGetReceiptByRawQr:
         app.dependency_overrides[get_receipt_gateway] = Gateway
         try:
             response = await client.post(
-                "/api/receipts/get_receipt_by_raw_qr",
+                "/receipts/get_receipt_by_raw_qr",
                 files={"qrfile": ("receipt.jpg", b"image", "image/jpeg")},
             )
         finally:
@@ -110,6 +110,60 @@ class TestGetReceiptByRawQr:
 
         assert response.status_code == 200
         assert response.json() == {"code": 0, "data": None}
+
+    @pytest.mark.asyncio
+    async def test_authenticated_user_saves_recognized_receipt(
+        self, client: AsyncClient, auth_headers
+    ):
+        class Gateway:
+            async def recognize_image(self, *_args, **_kwargs):
+                return {
+                    "code": 1,
+                    "data": {
+                        "json": {
+                            "ticketDate": "2026-08-06T11:46:13+00:00",
+                            "operationType": 1,
+                            "totalSum": 15990,
+                            "user": "Магнит",
+                            "items": [
+                                {
+                                    "name": "Молоко",
+                                    "quantity": 1,
+                                    "price": 8990,
+                                }
+                            ],
+                        }
+                    },
+                }
+
+        app.dependency_overrides[get_receipt_gateway] = Gateway
+        try:
+            response = await client.post(
+                "/api/receipts/get_receipt_by_raw_qr",
+                headers=auth_headers,
+                files={"qrfile": ("receipt.jpg", b"image", "image/jpeg")},
+            )
+        finally:
+            app.dependency_overrides.pop(get_receipt_gateway, None)
+
+        assert response.status_code == 200
+        receipts = await client.get("/api/receipts", headers=auth_headers)
+        assert receipts.status_code == 200
+        saved_receipts = receipts.json()
+        assert len(saved_receipts) == 1
+        assert saved_receipts[0]["date"] == "2026-08-06"
+        assert saved_receipts[0]["store"] == "Магнит"
+        assert saved_receipts[0]["total"] == 159.9
+        assert saved_receipts[0]["items"] == [
+            {
+                "name": "Молоко",
+                "quantity": 1,
+                "unit": "kg",
+                "price": 89.9,
+                "sum": None,
+                "product_id": None,
+            }
+        ]
 
 
 class TestGetReceipt:

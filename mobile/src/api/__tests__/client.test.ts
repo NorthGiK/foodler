@@ -34,4 +34,20 @@ describe("receipt image upload", () => {
     );
     expect(jest.mocked(uploadAsync).mock.calls[0][2]?.headers).toBeUndefined();
   });
+
+  it("passes the access token when the user is signed in", async () => {
+    await AsyncStorage.setItem("access_token", "access-token");
+    jest.mocked(uploadAsync).mockResolvedValue({
+      body: JSON.stringify({ code: 0, data: null }),
+      headers: {},
+      mimeType: "application/json",
+      status: 200,
+    });
+
+    await getReceiptByRawQR("file:///receipt.jpg");
+
+    expect(jest.mocked(uploadAsync).mock.calls[0][2]?.headers).toEqual({
+      Authorization: "Bearer access-token",
+    });
+  });
 });

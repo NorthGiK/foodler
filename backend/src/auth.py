@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import bcrypt
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -124,5 +124,21 @@ async def get_current_user_optional(
         return None
     try:
         return await get_current_user(credentials, db)
+    except HTTPException:
+        return None
+
+
+async def get_current_user_optional_from_request(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> User | None:
+    authorization = request.headers.get("Authorization", "")
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        return None
+    try:
+        return await get_current_user(
+            HTTPAuthorizationCredentials(scheme="Bearer", credentials=token), db
+        )
     except HTTPException:
         return None

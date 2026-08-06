@@ -8,6 +8,8 @@
   AI report storage is initialized before it is queried.
 - Guests can recognize a receipt QR code from a photo before creating or
   signing in to an account.
+- Receipt-image uploads include an access JWT when available, allowing the
+  server to save recognized receipts for signed-in users.
 
 ## [1.3.0] — 2026-08-02
 
