@@ -1,6 +1,7 @@
 import logging
 from datetime import date
 from decimal import Decimal
+from typing import Any
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile, status
@@ -68,34 +69,94 @@ async def _save_recognized_receipt(
     if result.code != 1 or result.data is None:
         return
 
-    data = result.data["json"]
+    raw_data = result.data.get("json")
+    if not isinstance(raw_data, dict):
+        return
+
+    ticket_date = raw_data.get("ticketDate")
+    total_sum = raw_data.get("totalSum")
+    if not isinstance(ticket_date, str) or isinstance(total_sum, bool):
+        return
     try:
-        receipt_date = date.fromisoformat(data.ticketDate[:10])
-    except ValueError:
+        receipt_date = date.fromisoformat(ticket_date[:10])
+        total = Decimal(str(total_sum)) / 100
+    except (ValueError, ArithmeticError):
         logger.warning("Recognized receipt had an invalid date")
+        return
+    if total < 0:
         return
 
     entitlement = await get_entitlement(db, user)
     receipt = Receipt(
         id=uuid4().hex,
         date=receipt_date,
-        store=data.user.strip() or None,
-        total=Decimal(data.totalSum) / 100,
+        store=_optional_text(raw_data.get("user")),
+        total=total,
         user_id=user.id,
         receipt_expires_at=compute_receipt_expiry(entitlement.active),
     )
     db.add(receipt)
-    for item in data.items:
-        db.add(
-            ReceiptItem(
-                receipt_id=receipt.id,
-                name=item.name,
-                quantity=item.quantity,
-                unit=item.unit,
-                price=Decimal(str(item.price)) / 100,
+    raw_items = raw_data.get("items")
+    for item in raw_items if isinstance(raw_items, list) else []:
+        receipt_item = _receipt_item_from_provider(item, receipt.id)
+        if receipt_item is None:
+            continue
+        db.add(receipt_item)
+    await db.commit()
+
+
+def _optional_text(value: Any) -> str | None:
+    return value.strip() or None if isinstance(value, str) else None
+
+
+def _receipt_item_from_provider(item: Any, receipt_id: str) -> ReceiptItem | None:
+    if not isinstance(item, dict):
+        return None
+    name = item.get("name")
+    price = item.get("price")
+    quantity = item.get("quantity", 1)
+    if (
+        not isinstance(name, str)
+        or not name.strip()
+        or isinstance(price, bool)
+        or isinstance(quantity, bool)
+    ):
+        return None
+    try:
+        normalized_price = Decimal(str(price)) / 100
+        normalized_quantity = float(quantity)
+    except (ArithmeticError, TypeError, ValueError):
+        return None
+    if normalized_price < 0 or normalized_quantity <= 0:
+        return None
+    return ReceiptItem(
+        receipt_id=receipt_id,
+        name=name.strip(),
+        quantity=normalized_quantity,
+        unit="kg",
+        price=normalized_price,
+    )
+
+
+async def _recognize_receipt_image(
+    contents: bytes,
+    qrfile: UploadFile,
+    gateway: ReceiptGateway,
+) -> ReceiptRawResponseSchema:
+    try:
+        return ReceiptRawResponseSchema.model_validate(
+            await gateway.recognize_image(
+                contents,
+                filename=qrfile.filename or "receipt.jpg",
+                content_type=qrfile.content_type or "image/jpeg",
             )
         )
-    await db.commit()
+    except ReceiptProviderError as exc:
+        logger.warning("Receipt provider request failed", extra={"provider": "receipt_api"})
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            detail="Receipt provider unavailable",
+        ) from exc
 
 
 async def _get_receipt_by_raw_qr(
@@ -111,21 +172,7 @@ async def _get_receipt_by_raw_qr(
             detail="QR image is too large",
         )
 
-    try:
-        result = ReceiptRawResponseSchema.model_validate(
-            await gateway.recognize_image(
-                contents,
-                filename=qrfile.filename or "receipt.jpg",
-                content_type=qrfile.content_type or "image/jpeg",
-            )
-        )
-    except ReceiptProviderError as exc:
-        logger.warning("Receipt provider request failed", extra={"provider": "receipt_api"})
-        raise HTTPException(
-            status.HTTP_502_BAD_GATEWAY,
-            detail="Receipt provider unavailable",
-        ) from exc
-
+    result = await _recognize_receipt_image(contents, qrfile, gateway)
     if user is not None:
         await _save_recognized_receipt(result, user, db)
     return result

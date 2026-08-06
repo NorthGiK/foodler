@@ -88,21 +88,11 @@ class DeviceResponse(RegisterDeviceRequest):
 # --- Receipts ---
 
 
-class ReceiptJsonData(BaseModel):
-    ticketDate: str
-    operationType: int
-    totalSum: int
-    user: str
-    items: list["ReceiptItemSchema"]
-
-
-class ReceiptResponseData(TypedDict):
-    json: ReceiptJsonData
-
-
 class ReceiptRawResponseSchema(BaseModel):
     code: int
-    data: ReceiptResponseData | None
+    # The receipt provider owns the nested payload and may add or change fields.
+    # Keep it transparent to the client; only persistence validates fields it uses.
+    data: dict[str, Any] | None
 
 
 class GetReceiptFromQRSchema(BaseModel):

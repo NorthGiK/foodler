@@ -1413,42 +1413,6 @@
         "title": "ReceiptItemSchema",
         "type": "object"
       },
-      "ReceiptJsonData": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/ReceiptItemSchema"
-            },
-            "title": "Items",
-            "type": "array"
-          },
-          "operationType": {
-            "title": "Operationtype",
-            "type": "integer"
-          },
-          "ticketDate": {
-            "title": "Ticketdate",
-            "type": "string"
-          },
-          "totalSum": {
-            "title": "Totalsum",
-            "type": "integer"
-          },
-          "user": {
-            "title": "User",
-            "type": "string"
-          }
-        },
-        "required": [
-          "ticketDate",
-          "operationType",
-          "totalSum",
-          "user",
-          "items"
-        ],
-        "title": "ReceiptJsonData",
-        "type": "object"
-      },
       "ReceiptRawResponseSchema": {
         "properties": {
           "code": {
@@ -1458,12 +1422,14 @@
           "data": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/ReceiptResponseData"
+                "additionalProperties": true,
+                "type": "object"
               },
               {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Data"
           }
         },
         "required": [
@@ -1471,18 +1437,6 @@
           "data"
         ],
         "title": "ReceiptRawResponseSchema",
-        "type": "object"
-      },
-      "ReceiptResponseData": {
-        "properties": {
-          "json": {
-            "$ref": "#/components/schemas/ReceiptJsonData"
-          }
-        },
-        "required": [
-          "json"
-        ],
-        "title": "ReceiptResponseData",
         "type": "object"
       },
       "ReceiptSchema": {

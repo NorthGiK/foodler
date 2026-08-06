@@ -112,6 +112,42 @@ class TestGetReceiptByRawQr:
         assert response.json() == {"code": 0, "data": None}
 
     @pytest.mark.asyncio
+    async def test_provider_specific_item_fields_do_not_fail_guest_recognition(
+        self, client: AsyncClient
+    ):
+        class Gateway:
+            async def recognize_image(self, *_args, **_kwargs):
+                return {
+                    "code": 1,
+                    "data": {
+                        "json": {
+                            "ticketDate": "2026-08-06T11:46:13+00:00",
+                            "totalSum": 15990,
+                            "items": [
+                                {
+                                    "name": "Молоко",
+                                    "quantity": 1,
+                                    "price": 8990,
+                                    "unit": "шт",
+                                }
+                            ],
+                        }
+                    },
+                }
+
+        app.dependency_overrides[get_receipt_gateway] = Gateway
+        try:
+            response = await client.post(
+                "/receipts/get_receipt_by_raw_qr",
+                files={"qrfile": ("receipt.jpg", b"image", "image/jpeg")},
+            )
+        finally:
+            app.dependency_overrides.pop(get_receipt_gateway, None)
+
+        assert response.status_code == 200
+        assert response.json()["data"]["json"]["items"][0]["unit"] == "шт"
+
+    @pytest.mark.asyncio
     async def test_authenticated_user_saves_recognized_receipt(
         self, client: AsyncClient, auth_headers
     ):
@@ -130,6 +166,7 @@ class TestGetReceiptByRawQr:
                                     "name": "Молоко",
                                     "quantity": 1,
                                     "price": 8990,
+                                    "unit": "шт",
                                 }
                             ],
                         }

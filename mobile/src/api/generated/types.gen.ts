@@ -799,32 +799,6 @@ export type ReceiptItemSchema = {
 };
 
 /**
- * ReceiptJsonData
- */
-export type ReceiptJsonData = {
-  /**
-   * Items
-   */
-  items: Array<ReceiptItemSchema>;
-  /**
-   * Operationtype
-   */
-  operationType: number;
-  /**
-   * Ticketdate
-   */
-  ticketDate: string;
-  /**
-   * Totalsum
-   */
-  totalSum: number;
-  /**
-   * User
-   */
-  user: string;
-};
-
-/**
  * ReceiptRawResponseSchema
  */
 export type ReceiptRawResponseSchema = {
@@ -832,14 +806,12 @@ export type ReceiptRawResponseSchema = {
    * Code
    */
   code: number;
-  data: ReceiptResponseData | null;
-};
-
-/**
- * ReceiptResponseData
- */
-export type ReceiptResponseData = {
-  json: ReceiptJsonData;
+  /**
+   * Data
+   */
+  data: {
+    [key: string]: unknown;
+  } | null;
 };
 
 /**

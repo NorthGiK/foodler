@@ -13,6 +13,8 @@
 - Receipt-image recognition now accepts the legacy path without `/api`; a valid
   access JWT saves the recognized receipt to the account while guests receive
   the result without backend persistence.
+- Provider-specific fields in a recognized receipt image no longer cause a 500;
+  unsupported fields are returned to the client and skipped during persistence.
 
 ## v1.5.1 — Subscription simplification and documentation alignment
 
