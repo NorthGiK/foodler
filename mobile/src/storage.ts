@@ -19,7 +19,7 @@ export async function openDb() {
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS receipts (
       id TEXT PRIMARY KEY NOT NULL,
-      qrraw TEXT NOT NULL,
+      qrraw TEXT NOT NULL UNIQUE,
       organization TEXT NOT NULL,
       ticketDate TEXT NOT NULL,
       operationType INTEGER NOT NULL,
@@ -102,7 +102,9 @@ export function normalizeReceiptResponse(
 
   // данные могут не содержать qrraw, но полностью валидны и имеют фискальные данные
   // TODO: сделать создание по данным из чека
-  const qrraw: string = response.request?.qrraw || createQrraw(response);
+  const qrraw: string | undefined = response.request?.qrraw || createQrraw(response);
+  if (!qrraw)
+    return null;
 
   const ticketDate: string = toIsoDate(data.ticketDate);
   const operationType: number = data.operationType ?? 3;
@@ -145,7 +147,7 @@ export async function saveReceipt(
 ) {
   await db.withExclusiveTransactionAsync(async (transaction) => {
     await transaction.runAsync(
-      `INSERT OR REPLACE INTO receipts (id, qrraw, organization, ticketDate, operationType, totalSumRub, sourceCode, createdAt)
+      `INSERT OR IGNORE INTO receipts (id, qrraw, organization, ticketDate, operationType, totalSumRub, sourceCode, createdAt)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         receipt.id,
@@ -165,7 +167,7 @@ export async function saveReceipt(
     );
 
     const statement = await transaction.prepareAsync(
-      `INSERT INTO receipt_items (receiptId, name, category, priceRub, quantity, sumRub)
+      `INSERT OR IGNORE INTO receipt_items (receiptId, name, category, priceRub, quantity, sumRub)
        VALUES ($receiptId, $name, $category, $priceRub, $quantity, $sumRub)`,
     );
 

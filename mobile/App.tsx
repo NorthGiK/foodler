@@ -443,19 +443,24 @@ export default function App() {
       <ThemeProvider>
         <AuthProvider>
           <NavigationContainer>
-            {policiesAccepted === false ? (
-              <LoginScreen
-                skipable={true}
-                onPoliciesAccepted={handlePoliciesAccepted}
-              />
-            ) : (
-              <Stack.Navigator
+            <Stack.Navigator
                 screenOptions={{
                   headerShown: false,
                   animation: "slide_from_bottom",
                   contentStyle: { backgroundColor: "transparent" },
                 }}
               >
+            
+            {/* TODO: change to false */}
+            <Stack.Screen
+              name="__PoliciesAcception__"
+              component={policiesAccepted? TabContent : () =>
+                  <LoginScreen
+                    skipable={true}
+                    onPoliciesAccepted={handlePoliciesAccepted}
+                  />
+                }
+              />
                 <Stack.Screen name="Main" component={TabContent} />
                 <Stack.Screen
                   name="Login"
@@ -482,8 +487,7 @@ export default function App() {
                   component={AskScreen}
                   options={{ animation: "slide_from_right" }}
                 />
-              </Stack.Navigator>
-            )}
+            </Stack.Navigator>
           </NavigationContainer>
         </AuthProvider>
       </ThemeProvider>

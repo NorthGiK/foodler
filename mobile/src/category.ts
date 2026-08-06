@@ -5,7 +5,7 @@ const RULES: { category: string; patterns: RegExp[] }[] = [
   },
   {
     category: 'Мясо',
-    patterns: [/говядин/i, /свинин/i, /куриц/i, /индейк/i, /фарш/i, /мяс/i],
+    patterns: [/говядин/i, /свинин/i, /куриц/i, /индейк/i, /фарш/i, /мяс/i, /бедр/i, /бёдр/i],
   },
   {
     category: 'Рыба и морепродукты',
@@ -53,6 +53,5 @@ export function detectCategory(name: string): string {
   const normalized = name.toLowerCase().replace(/[()\[\]{}.,;:!?"'`]/g, ' ');
   const found = RULES.find((rule) => rule.patterns.some((pattern) => pattern.test(normalized)));
   if (found) return found.category;
-  if (/сыр/i.test(normalized)) return 'Молочные продукты';
   return 'Прочее';
 }

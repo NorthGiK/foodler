@@ -86,6 +86,18 @@ async def _save_recognized_receipt(
     if total < 0:
         return
 
+    stmt = (
+        select(Receipt.id)
+        .where(
+            Receipt.data == receipt_date,
+            Receipt.user_id == user.id,
+            Receipt.total == total,
+        )
+    )
+    receipt = (await db.execute(stmt)).scalar_one_or_none()
+    if receipt is not None:
+        return
+
     entitlement = await get_entitlement(db, user)
     receipt = Receipt(
         id=uuid4().hex,
@@ -159,7 +171,8 @@ async def _recognize_receipt_image(
         ) from exc
 
 
-async def _get_receipt_by_raw_qr(
+@post("/receipts/get_receipt_by_raw_qr", response_model=ReceiptRawResponseSchema)
+async def get_receipt_by_raw_qr(
     qrfile: UploadFile,
     gateway: ReceiptGateway = Depends(get_receipt_gateway),
     user: User | None = Depends(get_current_user_optional_from_request),
@@ -178,24 +191,14 @@ async def _get_receipt_by_raw_qr(
     return result
 
 
-@post("/receipts/get_receipt_by_raw_qr", response_model=ReceiptRawResponseSchema)
-async def get_receipt_by_raw_qr(
-    qrfile: UploadFile,
-    gateway: ReceiptGateway = Depends(get_receipt_gateway),
-    user: User | None = Depends(get_current_user_optional_from_request),
-    db: AsyncSession = Depends(get_db),
-) -> ReceiptRawResponseSchema:
-    return await _get_receipt_by_raw_qr(qrfile, gateway, user, db)
-
-
-@legacy_post("/receipts/get_receipt_by_raw_qr", response_model=ReceiptRawResponseSchema)
-async def get_receipt_by_raw_qr_legacy(
-    qrfile: UploadFile,
-    gateway: ReceiptGateway = Depends(get_receipt_gateway),
-    user: User | None = Depends(get_current_user_optional_from_request),
-    db: AsyncSession = Depends(get_db),
-) -> ReceiptRawResponseSchema:
-    return await _get_receipt_by_raw_qr(qrfile, gateway, user, db)
+# @legacy_post("/receipts/get_receipt_by_raw_qr", response_model=ReceiptRawResponseSchema)
+# async def get_receipt_by_raw_qr_legacy(
+#     qrfile: UploadFile,
+#     gateway: ReceiptGateway = Depends(get_receipt_gateway),
+#     user: User | None = Depends(get_current_user_optional_from_request),
+#     db: AsyncSession = Depends(get_db),
+# ) -> ReceiptRawResponseSchema:
+#     return await _get_receipt_by_raw_qr(qrfile, gateway, user, db)
 
 
 @get("/receipts", response_model=list[ReceiptSchema])

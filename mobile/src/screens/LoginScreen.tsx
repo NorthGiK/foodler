@@ -263,52 +263,79 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
             )}
 
             {/* Policy checkboxes */}
-            <View
-              style={[
-                styles.card,
-                { backgroundColor: theme.surface, borderColor: theme.border },
-              ]}
-            >
-              <Text style={[styles.policyTitle, { color: theme.text }]}>
-                Я принимаю следующие документы:
-              </Text>
-              <View style={styles.policySection}>
-                {POLICY_ENTRIES.map((entry) => (
-                  <View key={entry.key} style={styles.policyRow}>
-                    <Pressable
-                      onPress={() => togglePolicy(entry.key)}
-                      style={[
-                        styles.checkbox,
-                        {
-                          borderColor: theme.border,
-                          backgroundColor: acceptedPolicies[entry.key]
-                            ? theme.primary
-                            : "transparent",
-                        },
-                      ]}
-                    >
-                      {acceptedPolicies[entry.key] && (
-                        <MaterialIcons
-                          name="check"
-                          size={14}
-                          color={theme.white}
-                        />
-                      )}
-                    </Pressable>
-                    <Pressable
-                      onPress={() => openPolicyUrl(policy[entry.key])}
-                      style={styles.policyLabel}
-                    >
-                      <Text
-                        style={[styles.policyText, { color: theme.primary }]}
+            { skipable &&
+              <View
+                style={[
+                  styles.card,
+                  { backgroundColor: theme.surface, borderColor: theme.border },
+                ]}
+              >
+                <Text style={[styles.policyTitle, { color: theme.text }]}>
+                  Я принимаю следующие документы:
+                </Text>
+                <View style={styles.policySection}>
+                  {POLICY_ENTRIES.map((entry) => (
+                    <View key={entry.key} style={styles.policyRow}>
+                      <Pressable
+                        onPress={() => togglePolicy(entry.key)}
+                        style={[
+                          styles.checkbox,
+                          {
+                            borderColor: theme.border,
+                            backgroundColor: acceptedPolicies[entry.key]
+                              ? theme.primary
+                              : "transparent",
+                          },
+                        ]}
                       >
-                        {entry.label}
-                      </Text>
-                    </Pressable>
-                  </View>
-                ))}
+                        {acceptedPolicies[entry.key] && (
+                          <MaterialIcons
+                            name="check"
+                            size={14}
+                            color={theme.white}
+                          />
+                        )}
+                      </Pressable>
+                      <Pressable
+                        onPress={() => openPolicyUrl(policy[entry.key])}
+                        style={styles.policyLabel}
+                      >
+                        <Text
+                          style={[styles.policyText, { color: theme.primary }]}
+                        >
+                          {entry.label}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
               </View>
-            </View>
+            }
+
+            {skipable && (
+              <Pressable
+                  style={[
+                    styles.submitBtn,
+                    {
+                      backgroundColor: theme.primary,
+                      opacity: loading || !allPoliciesAccepted ? 0.6 : 1,
+                    },
+                  ]}
+                  onPress={async () => {
+                    await handleSkipLogin();
+                    navigation.navigate("Login");
+                  }}
+                  disabled={loading || !allPoliciesAccepted}
+                >
+                  {loading ? (
+                    <ActivityIndicator color={theme.white} />
+                  ) : (
+                    <Text style={[styles.submitText, { color: theme.white }]}>
+                      Войти
+                    </Text>
+                  )}
+                </Pressable>
+            )}
 
             {!skipable && (
               <>
@@ -317,11 +344,9 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
                     styles.submitBtn,
                     {
                       backgroundColor: theme.primary,
-                      opacity: loading || !allPoliciesAccepted ? 0.6 : 1,
                     },
                   ]}
                   onPress={handleSendCode}
-                  disabled={loading || !allPoliciesAccepted}
                 >
                   {loading ? (
                     <ActivityIndicator color={theme.white} />
