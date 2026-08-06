@@ -20,7 +20,7 @@ from .routers import ROUTERS, legacy_router
 from .schemas import StatusResponse
 from .utils import cleanup_rate_limit_buckets
 
-configure_logging()
+# configure_logging()
 logger = logging.getLogger(__name__)
 _REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 
