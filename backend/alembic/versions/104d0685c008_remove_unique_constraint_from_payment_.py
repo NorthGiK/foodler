@@ -96,6 +96,9 @@ def _create_legacy_baseline() -> None:
             sa.Column("id", sa.String(), primary_key=True),
             sa.Column("device_id", sa.String(), nullable=False),
             sa.Column("user_id", sa.String(), nullable=False),
+            sa.Column("model", sa.String(), nullable=True, insert_default=None),
+            sa.Column("os", sa.String(), nullable=True, insert_default=None),
+            sa.Column("created_at", sa.String(), nullable=True, insert_default=None),
         ),
         "ai_reports": (
             sa.Column("id", sa.String(), primary_key=True),

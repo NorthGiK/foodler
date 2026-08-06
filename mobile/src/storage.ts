@@ -66,13 +66,43 @@ export type ReceiptResponse = {
   items: ReceiptItem[];
 };
 
+
+function createQrraw(receipt: ApiReceiptResponse): string | undefined {
+  // example value is `2026-07-23T17:07:00`
+  // should be        `20260723T1707
+  const strDate = receipt.data?.json?.dateTime;
+  if (!strDate) return;
+  const ticketDate = strDate
+   ?.replace("-", "") // remove -
+    .replace(":", "") // remove :
+    .slice(0, strDate?.length - 2); // remove last 2 seconds
+  
+  if (!receipt.data?.json?.totalSum) return;
+  const sum = receipt.data?.json?.totalSum * 0.01;
+
+  const fn = receipt.data?.json?.fiscalDriveNumber;
+  const i = receipt.data?.json?.fiscalDocumentNumber;
+  const fp = receipt.data?.json?.fiscalSign;
+
+  return [
+    `t=${ticketDate}`,
+    `s=${sum}`,
+    `fn=${fn}`,
+    `i=${i}`,
+    `fp=${fp}`,
+    `n=1`,
+  ].join("&");
+}
+
 export function normalizeReceiptResponse(
   response: ApiReceiptResponse,
 ): ReceiptResponse | null {
   const data = response.data?.json;
   if (!data || response.code !== 1) return null;
 
-  const qrraw: string = response.request?.qrraw || `${Math.random()}&${Date.now()}`;
+  // данные могут не содержать qrraw, но полностью валидны и имеют фискальные данные
+  // TODO: сделать создание по данным из чека
+  const qrraw: string = response.request?.qrraw || createQrraw(response);
 
   const ticketDate: string = toIsoDate(data.ticketDate);
   const operationType: number = data.operationType ?? 3;

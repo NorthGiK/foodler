@@ -7,6 +7,9 @@ export interface ApiReceiptResponse {
       totalSum?: number;
       user?: string;
       dateTime?: string;
+      fiscalDriveNumber?: string;
+      fiscalDocumentNumber?: string;
+      fiscalSign?: string;
       items?: {
         name?: string;
         price?: number;
