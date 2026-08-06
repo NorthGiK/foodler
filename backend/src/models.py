@@ -131,7 +131,7 @@ class Device(Base):
 
     id: Mapped[str] = mapped_column(primary_key=True, default=_uuid)
     device_id: Mapped[str] = mapped_column(nullable=False)
-    model: Mapped[str] = mapped_column(nullable=True)
+    model: Mapped[str] = mapped_column(nullable=True, insert_default=None)
     os: Mapped[str] = mapped_column(nullable=True)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)

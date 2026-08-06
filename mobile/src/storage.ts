@@ -72,18 +72,20 @@ export function normalizeReceiptResponse(
   const data = response.data?.json;
   if (!data || response.code !== 1) return null;
 
-  const qrraw = response.request?.qrraw;
-  if (!qrraw) return null;
+  const qrraw: string = response.request?.qrraw || `${Math.random()}&${Date.now()}`;
 
-  const ticketDate = toIsoDate(data.ticketDate);
-  const operationType = data.operationType ?? 3;
-  const sign = operationType === 2 || operationType === 4 ? -1 : 1;
-  const totalSumRub = sign * rublesFromKopeks(data.totalSum);
+  const ticketDate: string = toIsoDate(data.ticketDate);
+  const operationType: number = data.operationType ?? 3;
+  const sign: number = operationType === 2 || operationType === 4 ? -1 : 1;
+  const totalSumRub: number = sign * rublesFromKopeks(data.totalSum);
+  const organization: string = {
+    "АКЦИОНЕРНОЕ ОБЩЕСТВО \"ТАНДЕР\"": "Магнит",
+  }[data.user?.trim() || ""] || "Неизвестно";
 
   const receipt: Receipt = {
     id: `${ticketDate}-${Math.random().toString(36).slice(2, 10)}`,
     qrraw,
-    organization: data.user?.trim() || "Неизвестная организация",
+    organization: organization?.trim(),
     ticketDate,
     operationType,
     totalSumRub,
