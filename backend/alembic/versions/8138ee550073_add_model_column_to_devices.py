@@ -31,7 +31,7 @@ def upgrade() -> None:
         op.add_column("devices", sa.Column("os", sa.String()))
     
     if "created_at" not in devices:
-        op.add_column("devices", sa.Column("created_at", sa.Datetime()))
+        op.add_column("devices", sa.Column("created_at", sa.DateTime()))
     
     if "user_id" not in devices:
         op.add_column("devices", sa.Column("user_id", sa.String()))
