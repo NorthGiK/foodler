@@ -50,4 +50,42 @@ describe("receipt image upload", () => {
       Authorization: "Bearer access-token",
     });
   });
+
+  it("normalizes supported provider fields from a flexible response", async () => {
+    jest.mocked(uploadAsync).mockResolvedValue({
+      body: JSON.stringify({
+        code: 1,
+        data: {
+          json: {
+            ticketDate: "2026-08-06T12:16:32+00:00",
+            totalSum: 15990,
+            items: [{ name: "Молоко", price: 8990, unit: "шт" }],
+          },
+        },
+        request: { qrraw: "t=20260806T1216" },
+      }),
+      headers: {},
+      mimeType: "application/json",
+      status: 200,
+    });
+
+    await expect(getReceiptByRawQR("file:///receipt.jpg")).resolves.toEqual({
+      code: 1,
+      data: {
+        json: {
+          ticketDate: "2026-08-06T12:16:32+00:00",
+          totalSum: 15990,
+          items: [
+            {
+              name: "Молоко",
+              quantity: undefined,
+              price: 8990,
+              sum: undefined,
+            },
+          ],
+        },
+      },
+      request: { qrraw: "t=20260806T1216" },
+    });
+  });
 });

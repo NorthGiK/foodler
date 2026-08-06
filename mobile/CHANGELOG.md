@@ -10,6 +10,8 @@
   signing in to an account.
 - Receipt-image uploads include an access JWT when available, allowing the
   server to save recognized receipts for signed-in users.
+- Provider-specific QR response fields are narrowed safely in the mobile API
+  adapter, so generated `unknown` payloads cannot break TypeScript builds.
 
 ## [1.3.0] — 2026-08-02
 

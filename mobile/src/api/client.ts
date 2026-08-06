@@ -18,6 +18,74 @@ export {
 
 const sdk = new Sdk();
 
+type ReceiptJson = NonNullable<NonNullable<ApiReceiptResponse["data"]>["json"]>;
+type ReceiptJsonItem = NonNullable<ReceiptJson["items"]>[number];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function stringValue(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function numberValue(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
+}
+
+function receiptItem(value: unknown): ReceiptJsonItem | null {
+  if (!isRecord(value)) return null;
+  return {
+    name: stringValue(value.name),
+    quantity: numberValue(value.quantity),
+    price: numberValue(value.price),
+    sum: numberValue(value.sum),
+  };
+}
+
+function receiptJson(value: unknown): ReceiptJson | undefined {
+  if (!isRecord(value)) return undefined;
+  const rawItems = value.items;
+  const items = Array.isArray(rawItems)
+    ? rawItems
+        .map(receiptItem)
+        .filter((item): item is ReceiptJsonItem => item !== null)
+    : undefined;
+  return {
+    ticketDate: stringValue(value.ticketDate),
+    operationType: numberValue(value.operationType),
+    totalSum: numberValue(value.totalSum),
+    user: stringValue(value.user),
+    dateTime: stringValue(value.dateTime),
+    items,
+  };
+}
+
+function normalizeReceiptProviderResponse(
+  response: unknown,
+): ApiReceiptResponse {
+  if (!isRecord(response) || typeof response.code !== "number") {
+    throw new Error("Receipt provider returned an invalid response");
+  }
+
+  const rawData = response.data;
+  const data = isRecord(rawData)
+    ? (() => {
+        const json = receiptJson(rawData.json);
+        return json ? { json } : undefined;
+      })()
+    : undefined;
+  const rawRequest = response.request;
+  const request =
+    isRecord(rawRequest) && typeof rawRequest.qrraw === "string"
+      ? { qrraw: rawRequest.qrraw }
+      : undefined;
+
+  return { code: response.code, data, request };
+}
+
 export async function getReceiptFromQR(
   data: string,
 ): Promise<ApiReceiptResponse> {
@@ -26,25 +94,7 @@ export async function getReceiptFromQR(
       body: { qrraw: data },
     }),
   );
-  return {
-    code: response.code,
-    data: response.data
-      ? {
-          json: {
-            ticketDate: response.data.json.ticketDate,
-            operationType: response.data.json.operationType,
-            totalSum: response.data.json.totalSum,
-            user: response.data.json.user,
-            items: response.data.json.items.map((item) => ({
-              name: item.name,
-              quantity: item.quantity,
-              price: item.price,
-              sum: item.sum ?? undefined,
-            })),
-          },
-        }
-      : undefined,
-  };
+  return normalizeReceiptProviderResponse(response);
 }
 
 export async function getReceiptByRawQR(
@@ -68,7 +118,7 @@ export async function getReceiptByRawQR(
   if (result.status < 200 || result.status >= 300) {
     throw new Error(`Receipt upload failed with HTTP ${result.status}`);
   }
-  return JSON.parse(result.body) as ApiReceiptResponse;
+  return normalizeReceiptProviderResponse(JSON.parse(result.body) as unknown);
 }
 
 export async function getAvaibleCredits(): Promise<{
