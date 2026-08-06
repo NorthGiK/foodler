@@ -25,6 +25,9 @@ def upgrade() -> None:
     """Upgrade schema."""
     if "model" not in _columns("devices"):
         op.add_column("devices", sa.Column("model", sa.String(), nullable=True, insert_default=None))
+    
+    if "os" not in _columns("devices"):
+        op.add_column("devices", sa.Column("os", sa.String()))
 
 
 def downgrade() -> None:
