@@ -23,7 +23,7 @@ def _columns(table: str) -> set[str]:
 
 def upgrade() -> None:
     """Upgrade schema."""
-    if "model" not in _columns("devies"):
+    if "model" not in _columns("devices"):
         op.add_column("devices", sa.Column("model", sa.String(), nullable=True, insert_default=None))
 
 
