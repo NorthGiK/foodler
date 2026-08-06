@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Updated locked backend dependencies to remediate published aiohttp and
+  cryptography advisories, and refreshed reviewed secret-scan findings.
 - AI-agent changes require documentation review before commit and are delivered
   through a pushed `agent/...` branch, never directly to `main`.
 - Email-code confirmation now validates a password only when registering a new

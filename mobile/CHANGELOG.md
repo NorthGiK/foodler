@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Updated the production brace-expansion override to the security-fixed 1.1.18.
 - AI-agent changes require documentation review before commit and are delivered
   through a pushed `agent/...` branch, never directly to `main`.
 - Receipt synchronization now sends a calendar date accepted by the API, and

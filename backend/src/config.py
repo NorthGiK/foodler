@@ -44,7 +44,7 @@ if any(len(key) < 32 for key in PREVIOUS_SECRET_KEYS):
 API_KEY_QR = _get_env("API_QR_KEY")
 API_URL = _get_env("API_URL")
 QR_API_TIMEOUT_SECONDS = float(os.getenv("QR_API_TIMEOUT_SECONDS", "15"))
-QR_UPLOAD_MAX_BYTES = int(os.getenv("QR_UPLOAD_MAX_BYTES", str(10 * 1024 * 1024)))
+QR_UPLOAD_MAX_BYTES = int(os.getenv("QR_UPLOAD_MAX_BYTES", 10 * 1024 * 1024))
 RECEIPT_PAGE_SIZE_MAX = int(os.getenv("RECEIPT_PAGE_SIZE_MAX", "100"))
 
 # AI
