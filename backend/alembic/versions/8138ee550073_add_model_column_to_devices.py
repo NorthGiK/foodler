@@ -23,11 +23,21 @@ def _columns(table: str) -> set[str]:
 
 def upgrade() -> None:
     """Upgrade schema."""
-    if "model" not in _columns("devices"):
+    devices = _columns("devices")
+    if "model" not in devices:
         op.add_column("devices", sa.Column("model", sa.String(), nullable=True, insert_default=None))
     
-    if "os" not in _columns("devices"):
+    if "os" not in devices:
         op.add_column("devices", sa.Column("os", sa.String()))
+    
+    if "created_at" not in devices:
+        op.add_column("devices", sa.Column("created_at", sa.Datetime()))
+    
+    if "user_id" not in devices:
+        op.add_column("devices", sa.Column("user_id", sa.String()))
+    
+    if "device_id" not in devices:
+        op.add_column("devices", sa.Column("device_id", sa.String()))
 
 
 def downgrade() -> None:
