@@ -8,6 +8,8 @@
 - YooKassa payments carry either the Budget or Premium monthly plan.
 
 ### fixed
+- External AI actions now request Markdown text rather than JSON section data,
+  so their answers are rendered normally in the mobile application.
 - AI prompts safely preserve literal JSON examples, so external AI actions no
   longer fail while rendering their request prompt.
 - Receipt ordering is based on the purchase date; the obsolete local `createdAt` receipt field has been removed from new development databases.

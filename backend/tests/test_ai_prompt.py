@@ -1,7 +1,7 @@
 from src.ai_prompt import create_prompt
 
 
-def test_create_prompt_keeps_literal_json_example_and_renders_markers():
+def test_create_prompt_requests_markdown_and_renders_markers():
     prompt = create_prompt(
         "save-money",
         {"parameters": {"budget": 5000}, "context": {"receipts": []}},
@@ -10,7 +10,8 @@ def test_create_prompt_keeps_literal_json_example_and_renders_markers():
     assert prompt is not None
     assert "'budget': 5000" in prompt
     assert "## action = `cheaper`" in prompt
-    assert '"type": "text"|"score"|"list"|"products"|"chart"' in prompt
+    assert "Возвращай только обычный Markdown-текст" in prompt
+    assert "Не возвращай JSON" in prompt
     assert "{INPUT_DATA}" not in prompt
     assert "{ACTION}" not in prompt
 
