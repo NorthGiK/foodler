@@ -365,4 +365,7 @@ def create_prompt(action, data: Any) -> str | None:
         "ingredients": GENERAL_ANALYSIS,
     }.get(action, GENERAL_ANALYSIS)
 
-    return _PROMPT.format(INPUT_DATA=data, ACTION=action_prompt)
+    # The template contains literal JSON examples with braces.  ``str.format``
+    # interprets them as replacement fields and raises ``KeyError``. Replace
+    # only the two supported markers so literal braces remain in the prompt.
+    return _PROMPT.replace("{INPUT_DATA}", str(data)).replace("{ACTION}", action_prompt)
