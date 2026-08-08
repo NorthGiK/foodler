@@ -105,7 +105,9 @@ export function normalizeReceiptResponse(
   if (!qrraw)
     return null;
 
-  const ticketDate: string = toIsoDate(data.ticketDate);
+  // Providers use either ticketDate or dateTime for the fiscal purchase time.
+  // Never replace a supplied purchase date with the scan time.
+  const ticketDate: string = toIsoDate(data.ticketDate ?? data.dateTime);
   const operationType: number = data.operationType ?? 3;
   const sign: number = operationType === 2 || operationType === 4 ? -1 : 1;
   const totalSumRub: number = sign * rublesFromKopeks(data.totalSum);

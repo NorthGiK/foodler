@@ -9,6 +9,8 @@
 
 ### fixed
 - Receipt ordering is based on the purchase date; the obsolete local `createdAt` receipt field has been removed from new development databases.
+- Legacy SQLite databases gain missing device metadata columns before device registration.
+- Receipt import uses a provider's fiscal `dateTime` when `ticketDate` is absent.
 
 ###
 
