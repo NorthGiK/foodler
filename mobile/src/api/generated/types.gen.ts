@@ -820,6 +820,12 @@ export type ReceiptRawResponseSchema = {
   data: {
     [key: string]: unknown;
   } | null;
+  /**
+   * Request
+   */
+  request?: {
+    [key: string]: unknown;
+  } | null;
 };
 
 /**

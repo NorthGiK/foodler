@@ -93,6 +93,9 @@ class ReceiptRawResponseSchema(BaseModel):
     # The receipt provider owns the nested payload and may add or change fields.
     # Keep it transparent to the client; only persistence validates fields it uses.
     data: dict[str, Any] | None
+    # The provider echoes the fiscal QR here. It is required by the mobile
+    # client to build a stable local/server idempotency key.
+    request: dict[str, Any] | None = None
 
 
 class GetReceiptFromQRSchema(BaseModel):

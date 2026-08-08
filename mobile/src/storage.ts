@@ -71,12 +71,9 @@ function createQrraw(receipt: ApiReceiptResponse): string | undefined {
   // should be        `20260723T1707
   const strDate = receipt.data?.json?.dateTime;
   if (!strDate) return;
-  const ticketDate = strDate
-   ?.replace("-", "") // remove -
-    .replace(":", "") // remove :
-    .slice(0, strDate?.length - 2); // remove last 2 seconds
+  const ticketDate = strDate.replace(/[-:]/g, "").slice(0, 13);
   
-  if (!receipt.data?.json?.totalSum) return;
+  if (typeof receipt.data?.json?.totalSum !== "number") return;
   const sum = receipt.data?.json?.totalSum * 0.01;
 
   const fn = receipt.data?.json?.fiscalDriveNumber;

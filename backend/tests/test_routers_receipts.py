@@ -109,7 +109,7 @@ class TestGetReceiptByRawQr:
             app.dependency_overrides.pop(get_receipt_gateway, None)
 
         assert response.status_code == 200
-        assert response.json() == {"code": 0, "data": None}
+        assert response.json() == {"code": 0, "data": None, "request": None}
 
     @pytest.mark.asyncio
     async def test_provider_specific_item_fields_do_not_fail_guest_recognition(

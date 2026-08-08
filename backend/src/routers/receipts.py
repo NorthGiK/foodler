@@ -71,10 +71,13 @@ async def _receipt_item(body: ReceiptItemSchema, receipt_id: str, db: AsyncSessi
 async def get_receipt_by_qr(
     body: GetReceiptFromQRSchema,
     user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
     gateway: ReceiptGateway = Depends(get_receipt_gateway),
 ):
     try:
-        return await gateway.recognize_raw(body.qrraw)
+        result = ReceiptRawResponseSchema.model_validate(await gateway.recognize_raw(body.qrraw))
+        await _save_recognized_receipt(result, user, db)
+        return result
     except ReceiptProviderError as exc:
         logger.warning("Receipt provider request failed", extra={"provider": "receipt_api"})
         raise HTTPException(
@@ -96,6 +99,8 @@ async def _save_recognized_receipt(
         return
 
     ticket_date = raw_data.get("ticketDate")
+    if not isinstance(ticket_date, str):
+        ticket_date = raw_data.get("dateTime")
     total_sum = raw_data.get("totalSum")
     if not isinstance(ticket_date, str) or isinstance(total_sum, bool):
         return
@@ -108,13 +113,16 @@ async def _save_recognized_receipt(
     if total < 0:
         return
 
+    source_key = result.request.get("qrraw") if isinstance(result.request, dict) else None
+    source_fingerprint = _source_fingerprint(source_key if isinstance(source_key, str) else None)
+    filters = [Receipt.user_id == user.id]
+    if source_fingerprint:
+        filters.append(Receipt.source_fingerprint == source_fingerprint)
+    else:
+        filters.extend((Receipt.date == receipt_date, Receipt.total == total))
     stmt = (
         select(Receipt.id)
-        .where(
-            Receipt.date == receipt_date,
-            Receipt.user_id == user.id,
-            Receipt.total == total,
-        )
+        .where(*filters)
     )
     receipt = (await db.execute(stmt)).scalar_one_or_none()
     if receipt is not None:
@@ -128,6 +136,7 @@ async def _save_recognized_receipt(
         total=total,
         user_id=user.id,
         receipt_expires_at=compute_receipt_expiry(entitlement.active),
+        source_fingerprint=source_fingerprint,
     )
     db.add(receipt)
     raw_items = raw_data.get("items")

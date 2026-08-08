@@ -8,8 +8,8 @@ export interface ApiReceiptResponse {
       user?: string;
       dateTime?: string;
       fiscalDriveNumber?: string;
-      fiscalDocumentNumber?: string;
-      fiscalSign?: string;
+      fiscalDocumentNumber?: string | number;
+      fiscalSign?: string | number;
       items?: {
         name?: string;
         price?: number;

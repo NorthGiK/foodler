@@ -1451,6 +1451,18 @@
               }
             ],
             "title": "Data"
+          },
+          "request": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request"
           }
         },
         "required": [
