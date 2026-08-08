@@ -38,7 +38,9 @@ const categoryColors = ["#007AFF", "#34C759", "#FF9500", "#FF3B30", "#AF52DE"];
 export function StatsScreen({ receipts, joinedItems }: Props) {
   const { theme } = useTheme();
   const styles = getStyles(theme);
-  const [period, setPeriod] = useState<Period>("month");
+  // Fiscal receipt dates may precede the scan date. Start broad so imported
+  // history is immediately visible; users can still narrow to a month.
+  const [period, setPeriod] = useState<Period>("year");
   const [chartKind, setChartKind] = useState<ChartKind>("bar");
 
   const filtered = useMemo(

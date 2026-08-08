@@ -29,7 +29,8 @@ const modeItems: { label: string; value: string }[] = [
 export function TypesScreen({ receipts, joinedItems }: TypesScreenProps) {
   const { theme } = useTheme();
   const styles = getStyles(theme);
-  const [period, setPeriod] = useState<Period>("month");
+  // Show receipts with their actual purchase dates on first open.
+  const [period, setPeriod] = useState<Period>("year");
   const [mode, setMode] = useState<CategoryMode>("count");
 
   const filteredReceipts = useMemo(

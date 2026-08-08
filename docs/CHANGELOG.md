@@ -15,6 +15,8 @@
   scans on the server, and uses that payload for duplicate detection.
 - Bulk sync and local SQLite normalize fiscal QR fields, so an already saved
   receipt cannot be re-added with a differently formatted QR string.
+- Statistics and category screens initially show the current year so receipts
+  with an earlier fiscal purchase date are visible immediately after scanning.
 
 ###
 
