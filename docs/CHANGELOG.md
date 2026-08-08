@@ -8,6 +8,8 @@
 - YooKassa payments carry either the Budget or Premium monthly plan.
 
 ### fixed
+- Stale YooKassa payment attempts no longer permanently exhaust the three
+  pending-payment slots: attempts older than 10 minutes are cleared first.
 - Profile now opens a two-plan subscription screen: Basic (300 ₽) and Premium
   (800 ₽) create payments with the selected server-validated plan.
 - External AI actions now request Markdown text rather than JSON section data,

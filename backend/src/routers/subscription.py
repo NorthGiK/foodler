@@ -1,9 +1,9 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth import get_current_user
@@ -36,6 +36,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Subscription"], prefix="/subscription")
 get = with_rate_limit(router.get, DatabaseRateLimiter(100, 1))
 post = with_rate_limit(router.post, DatabaseRateLimiter(100, 1))
+PENDING_PAYMENT_TTL = timedelta(minutes=10)
 
 
 def provide_yookassa_gateway() -> YooKassaGateway:
@@ -45,6 +46,28 @@ def provide_yookassa_gateway() -> YooKassaGateway:
 def _utcnow() -> datetime:
     """Timezone-safe UTC now."""
     return datetime.now(timezone.utc)
+
+
+async def cleanup_expired_pending_payments(
+    db: AsyncSession,
+    user_id: str,
+    *,
+    now: datetime | None = None,
+) -> int:
+    """Remove this user's pending payments that can no longer be completed."""
+    cutoff = (now or _utcnow()) - PENDING_PAYMENT_TTL
+    result = await db.execute(
+        delete(MPayment).where(
+            MPayment.user_id == user_id,
+            MPayment.status == PaymentStatus.IN_PROGRESS,
+            MPayment.created_at < cutoff,
+        )
+    )
+    deleted_count = result.rowcount or 0
+    if deleted_count:
+        await db.commit()
+        logger.info("Expired pending payments cleaned up", extra={"count": deleted_count})
+    return deleted_count
 
 
 @get("", response_model=SubscriptionStatusResponse)
@@ -88,6 +111,8 @@ async def create_payment(
     gateway: YooKassaGateway = Depends(provide_yookassa_gateway),
 ):
     """Create YooKassa payment for premium subscription."""
+    await cleanup_expired_pending_payments(db, user.id)
+
     # Prevent abuse: limit pending payments to 3
     q = (
         select(func.count())

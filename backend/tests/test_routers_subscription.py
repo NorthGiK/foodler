@@ -302,6 +302,42 @@ class TestYookassaWebhook:
 
 class TestCreatePaymentLimit:
     @pytest.mark.asyncio
+    async def test_create_payment_removes_pending_payments_older_than_ten_minutes(
+        self,
+        client: AsyncClient,
+        auth_headers,
+        db: AsyncSession,
+        test_user: User,
+        monkeypatch,
+    ):
+        stale_time = datetime.now(timezone.utc) - timedelta(minutes=11)
+        for index in range(3):
+            db.add(
+                MPayment(
+                    id=f"stale_payment_{index}",
+                    user_id=test_user.id,
+                    created_at=stale_time,
+                    status="in_progress",
+                )
+            )
+        await db.commit()
+        fake_payment = SimpleNamespace(
+            id="new_payment",
+            confirmation=SimpleNamespace(confirmation_url="https://fake"),
+        )
+        create = AsyncMock(return_value=fake_payment)
+        monkeypatch.setattr("src.routers.subscription.yookassa_gateway.create_payment", create)
+
+        response = await client.post("/api/subscription/payment", json={}, headers=auth_headers)
+
+        assert response.status_code == 200
+        create.assert_awaited_once()
+        remaining_payments = (
+            await db.scalars(select(MPayment).where(MPayment.user_id == test_user.id))
+        ).all()
+        assert [payment.id for payment in remaining_payments] == ["new_payment"]
+
+    @pytest.mark.asyncio
     async def test_create_payment_429_when_three_pending(
         self,
         client: AsyncClient,
