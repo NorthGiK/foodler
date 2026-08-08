@@ -50,6 +50,10 @@ export type AiRequestParameters = {
    */
   periodTo?: string | null;
   /**
+   * Profile Context
+   */
+  profile_context?: string | null;
+  /**
    * Question
    */
   question?: string | null;
@@ -183,6 +187,10 @@ export type CreatePaymentRequest = {
    */
   paymentMethod?:
     "bank_card" | "sbp" | "sberbank" | "tinkoff_bank" | "yoo_money" | null;
+  /**
+   * Plan
+   */
+  plan?: "budget_monthly" | "premium_monthly";
 };
 
 /**
@@ -831,6 +839,10 @@ export type ReceiptSchema = {
    */
   items?: Array<ReceiptItemSchema>;
   /**
+   * Source Key
+   */
+  source_key?: string | null;
+  /**
    * Store
    */
   store?: string | null;
@@ -1043,6 +1055,10 @@ export type SubscriptionStatusResponse = {
    * Expiresat
    */
   expiresAt: string | null;
+  /**
+   * Plan
+   */
+  plan?: "budget_monthly" | "premium_monthly" | null;
   /**
    * Platform
    */

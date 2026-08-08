@@ -21,7 +21,7 @@ from ..credits import (
     reserve_credits,
 )
 from ..database import get_db
-from ..models import AiReport, Receipt, ReceiptItem, User
+from ..models import AiReport, Receipt, ReceiptItem, Subscription, User
 from ..product_matching import compute_context_hash
 from ..schemas import AiRequest, AiResult, AiSection, CreditsInfo
 from ..utils import LIMIT_DEFAULT, LIMIT_DELETE, normalize_date, with_rate_limit
@@ -100,6 +100,12 @@ async def run_ai(
 
     ip = request.client.host if request and request.client else None
     is_llm_action = body.action not in LOCAL_ACTIONS
+    subscription = await db.scalar(select(Subscription).where(Subscription.user_id == user.id))
+    force_light = bool(
+        subscription
+        and subscription.active
+        and subscription.product_id == "budget_monthly"
+    )
 
     # ============================================================
     # Получение чеков (только для LLM-действий, LOCAL сами ходят в БД)
@@ -144,7 +150,6 @@ async def run_ai(
                     "quantity": it.quantity,
                     "price": float(it.price),
                     "unit": it.unit,
-                    "product_id": it.product_id,
                 }
                 for it in (r.items or [])
             ],
@@ -160,6 +165,9 @@ async def run_ai(
 
     if body.parameters and body.parameters.members:
         context["members"] = [m.model_dump() for m in body.parameters.members]
+
+    if body.parameters and body.parameters.profile_context:
+        context["profile"] = body.parameters.profile_context
 
     if body.parameters and body.parameters.history:
         context["history"] = [h.model_dump() for h in body.parameters.history]
@@ -179,6 +187,7 @@ async def run_ai(
             context=context,
             db=db,
             user_id=user.id,
+            force_light=force_light,
         )
 
         try:
@@ -268,6 +277,7 @@ async def run_ai(
                 context=context,
                 db=db,
                 user_id=user.id,
+                force_light=force_light,
             )
             route_completed = True
         except AiServiceError as exc:

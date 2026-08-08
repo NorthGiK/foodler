@@ -18,6 +18,7 @@ from typing import Any
 
 from aiohttp import ClientTimeout, ContentTypeError
 
+from src.ai_prompt import create_prompt
 from src.ai_sections import _coerce_sections
 from src.analytics import (
     get_fridge_status,
@@ -93,6 +94,9 @@ def _truncate(text: str, limit: int = 12000) -> str:
 
 
 def _build_user_prompt(action: str, parameters: dict | None, context: dict) -> str:
+    rendered = create_prompt(action, {"parameters": parameters or {}, "context": context})
+    if rendered is not None:
+        return _truncate(rendered, 12000)
     parts: list[str] = []
     parts.append(f"action={action}")
     if parameters:
@@ -365,6 +369,7 @@ class TaskRouter:
         context: dict[str, Any],
         db=None,
         user_id: str | None = None,
+        force_light: bool = False,
     ) -> list[dict[str, Any]]:
         """
         Returns a list of AiSection-compatible dicts.
@@ -395,7 +400,7 @@ class TaskRouter:
             return await handler(db, user_id, period_from, period_to)
 
         # ---- Tier 1/2: LLM calls ----
-        if action in LIGHT_ACTIONS:
+        if force_light or action in LIGHT_ACTIONS:
             model = AI_LIGHT_MODEL
             max_tokens = 400
             temperature = 0.2

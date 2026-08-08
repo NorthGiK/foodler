@@ -1,3 +1,4 @@
+import hashlib
 import logging
 from datetime import date
 from decimal import Decimal
@@ -23,6 +24,7 @@ from ..integrations.receipts import (
     get_receipt_gateway,
 )
 from ..models import Receipt, ReceiptItem, User
+from ..product_matching import match_product
 from ..receipt_retention import compute_receipt_expiry
 from ..schemas import (
     GetReceiptFromQRSchema,
@@ -43,6 +45,26 @@ delete = with_rate_limit(router.delete, DatabaseRateLimiter(50, 1))
 patch = with_rate_limit(router.patch, DatabaseRateLimiter(50, 1))
 
 logger = logging.getLogger(__name__)
+
+
+def _source_fingerprint(source_key: str | None) -> str | None:
+    if not source_key:
+        return None
+    normalized = "&".join(sorted(part.strip() for part in source_key.split("&") if part.strip()))
+    return hashlib.sha256(normalized.encode()).hexdigest() if normalized else None
+
+
+async def _receipt_item(body: ReceiptItemSchema, receipt_id: str, db: AsyncSession) -> ReceiptItem:
+    match = await match_product(db, body.name)
+    product = match["product"]
+    return ReceiptItem(
+        receipt_id=receipt_id,
+        name=body.name,
+        quantity=body.quantity,
+        unit=body.unit,
+        price=body.price,
+        product_id=product.id if product else body.product_id,
+    )
 
 
 @post("/receipts/get_receipt_by_qr", response_model=ReceiptRawResponseSchema)
@@ -89,7 +111,7 @@ async def _save_recognized_receipt(
     stmt = (
         select(Receipt.id)
         .where(
-            Receipt.data == receipt_date,
+            Receipt.date == receipt_date,
             Receipt.user_id == user.id,
             Receipt.total == total,
         )
@@ -191,14 +213,20 @@ async def get_receipt_by_raw_qr(
     return result
 
 
-# @legacy_post("/receipts/get_receipt_by_raw_qr", response_model=ReceiptRawResponseSchema)
-# async def get_receipt_by_raw_qr_legacy(
-#     qrfile: UploadFile,
-#     gateway: ReceiptGateway = Depends(get_receipt_gateway),
-#     user: User | None = Depends(get_current_user_optional_from_request),
-#     db: AsyncSession = Depends(get_db),
-# ) -> ReceiptRawResponseSchema:
-#     return await _get_receipt_by_raw_qr(qrfile, gateway, user, db)
+@legacy_post("/receipts/get_receipt_by_raw_qr", response_model=ReceiptRawResponseSchema)
+async def get_receipt_by_raw_qr_legacy(
+    qrfile: UploadFile,
+    gateway: ReceiptGateway = Depends(get_receipt_gateway),
+    user: User | None = Depends(get_current_user_optional_from_request),
+    db: AsyncSession = Depends(get_db),
+) -> ReceiptRawResponseSchema:
+    contents = await qrfile.read(QR_UPLOAD_MAX_BYTES + 1)
+    if len(contents) > QR_UPLOAD_MAX_BYTES:
+        raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, detail="QR image is too large")
+    result = await _recognize_receipt_image(contents, qrfile, gateway)
+    if user is not None:
+        await _save_recognized_receipt(result, user, db)
+    return result
 
 
 @get("/receipts", response_model=list[ReceiptSchema])
@@ -263,6 +291,16 @@ async def upload_receipt(
     db: AsyncSession = Depends(get_db),
 ):
     entitlement = await get_entitlement(db, user)
+    source_fingerprint = _source_fingerprint(body.source_key)
+    if source_fingerprint:
+        existing_by_source = await db.scalar(
+            select(Receipt).where(
+                Receipt.user_id == user.id,
+                Receipt.source_fingerprint == source_fingerprint,
+            )
+        )
+        if existing_by_source:
+            return {"status": "duplicate"}
     receipt = await db.get(Receipt, body.id)
     if receipt:
         if receipt.user_id != user.id:
@@ -279,18 +317,12 @@ async def upload_receipt(
         total=body.total,
         user_id=user.id,
         receipt_expires_at=compute_receipt_expiry(entitlement.active),
+        source_fingerprint=source_fingerprint,
     )
     db.add(receipt)
 
     for item in body.items:
-        ri = ReceiptItem(
-            receipt_id=receipt.id,
-            name=item.name,
-            quantity=item.quantity,
-            unit=item.unit,
-            price=item.price,
-        )
-        db.add(ri)
+        db.add(await _receipt_item(item, receipt.id, db))
     await db.commit()
     return {"status": "ok"}
 
@@ -338,6 +370,7 @@ async def upload_receipts(
             total=r.total,
             user_id=user.id,
             receipt_expires_at=compute_receipt_expiry(entitlement.active),
+            source_fingerprint=_source_fingerprint(r.source_key),
         )
         for r in new_receipt_bodies
     ]
@@ -347,14 +380,7 @@ async def upload_receipts(
 
     for receipt in new_receipt_bodies:
         for item in receipt.items:
-            ri = ReceiptItem(
-                receipt_id=receipt.id,
-                name=item.name,
-                quantity=item.quantity,
-                unit=item.unit,
-                price=item.price,
-            )
-            db.add(ri)
+            db.add(await _receipt_item(item, receipt.id, db))
     await db.commit()
     return {"status": "ok"}
 

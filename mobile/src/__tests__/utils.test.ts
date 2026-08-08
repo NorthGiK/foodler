@@ -10,7 +10,6 @@ function receipt(id: string, ticketDate: string, totalSumRub: number): Receipt {
     operationType: 3,
     totalSumRub,
     sourceCode: 1,
-    createdAt: 1,
   };
 }
 

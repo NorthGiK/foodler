@@ -42,6 +42,10 @@ function toServerReceipt(
     date: receipt.ticketDate.slice(0, 10),
     store: receipt.organization,
     total: Math.abs(receipt.totalSumRub),
+    source_key:
+      receipt.qrraw.startsWith("manual:") || receipt.qrraw.startsWith("synced:")
+        ? null
+        : receipt.qrraw,
     items: items.map((item) => ({
       name: item.name,
       quantity: item.quantity,
@@ -95,7 +99,6 @@ export async function pullServerReceipts(
         operationType: 3,
         totalSumRub: sr.total ?? 0,
         sourceCode: 1,
-        createdAt: Date.now(),
       };
       result.receipts.push(receipt);
 

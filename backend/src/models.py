@@ -15,6 +15,7 @@ from sqlalchemy import (
     Index,
     Integer,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.sqlite import JSON
 from sqlalchemy.engine import Dialect
@@ -143,6 +144,7 @@ class Receipt(Base):
     __tablename__ = "receipts"
     __table_args__ = (
         Index("ix_receipts_user_date", "user_id", "date"),
+        UniqueConstraint("user_id", "source_fingerprint", name="uq_receipts_user_source_fingerprint"),
         CheckConstraint("total_cents >= 0", name="ck_receipts_total_nonnegative"),
     )
 
@@ -154,6 +156,9 @@ class Receipt(Base):
     created_at: Mapped[datetime] = mapped_column(default=_utcnow)
     # Дата, после которой чек можно удалить. None = хранить бесконечно.
     receipt_expires_at: Mapped[datetime] = mapped_column(nullable=True, index=True)
+    # SHA-256 of the normalized fiscal QR payload. The payload itself is never
+    # retained server-side solely for duplicate detection.
+    source_fingerprint: Mapped[str | None] = mapped_column(nullable=True, index=True)
 
     user: Mapped[User] = relationship("User", back_populates="receipts")
     items: Mapped[list[ReceiptItem]] = relationship(
@@ -213,6 +218,7 @@ class Payment(Base):
             values_callable=lambda enum: [e.value for e in enum],
         )
     )
+    plan_id: Mapped[str] = mapped_column(nullable=False, default="budget_monthly")
 
     user: Mapped[User] = relationship("User")
 

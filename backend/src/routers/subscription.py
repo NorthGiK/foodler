@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth import get_current_user
-from ..config import PAYMENT_AMOUNT_RUB, PAYMENT_RETURN_URL
+from ..config import PAYMENT_BUDGET_AMOUNT_RUB, PAYMENT_PREMIUM_AMOUNT_RUB, PAYMENT_RETURN_URL
 from ..database import get_db
 from ..integrations.yookassa import (
     YooKassaError,
@@ -15,7 +15,7 @@ from ..integrations.yookassa import (
     yookassa_gateway,
 )
 from ..models import Payment as MPayment
-from ..models import PaymentStatus, User
+from ..models import PaymentStatus, Subscription, User
 from ..schemas import (
     CreatePaymentRequest,
     PaymentConfirmationResponse,
@@ -54,6 +54,7 @@ async def get_subscription(
 ):
     """Get current subscription status."""
     entitlement = await get_entitlement(db, user)
+    subscription = await db.scalar(select(Subscription).where(Subscription.user_id == user.id))
     if entitlement.provider is None:
         return {
             "active": False,
@@ -65,6 +66,7 @@ async def get_subscription(
         "active": entitlement.active,
         "platform": entitlement.provider.value,
         "expiresAt": entitlement.expires_at.isoformat() if entitlement.expires_at else None,
+        "plan": subscription.product_id if subscription and subscription.product_id in {"budget_monthly", "premium_monthly"} else None,
     }
 
 
@@ -103,11 +105,13 @@ async def create_payment(
         )
 
     now = _utcnow()
+    plan = body.plan if body else "budget_monthly"
+    amount = PAYMENT_BUDGET_AMOUNT_RUB if plan == "budget_monthly" else PAYMENT_PREMIUM_AMOUNT_RUB
 
     # Build payment with optional payment method
     payment_data = {
         "amount": {
-            "value": PAYMENT_AMOUNT_RUB,
+            "value": amount,
             "currency": "RUB",
         },
         "capture": True,
@@ -118,6 +122,7 @@ async def create_payment(
         },
         "metadata": {
             "user_id": user.id,
+            "plan": plan,
         },
     }
 
@@ -158,6 +163,7 @@ async def create_payment(
         user_id=user.id,
         created_at=now,
         status=PaymentStatus.IN_PROGRESS,
+        plan_id=plan,
     )
     db.add(mpayment)
     await db.commit()

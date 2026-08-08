@@ -1,5 +1,17 @@
 # Changelog
 
+# v0.0.8 — receipt identity and AI plans
+
+### changed
+- Receipt synchronization uses a server-side hash of a fiscal QR payload to make scanned receipts idempotent across devices.
+- AI prompts now use action-specific templates; locally stored profile goals and restrictions are sent only with the active AI request.
+- YooKassa payments carry either the Budget or Premium monthly plan.
+
+### fixed
+- Receipt ordering is based on the purchase date; the obsolete local `createdAt` receipt field has been removed from new development databases.
+
+###
+
 # v0.0.7 — guest receipt-image recognition
 
 ### changed

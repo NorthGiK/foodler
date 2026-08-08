@@ -124,7 +124,6 @@ export function buildManualReceipt(
     operationType: 3,
     totalSumRub: calculateManualReceiptTotal(draft.items),
     sourceCode: 1,
-    createdAt: now.getTime(),
   };
 
   return { receipt, items };

@@ -63,7 +63,6 @@ export interface Receipt {
   operationType: number;
   totalSumRub: number;
   sourceCode: number;
-  createdAt: number;
   status?: number;
 }
 

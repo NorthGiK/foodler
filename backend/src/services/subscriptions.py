@@ -7,7 +7,11 @@ from typing import Any
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.config import PAYMENT_AMOUNT_RUB, SUBSCRIPTION_PERIOD_DAYS
+from src.config import (
+    PAYMENT_BUDGET_AMOUNT_RUB,
+    PAYMENT_PREMIUM_AMOUNT_RUB,
+    SUBSCRIPTION_PERIOD_DAYS,
+)
 from src.models import (
     Payment,
     PaymentStatus,
@@ -48,7 +52,10 @@ def verify_yookassa_payment(
     metadata = _value(remote_payment, "metadata", {}) or {}
     try:
         amount_value = Decimal(str(_value(amount, "value")))
-        expected_amount = Decimal(PAYMENT_AMOUNT_RUB)
+        plan = str(_value(metadata, "plan", "budget_monthly"))
+        expected_amount = Decimal(
+            PAYMENT_BUDGET_AMOUNT_RUB if plan == "budget_monthly" else PAYMENT_PREMIUM_AMOUNT_RUB
+        )
     except (InvalidOperation, TypeError) as exc:
         raise PaymentVerificationError("Invalid payment amount") from exc
 
@@ -61,6 +68,7 @@ def verify_yookassa_payment(
         (amount_value == expected_amount, "Payment amount mismatch"),
         (_value(amount, "currency") == "RUB", "Payment currency mismatch"),
         (str(_value(metadata, "user_id", "")) == user_id, "Payment owner mismatch"),
+        (plan in {"budget_monthly", "premium_monthly"}, "Unknown payment plan"),
     )
     if expected_status == "succeeded":
         checks += ((_value(remote_payment, "paid") is True, "Payment is not paid"),)
@@ -140,13 +148,13 @@ async def apply_yookassa_event(
         subscription = Subscription(
             user_id=user.id,
             purchase_token=f"yookassa:{payment_id}",
-            product_id="premium_monthly",
+            product_id=local_payment.plan_id,
             provider=SubscriptionProvider.YOOKASSA,
         )
         db.add(subscription)
     else:
         subscription.purchase_token = f"yookassa:{payment_id}"
-        subscription.product_id = "premium_monthly"
+        subscription.product_id = local_payment.plan_id
         subscription.provider = SubscriptionProvider.YOOKASSA
     subscription.active = True
     subscription.expires_at = subscription_expires

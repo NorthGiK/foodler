@@ -1,5 +1,6 @@
 import { api } from "../api/client";
 import { FamilyMember, Receipt, ReceiptItem } from "../types";
+import { loadProfile } from "../profileStorage";
 import {
   ACTION_LABELS,
   ACTION_TO_SERVER,
@@ -203,6 +204,13 @@ export async function generateAiResponse(
   if (context.members && context.members.length > 0) {
     parameters.members = context.members.map(familyMemberToApiMember);
   }
+  const profile = await loadProfile();
+  const profileParts = [
+    profile.healthGoals.length ? `Цели: ${profile.healthGoals.join(", ")}` : "",
+    profile.dietaryPreferences.length ? `Ограничения: ${profile.dietaryPreferences.join(", ")}` : "",
+    profile.additionalInfo ? `Дополнительно: ${profile.additionalInfo}` : "",
+  ].filter(Boolean);
+  if (profileParts.length) parameters.profile_context = profileParts.join(". ");
 
   try {
     const result = await api.runAiAction(serverAction, parameters);

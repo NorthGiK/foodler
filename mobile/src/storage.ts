@@ -24,8 +24,7 @@ export async function openDb() {
       ticketDate TEXT NOT NULL,
       operationType INTEGER NOT NULL,
       totalSumRub REAL NOT NULL,
-      sourceCode INTEGER NOT NULL,
-      createdAt INTEGER NOT NULL
+      sourceCode INTEGER NOT NULL
     );
   `);
   await db.execAsync(`
@@ -122,7 +121,6 @@ export function normalizeReceiptResponse(
     operationType,
     totalSumRub,
     sourceCode: response.code,
-    createdAt: Date.now(),
   };
 
   const items: ReceiptItem[] = (data.items ?? []).map((item) => {
@@ -147,8 +145,8 @@ export async function saveReceipt(
 ) {
   await db.withExclusiveTransactionAsync(async (transaction) => {
     await transaction.runAsync(
-      `INSERT OR IGNORE INTO receipts (id, qrraw, organization, ticketDate, operationType, totalSumRub, sourceCode, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR IGNORE INTO receipts (id, qrraw, organization, ticketDate, operationType, totalSumRub, sourceCode)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         receipt.id,
         receipt.qrraw,
@@ -157,7 +155,6 @@ export async function saveReceipt(
         receipt.operationType,
         receipt.totalSumRub,
         receipt.sourceCode,
-        receipt.createdAt,
       ],
     );
 
@@ -191,9 +188,9 @@ export async function saveReceipt(
 
 export async function loadReceipts(db: SQLite.SQLiteDatabase) {
   return db.getAllAsync<Receipt>(
-    `SELECT id, qrraw, organization, ticketDate, operationType, totalSumRub, sourceCode, createdAt
+    `SELECT id, qrraw, organization, ticketDate, operationType, totalSumRub, sourceCode
      FROM receipts
-     ORDER BY datetime(ticketDate) DESC, createdAt DESC`,
+     ORDER BY datetime(ticketDate) DESC, id DESC`,
   );
 }
 

@@ -96,6 +96,18 @@
             ],
             "title": "Periodto"
           },
+          "profile_context": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Context"
+          },
           "question": {
             "anyOf": [
               {
@@ -333,6 +345,15 @@
               }
             ],
             "title": "Paymentmethod"
+          },
+          "plan": {
+            "default": "budget_monthly",
+            "enum": [
+              "budget_monthly",
+              "premium_monthly"
+            ],
+            "title": "Plan",
+            "type": "string"
           }
         },
         "title": "CreatePaymentRequest",
@@ -1460,6 +1481,19 @@
             "title": "Items",
             "type": "array"
           },
+          "source_key": {
+            "anyOf": [
+              {
+                "maxLength": 4096,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Key"
+          },
           "store": {
             "anyOf": [
               {
@@ -1818,6 +1852,21 @@
               }
             ],
             "title": "Expiresat"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "enum": [
+                  "budget_monthly",
+                  "premium_monthly"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan"
           },
           "platform": {
             "anyOf": [

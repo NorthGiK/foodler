@@ -117,6 +117,9 @@ class ReceiptSchema(BaseModel):
     date: date
     store: str | None = Field(default=None, max_length=500)
     total: float = Field(ge=0, multiple_of=0.01)
+    # Raw QR may be supplied by trusted first-party clients; the server stores
+    # only its hash and uses it as a per-user idempotency key.
+    source_key: str | None = Field(default=None, min_length=1, max_length=4096)
     items: list[ReceiptItemSchema] = Field(default_factory=list, max_length=1000)
 
 
@@ -147,6 +150,7 @@ class AiRequestParameters(BaseModel):
     question: str | None = Field(default=None, max_length=4000)
     history: list[AiHistoryItem] | None = Field(default=None, max_length=20)
     members: list[FamilyMember] | None = None
+    profile_context: str | None = Field(default=None, max_length=2000)
 
 
 class AiRequest(BaseModel):
@@ -204,6 +208,7 @@ class CreatePaymentRequest(BaseModel):
     paymentMethod values: bank_card, sbp, sberbank, tinkoff_bank, yoo_money
     If None, YooKassa will show all available payment methods.
     """
+    plan: Literal["budget_monthly", "premium_monthly"] = "budget_monthly"
 
     paymentMethod: Literal["bank_card", "sbp", "sberbank", "tinkoff_bank", "yoo_money"] | None = (
         None
@@ -222,6 +227,7 @@ class SubscriptionStatusResponse(BaseModel):
     active: bool
     platform: Literal["yookassa", "legacy"] | None
     expiresAt: datetime | None
+    plan: Literal["budget_monthly", "premium_monthly"] | None = None
 
 
 class YooKassaWebhookObject(BaseModel):

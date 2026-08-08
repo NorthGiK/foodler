@@ -34,7 +34,6 @@ const receipt: Receipt = {
   operationType: 3,
   totalSumRub: 100,
   sourceCode: 1,
-  createdAt: 1,
 };
 
 const items: ReceiptItem[] = [
@@ -64,6 +63,7 @@ describe("receipt synchronization", () => {
       date: "2026-08-01",
       store: receipt.organization,
       total: 100,
+      source_key: receipt.qrraw,
       items: [
         {
           name: "Молоко",
@@ -113,8 +113,8 @@ describe("receipt synchronization", () => {
       {
         id: receipt.id,
         date: "2026-08-01",
-        store: receipt.organization,
-        total: receipt.totalSumRub,
+      store: receipt.organization,
+      total: receipt.totalSumRub,
         items: [],
       },
     ]);

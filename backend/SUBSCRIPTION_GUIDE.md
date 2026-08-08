@@ -9,7 +9,8 @@
 ```dotenv
 PAYMENT_ACCOUNT_ID=
 PAYMENT_SECRET_KEY=
-PAYMENT_AMOUNT_RUB=5.00
+PAYMENT_BUDGET_AMOUNT_RUB=300.00
+PAYMENT_PREMIUM_AMOUNT_RUB=800.00
 PAYMENT_RETURN_URL=https://foodler.site/
 PAYMENT_TIMEOUT_SECONDS=10
 PAYMENT_MAX_ATTEMPTS=2
@@ -47,11 +48,14 @@ Authorization: Bearer <access-token>
 Content-Type: application/json
 
 {
+  "plan": "budget_monthly",
   "paymentMethod": "sbp"
 }
 ```
 
-`paymentMethod` необязателен. Поддерживаются `bank_card`, `sbp`, `sberbank`,
+`plan` — `budget_monthly` (300 ₽ за 30 дней) либо `premium_monthly` (800 ₽ за
+30 дней). Budget использует light-модель для всех внешних AI-запросов; Premium
+использует strong-модель только там, где она нужна. `paymentMethod` необязателен. Поддерживаются `bank_card`, `sbp`, `sberbank`,
 `tinkoff_bank` и `yoo_money`. Без него YooKassa показывает доступные методы
 самостоятельно.
 
