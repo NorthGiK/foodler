@@ -19,6 +19,7 @@ import { api, type SubscriptionPlan } from "@/api/client";
 import { useAuth } from "@/api/auth";
 import { AnimatedPressable } from "@/components/animations";
 import { useTheme } from "@/components/ThemeContext";
+import { SUBSCRIPTION_TERMS } from "@/config";
 import {
   SUBSCRIPTION_PLANS,
   subscriptionActionLabel,
@@ -93,6 +94,12 @@ export function SubscriptionScreen() {
     } finally {
       setProcessingPlan(null);
     }
+  };
+
+  const openSubscriptionTerms = () => {
+    Linking.openURL(SUBSCRIPTION_TERMS).catch(() => {
+      Alert.alert("Ошибка", "Не удалось открыть условия подписки.");
+    });
   };
 
   const activePlan = status?.active ? status.plan : null;
@@ -254,6 +261,17 @@ export function SubscriptionScreen() {
               );
             })}
           </View>
+          <Text style={[styles.termsNotice, { color: theme.muted }]}>
+            Продолжая оформление, вы соглашаетесь с{" "}
+            <Text
+              accessibilityRole="link"
+              onPress={openSubscriptionTerms}
+              style={styles.termsLink}
+            >
+              условиями подписки
+            </Text>
+            .
+          </Text>
 
           <Text style={[styles.note, { color: theme.muted }]}>
             Итоговая стоимость будет показана до подтверждения оплаты.
@@ -342,6 +360,13 @@ const styles = StyleSheet.create({
   },
   planButtonText: { fontSize: 12, fontWeight: "800", textAlign: "center" },
   note: { fontSize: 12, lineHeight: 17, textAlign: "center", marginTop: 20 },
+  termsNotice: {
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 20,
+    textAlign: "center",
+  },
+  termsLink: { color: "#38BDF8", textDecorationLine: "underline" },
   centerState: {
     flex: 1,
     alignItems: "center",

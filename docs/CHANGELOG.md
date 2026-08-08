@@ -8,6 +8,10 @@
 - YooKassa payments carry either the Budget or Premium monthly plan.
 
 ### fixed
+- Legal documents now accurately state that receipt export is unavailable,
+  refer to a neutral external receipt-verification service, and consistently
+  describe subscriptions as non-renewing. The subscription screen links to
+  the subscription terms before payment.
 - Stale YooKassa payment attempts no longer permanently exhaust the three
   pending-payment slots: attempts older than 10 minutes are cleared first.
 - Profile now opens a two-plan subscription screen: Basic (300 ₽) and Premium
