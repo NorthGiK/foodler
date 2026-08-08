@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from ..ai_service import ALL_ACTIONS, LOCAL_ACTIONS, AiServiceError, TaskRouter
+from ..ai_service import ALL_ACTIONS, AiServiceError, TaskRouter
 from ..analytics import get_cached_response, set_cached_response
 from ..auth import get_current_user, get_current_user_optional
 from ..credits import (
@@ -99,7 +99,6 @@ async def run_ai(
         )
 
     ip = request.client.host if request and request.client else None
-    is_llm_action = body.action not in LOCAL_ACTIONS
     subscription = await db.scalar(select(Subscription).where(Subscription.user_id == user.id))
     force_light = bool(
         subscription
@@ -108,27 +107,24 @@ async def run_ai(
     )
 
     # ============================================================
-    # Получение чеков (только для LLM-действий, LOCAL сами ходят в БД)
+    # Получение чеков для контекста AI-рекомендации.
     # ============================================================
     period_from = body.parameters.periodFrom if body.parameters else None
     period_to = body.parameters.periodTo if body.parameters else None
 
-    if is_llm_action:
-        query = select(Receipt).where(Receipt.user_id == user.id)
+    query = select(Receipt).where(Receipt.user_id == user.id)
 
-        if period_from:
-            query = query.where(Receipt.date >= normalize_date(period_from))
-        if period_to:
-            query = query.where(Receipt.date <= normalize_date(period_to))
+    if period_from:
+        query = query.where(Receipt.date >= normalize_date(period_from))
+    if period_to:
+        query = query.where(Receipt.date <= normalize_date(period_to))
 
-        result = await db.execute(
-            query.options(selectinload(Receipt.items).selectinload(ReceiptItem.product))
-            .order_by(Receipt.date.desc())
-            .limit(MAX_RECEIPTS)
-        )
-        receipts = result.scalars().all()
-    else:
-        receipts = []
+    result = await db.execute(
+        query.options(selectinload(Receipt.items).selectinload(ReceiptItem.product))
+        .order_by(Receipt.date.desc())
+        .limit(MAX_RECEIPTS)
+    )
+    receipts = result.scalars().all()
 
     logger.info(
         "Receipts loaded",
@@ -176,64 +172,7 @@ async def run_ai(
     context["receipts"] = receipts_info
 
     # ============================================================
-    # LOCAL actions — без AI, без кредитов, без кэша
-    # ============================================================
-    if body.action in LOCAL_ACTIONS:
-        logger.info("Processing local action (no AI)", extra=log_ctx)
-        values = body.parameters.model_dump(exclude_none=True) if body.parameters else {}
-        sections_raw = await task_router.route(
-            action=body.action,
-            parameters=values,
-            context=context,
-            db=db,
-            user_id=user.id,
-            force_light=force_light,
-        )
-
-        try:
-            sections_parsed = [AiSection(**s) for s in sections_raw]
-        except (TypeError, ValidationError):
-            logger.warning("Failed to parse local sections", extra=log_ctx)
-            sections_parsed = [AiSection(type="text", text=str(sections_raw))]
-
-        report_id = uuid.uuid4().hex
-        now = datetime.now().isoformat()
-
-        ai_report = AiReport(
-            id=report_id,
-            action=body.action,
-            user_id=user.id,
-            snapshot=json.dumps(
-                {
-                    "receiptCount": len(receipts),
-                    "totalSpent": float(sum((r.total for r in receipts), start=0)),
-                    "receiptIds": [r.id for r in receipts],
-                },
-                ensure_ascii=False,
-            ),
-            response=json.dumps([s.model_dump() for s in sections_parsed], ensure_ascii=False),
-        )
-        db.add(ai_report)
-        await db.commit()
-
-        logger.info(
-            "Local AI request completed",
-            extra={
-                **log_ctx,
-                "duration_ms": round((time.monotonic() - start_time) * 1000, 2),
-                "section_count": len(sections_parsed),
-            },
-        )
-
-        return AiResult(
-            id=report_id,
-            action=body.action,
-            createdAt=now,
-            sections=sections_parsed,
-        )
-
-    # ============================================================
-    # LLM actions (LIGHT / STRONG)
+    # AI actions: hybrid actions include locally calculated facts in the prompt.
     # ============================================================
 
     context_hash = compute_context_hash(user.id, body.action, context)
