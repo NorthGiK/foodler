@@ -30,7 +30,9 @@
 - Statistics and category screens initially show the current year so receipts
   with an earlier fiscal purchase date are visible immediately after scanning.
 - Product categories are assigned by canonical server products and fiscal GTIN
-  mappings instead of mobile keyword rules after synchronization.
+  mappings, high-confidence local rules and a validated AI fallback. The
+  category is included in the authenticated recognition response and saved
+  immediately by mobile; low-confidence results do not enter the catalog.
 
 ###
 

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Receipt items now use a working category pipeline: reusable GTIN and alias
+  matches, high-confidence local rules, and a validated AI fallback for
+  ambiguous names. Confident results populate the canonical product catalog
+  and are returned with newly recognized authenticated receipts.
 - Updated locked backend dependencies to remediate published aiohttp and
   cryptography advisories, and refreshed reviewed secret-scan findings.
 - AI-agent changes require documentation review before commit and are delivered

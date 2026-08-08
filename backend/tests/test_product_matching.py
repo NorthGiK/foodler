@@ -1,6 +1,6 @@
-"""
-Tests for src/product_matching.py - Product matching pipeline.
-"""
+"""Tests for src/product_matching.py - Product matching pipeline."""
+
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -209,6 +209,65 @@ class TestMatchProduct:
         """Should normalize input before matching."""
         result = await match_product(async_session, "  Молоко  3.2%!!! ")
         assert result["product"] is not None
+
+    @pytest.mark.asyncio
+    async def test_local_category_creates_reusable_gtin_mapping(self, async_session):
+        from sqlalchemy import func, select
+
+        from src.models import ProductAlias, ProductBarcode, ProductTagMember
+
+        result = await match_product(
+            async_session,
+            "ЧЕРЕШНЯ 1кг",
+            user_id="user-1",
+            gtin="4601234567890",
+        )
+
+        assert result["matched_by"] == "category-rule"
+        assert result["product"].category == "фрукты"
+
+        repeated = await match_product(
+            async_session,
+            "Совершенно другое название",
+            user_id="user-1",
+            gtin="4601234567890",
+        )
+        assert repeated["matched_by"] == "gtin"
+        assert repeated["product"].id == result["product"].id
+        assert await async_session.scalar(select(func.count()).select_from(ProductAlias)) == 1
+        assert await async_session.scalar(select(func.count()).select_from(ProductBarcode)) == 1
+        assert await async_session.scalar(select(func.count()).select_from(ProductTagMember)) == 1
+
+    @pytest.mark.asyncio
+    async def test_ambiguous_name_uses_ai_category(self, async_session):
+        with patch(
+            "src.product_matching.classify_product_category",
+            new=AsyncMock(return_value={"category": "соусы", "confidence": 0.92}),
+        ):
+            result = await match_product(
+                async_session,
+                "Товар фирменный Нежный 250г",
+                user_id="user-1",
+                gtin="4601234567891",
+            )
+
+        assert result["matched_by"] == "ai-category"
+        assert result["product"].category == "соусы"
+
+    @pytest.mark.asyncio
+    async def test_low_confidence_ai_result_does_not_pollute_catalog(self, async_session):
+        with patch(
+            "src.product_matching.classify_product_category",
+            new=AsyncMock(return_value={"category": "прочее", "confidence": 0.4}),
+        ):
+            result = await match_product(
+                async_session,
+                "Неизвестная позиция XYZ",
+                user_id="user-1",
+            )
+
+        assert result["product"] is None
+        assert result["matched_by"] == "none"
 
 
 class TestSaveNewProduct:

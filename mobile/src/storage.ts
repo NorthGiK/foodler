@@ -1,5 +1,5 @@
 import * as SQLite from "expo-sqlite";
-import { detectCategory } from "./category";
+import { detectCategory, normalizeServerCategory } from "./category";
 import {
   batchReceiptChanges,
   notifyReceiptChange,
@@ -82,7 +82,7 @@ function createQrraw(receipt: ApiReceiptResponse): string | undefined {
   const strDate = receipt.data?.json?.dateTime;
   if (!strDate) return;
   const ticketDate = strDate.replace(/[-:]/g, "").slice(0, 13);
-  
+
   if (typeof receipt.data?.json?.totalSum !== "number") return;
   const sum = receipt.data?.json?.totalSum * 0.01;
 
@@ -137,7 +137,9 @@ export function normalizeReceiptResponse(
     return {
       receiptId: receipt.id,
       name: item.name?.trim() || "Без названия",
-      category: detectCategory(item.name || ""),
+      category:
+        normalizeServerCategory(item.category) ??
+        detectCategory(item.name || ""),
       priceRub: sign * rublesFromKopeks(item.price),
       quantity: item.quantity ?? 1,
       sumRub: itemSumRub,

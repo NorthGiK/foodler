@@ -15,6 +15,8 @@ export interface ApiReceiptResponse {
         price?: number;
         sum?: number;
         quantity?: number;
+        gtin?: string;
+        category?: string;
       }[];
     };
   };

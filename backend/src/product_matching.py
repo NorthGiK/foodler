@@ -2,12 +2,12 @@
 Product Matching Pipeline.
 
 Алгоритм распознавания продуктов из сырых названий (из чеков, ручного ввода):
-1. Нормализация названия
-2. Точный поиск по алиасам
-3. Точный поиск по имени продукта
-4. Нечеткий поиск (FTS + thefuzz)
-5. AI fallback (если ничего не найдено)
-6. Авто-сохранение нового продукта + алиаса
+1. Поиск ранее подтверждённого GTIN
+2. Нормализация и поиск по alias/имени
+3. Нечёткий поиск по каноническому каталогу
+4. Однозначная локальная категоризация
+5. Структурированный AI fallback для неоднозначного названия
+6. Сохранение уверенного результата, alias, тега и GTIN
 """
 
 import hashlib
@@ -21,29 +21,39 @@ from sqlalchemy import inspect, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.ai_service import AiServiceError, generate_ai_response
 from src.config import PRODUCT_FUZZY_CANDIDATE_LIMIT
+from src.integrations.product_classifier import ProductClassifierError, classify_product_category
 from src.models import Product, ProductAlias, ProductBarcode, ProductTag, ProductTagMember
+from src.product_categories import CANONICAL_CATEGORIES, infer_category_from_name
 
-CATEGORIES = frozenset({"молочные", "мясо", "рыба", "овощи", "фрукты", "бакалея", "хлеб", "напитки", "кондитерские", "заморозка", "бытовые товары", "прочее"})
+CATEGORIES = CANONICAL_CATEGORIES
 
 
 def category_from_tags(tags: list[str]) -> str:
     normalized = {normalize_name(tag) for tag in tags}
     for category, markers in {
         "молочные": {"молочка", "кисломолочка", "сыр", "творог"},
-        "мясо": {"мясо", "белок"},
+        "мясо": {"мясо"},
+        "колбасы": {"колбаса", "колбасы"},
         "рыба": {"рыба", "морепродукты", "омега-3"},
+        "яйца": {"яйца"},
         "овощи": {"овощи", "зелень"},
         "фрукты": {"фрукты", "цитрус"},
         "бакалея": {"бакалея", "крупа", "специи"},
         "хлеб": {"хлеб"},
         "напитки": {"напитки"},
+        "алкоголь": {"алкоголь"},
+        "кондитерские": {"кондитерские", "сладость"},
+        "снеки": {"снеки"},
+        "соусы": {"соус", "соусы"},
+        "готовая еда": {"готовая еда"},
+        "бытовые товары": {"бытовые товары"},
         "заморозка": {"заморозка"},
     }.items():
         if normalized & markers:
             return category
     return "прочее"
+
 
 # Минимальный порог схожести для fuzzy matching
 FUZZY_THRESHOLD_EXACT = 90  # точное совпадение (thefuzz ratio)
@@ -109,7 +119,10 @@ async def find_product_by_gtin(db: AsyncSession, gtin: str) -> Product | None:
         select(Product)
         .join(ProductBarcode)
         .where(ProductBarcode.gtin == gtin)
-        .options(selectinload(Product.aliases), selectinload(Product.tags).selectinload(ProductTagMember.tag))
+        .options(
+            selectinload(Product.aliases),
+            selectinload(Product.tags).selectinload(ProductTagMember.tag),
+        )
         .limit(1)
     )
     return result.scalar_one_or_none()
@@ -220,49 +233,33 @@ async def _ensure_product_relations(db: AsyncSession, product: Product) -> None:
 
 async def _ai_match_product(
     raw_name: str,
-    normalized: str,
+    gtin: str | None,
 ) -> dict[str, Any] | None:
-    """
-    AI fallback для продукта.
-    Возвращает nutrition_data и tags, или None, если AI недоступен.
-    """
-    system = (
-        "Ты — эксперт по пищевой ценности. "
-        "Верни JSON с полями: product_name, calories, proteins, fats, carbs, tags (массив строк). "
-        "Только JSON, без Markdown, без текста."
-    )
-    user = json.dumps({"raw_name": raw_name, "normalized": normalized}, ensure_ascii=False)
-
+    """Return a validated AI category for an ambiguous receipt item."""
     try:
-        raw = await generate_ai_response(
-            action="product-ai-fallback",
-            parameters=None,
-            context={"system": system, "user": user},
-        )
-    except AiServiceError:
+        return await classify_product_category(raw_name, gtin)
+    except ProductClassifierError:
         return None
 
-    data = _try_parse_ai_json(raw)
-    if not data:
-        return None
-    return data
 
-
-def _try_parse_ai_json(raw: str) -> dict[str, Any] | None:
-    if not raw:
-        return None
-    text = raw.strip()
-    # Убираем возможный markdown-код ```json ... ```
-    m = re.search(r"```(?:json)?(.*?)```", text, re.DOTALL)
-    if m:
-        text = m.group(1)
-    try:
-        obj = json.loads(text)
-        if isinstance(obj, dict):
-            return obj
-    except json.JSONDecodeError:
-        pass
-    return None
+async def _complete_match(
+    db: AsyncSession,
+    product: Product,
+    confidence: float,
+    matched_by: str,
+    alternatives: list[Product],
+    gtin: str | None,
+) -> dict[str, Any]:
+    await _ensure_product_relations(db, product)
+    if product.category == "прочее":
+        tags = [member.tag.name for member in product.tags if member.tag]
+        inferred = category_from_tags(tags)
+        if inferred == "прочее":
+            inferred = infer_category_from_name(product.name) or "прочее"
+        product.category = inferred
+    if gtin and await db.get(ProductBarcode, gtin) is None:
+        db.add(ProductBarcode(gtin=gtin, product_id=product.id))
+    return _build_result(product, confidence, matched_by, alternatives)
 
 
 async def match_product(
@@ -282,67 +279,50 @@ async def match_product(
     if gtin:
         product = await find_product_by_gtin(db, gtin)
         if product:
-            return _build_result(product, 1.0, "gtin", [])
+            return await _complete_match(db, product, 1.0, "gtin", [], gtin)
 
     # Шаг 1: Точный поиск по алиасам
     product = await find_product_by_alias(db, normalized)
     if product:
-        await _ensure_product_relations(db, product)
-        return _build_result(product, 1.0, "alias", [])
+        return await _complete_match(db, product, 1.0, "alias", [], gtin)
 
     # Шаг 2: Точный поиск по имени
     product = await find_product_by_name(db, normalized)
     if product:
-        await _ensure_product_relations(db, product)
-        return _build_result(product, 1.0, "exact", [])
+        return await _complete_match(db, product, 1.0, "exact", [], gtin)
 
     # Шаг 3: Нечеткий поиск
     fuzzy_results = await find_products_fuzzy(db, normalized)
     if fuzzy_results:
         best = fuzzy_results[0]
         alternatives = fuzzy_results[1:]
-        for p in [best, *alternatives]:
+        for p in alternatives:
             await _ensure_product_relations(db, p)
-        return _build_result(best, 0.85, "fuzzy", alternatives)
+        return await _complete_match(db, best, 0.85, "fuzzy", alternatives, gtin)
 
-    # Шаг 4: AI fallback
-    if user_id:
-        ai_data = await _ai_match_product(raw_name, normalized)
-        if ai_data and float(ai_data.get("confidence", 0) or 0) >= 0.85:
-            nutrition_data = {
-                "calories": float(ai_data.get("calories", 0) or 0),
-                "proteins": float(ai_data.get("proteins", 0) or 0),
-                "fats": float(ai_data.get("fats", 0) or 0),
-                "carbs": float(ai_data.get("carbs", 0) or 0),
-                "fiber": ai_data.get("fiber"),
-                "sugar": ai_data.get("sugar"),
-                "saturated_fats": ai_data.get("saturated_fats"),
-                "sodium": ai_data.get("sodium"),
-                "cholesterol": ai_data.get("cholesterol"),
-                "vitamin_a": ai_data.get("vitamin_a"),
-                "vitamin_c": ai_data.get("vitamin_c"),
-                "vitamin_d": ai_data.get("vitamin_d"),
-                "calcium": ai_data.get("calcium"),
-                "iron": ai_data.get("iron"),
-                "potassium": ai_data.get("potassium"),
-                "magnesium": ai_data.get("magnesium"),
-                "serving_size": ai_data.get("serving_size"),
-                "serving_unit": ai_data.get("serving_unit"),
-            }
-            tags = ai_data.get("tags") or []
-            product_name = ai_data.get("product_name") or normalized
-            # Сохраняем продукт
-            product = await save_new_product(
-                db=db,
-                name=product_name,
-                raw_alias=raw_name,
-                nutrition_data=nutrition_data,
-                tags=[str(t) for t in tags],
-                category=category_from_tags([str(t) for t in tags]),
-                gtin=gtin,
-            )
-            await _ensure_product_relations(db, product)
-            return _build_result(product, 0.7, "ai", [])
+    # Шаг 4: high-confidence local category, then AI for ambiguous names.
+    category = infer_category_from_name(normalized)
+    confidence = 1.0
+    matched_by = "category-rule"
+    if category is None and user_id:
+        ai_data = await _ai_match_product(raw_name, gtin)
+        if ai_data and float(ai_data["confidence"]) >= 0.8:
+            category = str(ai_data["category"])
+            confidence = float(ai_data["confidence"])
+            matched_by = "ai-category"
+
+    if category is not None:
+        product = await save_new_product(
+            db=db,
+            name=normalized,
+            raw_alias=raw_name,
+            nutrition_data={},
+            tags=[category],
+            category=category,
+            gtin=gtin,
+        )
+        await _ensure_product_relations(db, product)
+        return _build_result(product, confidence, matched_by, [])
 
     # Ничего не найдено
     return {
