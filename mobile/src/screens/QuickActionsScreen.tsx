@@ -101,7 +101,7 @@ export function QuickActionsScreen({
 
         <View style={styles.row}>
           <SmallCard
-            title="Корзина"
+            title="Список Покупок"
             icon="shopping-cart"
             color="#8B5CF6"
             onPress={() => handleAction("cart")}

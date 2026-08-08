@@ -54,7 +54,7 @@ export function AnalysisScreen({
     {
       icon: "shopping-cart",
       color: "#FF9500",
-      title: "Корзина",
+      title: " Список покупок",
       action: "cart",
     },
   ];

@@ -243,7 +243,7 @@ export function AssistantScreen({ db, receipts, joinedItems }: Props) {
       action: "ingredients",
     },
     {
-      title: "Корзина",
+      title: "Список покупок",
       icon: "shopping-cart",
       color: "#AF52DE",
       action: "cart",
