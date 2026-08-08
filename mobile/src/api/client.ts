@@ -6,7 +6,11 @@ import { API_BASE } from "@/config";
 import type { ApiReceiptResponse } from "@/types";
 
 import { Sdk } from "./generated/sdk.gen";
-import type { AiRequestParameters, ReceiptSchema } from "./generated/types.gen";
+import type {
+  AiRequestParameters,
+  ReceiptSchema,
+  SubscriptionStatusResponse,
+} from "./generated/types.gen";
 import { getAccessToken, unwrap } from "./transport";
 
 export {
@@ -20,6 +24,7 @@ const sdk = new Sdk();
 
 type ReceiptJson = NonNullable<NonNullable<ApiReceiptResponse["data"]>["json"]>;
 type ReceiptJsonItem = NonNullable<ReceiptJson["items"]>[number];
+export type SubscriptionPlan = NonNullable<SubscriptionStatusResponse["plan"]>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -329,9 +334,15 @@ export const api = {
     return data.premium;
   },
 
-  async makePurchase(): Promise<string | undefined> {
+  getSubscription() {
+    return unwrap(sdk.getSubscriptionApiSubscriptionGet());
+  },
+
+  async makePurchase(plan: SubscriptionPlan): Promise<string | undefined> {
     if (!(await getAccessToken())) return undefined;
-    const data = await unwrap(sdk.createPaymentApiSubscriptionPaymentPost());
+    const data = await unwrap(
+      sdk.createPaymentApiSubscriptionPaymentPost({ body: { plan } }),
+    );
     return data.confirmationUrl;
   },
 };

@@ -1,5 +1,5 @@
 export { ProfileHeaderCard, ProfileGuestCard } from "./ProfileHeaderCard";
-export { PremiumCard } from "./PremiumCard";
+export { SubscriptionButton } from "./SubscriptionButton";
 export { ProfileInfoCard } from "./ProfileInfoCard";
 export { FamilySection } from "./FamilySection";
 export { FeedbackSection } from "./FeedbackSection";

@@ -46,6 +46,7 @@ import { ReceiptDetailScreen } from "./src/screens/ReceiptDetailScreen";
 import { ReceiptsScreen } from "./src/screens/ReceiptsScreen";
 import { ScanScreen } from "./src/screens/ScanScreen";
 import { StatsScreen } from "./src/screens/StatsScreen";
+import { SubscriptionScreen } from "./src/screens/SubscriptionScreen";
 import { TypesScreen } from "./src/screens/TypesScreen";
 import {
   batchReceiptChanges,
@@ -67,6 +68,7 @@ export type RootStackParamList = {
   ReceiptDetail: { receipt: Receipt };
   NewReceipt: undefined;
   Ask: undefined;
+  Subscription: undefined;
 };
 
 const TABS: { key: Tab; icon: MaterialIconName }[] = [
@@ -485,6 +487,11 @@ export default function App() {
                 <Stack.Screen
                   name="Ask"
                   component={AskScreen}
+                  options={{ animation: "slide_from_right" }}
+                />
+                <Stack.Screen
+                  name="Subscription"
+                  component={SubscriptionScreen}
                   options={{ animation: "slide_from_right" }}
                 />
             </Stack.Navigator>

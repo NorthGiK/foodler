@@ -23,7 +23,7 @@ import {
 import {
   ProfileHeaderCard,
   ProfileGuestCard,
-  PremiumCard,
+  SubscriptionButton,
   ProfileInfoCard,
   FamilySection,
   FeedbackSection,
@@ -134,7 +134,7 @@ export function ProfileScreen() {
         </Animated.View>
 
         <Animated.View style={cardStyles[2]}>
-          <PremiumCard isPremium={false} />
+          <SubscriptionButton />
         </Animated.View>
 
         <Animated.View style={cardStyles[3]}>
@@ -168,10 +168,7 @@ export function ProfileScreen() {
         </Animated.View>
 
         <Animated.View style={cardStyles[2]}>
-          <PremiumCard
-            isPremium={user.premium}
-            subscriptionExpires={user.subscriptionExpires ?? undefined}
-          />
+          <SubscriptionButton />
         </Animated.View>
 
         <Animated.View style={cardStyles[3]}>

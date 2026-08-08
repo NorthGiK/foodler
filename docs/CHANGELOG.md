@@ -8,6 +8,8 @@
 - YooKassa payments carry either the Budget or Premium monthly plan.
 
 ### fixed
+- Profile now opens a two-plan subscription screen: Basic (300 ₽) and Premium
+  (800 ₽) create payments with the selected server-validated plan.
 - External AI actions now request Markdown text rather than JSON section data,
   so their answers are rendered normally in the mobile application.
 - AI prompts safely preserve literal JSON examples, so external AI actions no

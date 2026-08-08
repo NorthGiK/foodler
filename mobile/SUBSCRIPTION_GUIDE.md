@@ -7,10 +7,13 @@ Mobile не содержит платёжных секретов и не обр�
 ## Клиентский сценарий
 
 1. Пользователь должен быть авторизован.
-2. `api.makePurchase()` вызывает generated operation
-   `POST /api/subscription/payment`.
-3. Клиент открывает полученный `confirmationUrl` через `Linking.openURL`.
-4. После возвращения или повторного открытия профиля клиент обновляет
+2. Экран выбора подписки получает текущий статус через
+   `GET /api/subscription`; пользователь выбирает Basic (300 ₽) или Premium
+   (800 ₽).
+3. `api.makePurchase(plan)` вызывает generated operation
+   `POST /api/subscription/payment` с выбранным `plan`.
+4. Клиент открывает полученный `confirmationUrl` через `Linking.openURL`.
+5. После возвращения или повторного открытия экрана подписки клиент обновляет
    `/api/users/me` либо `/api/subscription/is_premium`.
 
 Все Foodler API-вызовы выполняются через `src/api/client.ts` и generated SDK.
