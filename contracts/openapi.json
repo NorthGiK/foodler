@@ -1374,6 +1374,31 @@
       },
       "ReceiptItemSchema": {
         "properties": {
+          "category": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "gtin": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "minLength": 8,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gtin"
+          },
           "name": {
             "maxLength": 500,
             "minLength": 1,

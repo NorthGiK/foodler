@@ -184,6 +184,7 @@ class ReceiptItem(Base):
     price: Mapped[Decimal] = mapped_column("price_cents", Money(), nullable=False)
     # Связь с продуктом (если распознан)
     product_id: Mapped[str] = mapped_column(ForeignKey("products.id"), nullable=True, index=True)
+    gtin: Mapped[str] = mapped_column(nullable=True, index=True)
 
     receipt: Mapped[Receipt] = relationship("Receipt", back_populates="items")
     product: Mapped["Product"] = relationship("Product", back_populates="receipt_items")
@@ -285,6 +286,7 @@ class Product(Base):
 
     id: Mapped[str] = mapped_column(primary_key=True, default=_uuid)
     name: Mapped[str] = mapped_column(unique=True, nullable=False, index=True)
+    category: Mapped[str] = mapped_column(nullable=False, insert_default="прочее")
     parent_id: Mapped[str] = mapped_column(ForeignKey("products.id"), nullable=True, index=True)
 
     # КБЖУ на 100 г/мл
@@ -324,6 +326,9 @@ class Product(Base):
     aliases: Mapped[list["ProductAlias"]] = relationship(
         "ProductAlias", back_populates="product", cascade="all, delete-orphan"
     )
+    barcodes: Mapped[list["ProductBarcode"]] = relationship(
+        "ProductBarcode", back_populates="product", cascade="all, delete-orphan"
+    )
     tags: Mapped[list["ProductTagMember"]] = relationship(
         "ProductTagMember", back_populates="product", cascade="all, delete-orphan"
     )
@@ -361,6 +366,17 @@ class ProductAlias(Base):
     language: Mapped[str] = mapped_column(insert_default="ru")
 
     product: Mapped["Product"] = relationship("Product", back_populates="aliases")
+
+
+class ProductBarcode(Base):
+    """A product barcode supplied by a fiscal receipt provider."""
+
+    __tablename__ = "product_barcodes"
+
+    gtin: Mapped[str] = mapped_column(primary_key=True)
+    product_id: Mapped[str] = mapped_column(ForeignKey("products.id"), nullable=False, index=True)
+
+    product: Mapped["Product"] = relationship("Product", back_populates="barcodes")
 
 
 class ProductTag(Base):

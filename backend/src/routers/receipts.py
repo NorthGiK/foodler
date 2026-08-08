@@ -56,8 +56,22 @@ def _source_fingerprint(source_key: str | None) -> str | None:
     return hashlib.sha256(normalized.encode()).hexdigest() if normalized else None
 
 
-async def _receipt_item(body: ReceiptItemSchema, receipt_id: str, db: AsyncSession) -> ReceiptItem:
-    match = await match_product(db, body.name)
+def _item_schema(item: ReceiptItem) -> ReceiptItemSchema:
+    return ReceiptItemSchema(
+        name=item.name,
+        quantity=item.quantity,
+        unit=item.unit,
+        price=item.price,
+        product_id=item.product_id,
+        gtin=item.gtin,
+        category=item.product.category if item.product else "прочее",
+    )
+
+
+async def _receipt_item(
+    body: ReceiptItemSchema, receipt_id: str, db: AsyncSession, user_id: str
+) -> ReceiptItem:
+    match = await match_product(db, body.name, body.quantity, body.unit, user_id, body.gtin)
     product = match["product"]
     return ReceiptItem(
         receipt_id=receipt_id,
@@ -66,6 +80,7 @@ async def _receipt_item(body: ReceiptItemSchema, receipt_id: str, db: AsyncSessi
         unit=body.unit,
         price=body.price,
         product_id=product.id if product else body.product_id,
+        gtin=body.gtin,
     )
 
 
@@ -143,7 +158,7 @@ async def _save_recognized_receipt(
     db.add(receipt)
     raw_items = raw_data.get("items")
     for item in raw_items if isinstance(raw_items, list) else []:
-        receipt_item = _receipt_item_from_provider(item, receipt.id)
+        receipt_item = await _receipt_item_from_provider(item, receipt.id, db, user.id)
         if receipt_item is None:
             continue
         db.add(receipt_item)
@@ -154,7 +169,21 @@ def _optional_text(value: Any) -> str | None:
     return value.strip() or None if isinstance(value, str) else None
 
 
-def _receipt_item_from_provider(item: Any, receipt_id: str) -> ReceiptItem | None:
+def _gtin_from_provider(item: dict[str, Any]) -> str | None:
+    product_code = item.get("productCodeNew")
+    if not isinstance(product_code, dict):
+        return None
+    for value in product_code.values():
+        if isinstance(value, dict):
+            gtin = value.get("gtin")
+            if isinstance(gtin, str) and gtin.isdigit():
+                return gtin
+    return None
+
+
+async def _receipt_item_from_provider(
+    item: Any, receipt_id: str, db: AsyncSession, user_id: str
+) -> ReceiptItem | None:
     if not isinstance(item, dict):
         return None
     name = item.get("name")
@@ -174,12 +203,17 @@ def _receipt_item_from_provider(item: Any, receipt_id: str) -> ReceiptItem | Non
         return None
     if normalized_price < 0 or normalized_quantity <= 0:
         return None
+    gtin = _gtin_from_provider(item)
+    match = await match_product(db, name.strip(), normalized_quantity, "kg", user_id, gtin)
+    product = match["product"]
     return ReceiptItem(
         receipt_id=receipt_id,
         name=name.strip(),
         quantity=normalized_quantity,
         unit="kg",
         price=normalized_price,
+        product_id=product.id if product else None,
+        gtin=gtin,
     )
 
 
@@ -260,7 +294,7 @@ async def get_receipts(
     query = (
         select(Receipt)
         .where(*filters)
-        .options(selectinload(Receipt.items))
+        .options(selectinload(Receipt.items).selectinload(ReceiptItem.product))
         .order_by(Receipt.date.desc())
         .offset(offset)
         .limit(limit)
@@ -278,12 +312,7 @@ async def get_receipts(
             store=r.store,
             total=r.total,
             items=[
-                ReceiptItemSchema(
-                    name=i.name,
-                    quantity=i.quantity,
-                    unit=i.unit,
-                    price=i.price,
-                )
+                _item_schema(i)
                 for i in (r.items or [])
             ],
         )
@@ -333,7 +362,7 @@ async def upload_receipt(
     db.add(receipt)
 
     for item in body.items:
-        db.add(await _receipt_item(item, receipt.id, db))
+        db.add(await _receipt_item(item, receipt.id, db, user.id))
     await db.commit()
     return {"status": "ok"}
 
@@ -414,7 +443,7 @@ async def upload_receipts(
 
     for receipt in new_receipt_bodies:
         for item in receipt.items:
-            db.add(await _receipt_item(item, receipt.id, db))
+            db.add(await _receipt_item(item, receipt.id, db, user.id))
     await db.commit()
     return {"status": "ok"}
 
@@ -428,7 +457,7 @@ async def get_receipt(
     result = await db.execute(
         select(Receipt)
         .where(Receipt.id == receipt_id, Receipt.user_id == user.id)
-        .options(selectinload(Receipt.items))
+        .options(selectinload(Receipt.items).selectinload(ReceiptItem.product))
     )
     r = result.scalar_one_or_none()
     if not r:
@@ -439,7 +468,7 @@ async def get_receipt(
         store=r.store,
         total=r.total,
         items=[
-            ReceiptItemSchema(name=i.name, quantity=i.quantity, unit=i.unit, price=i.price)
+            _item_schema(i)
             for i in (r.items or [])
         ],
     )

@@ -781,6 +781,14 @@ export type ProductTagSchema = {
  */
 export type ReceiptItemSchema = {
   /**
+   * Category
+   */
+  category?: string | null;
+  /**
+   * Gtin
+   */
+  gtin?: string | null;
+  /**
    * Name
    */
   name: string;

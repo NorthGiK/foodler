@@ -23,7 +23,27 @@ from sqlalchemy.orm import selectinload
 
 from src.ai_service import AiServiceError, generate_ai_response
 from src.config import PRODUCT_FUZZY_CANDIDATE_LIMIT
-from src.models import Product, ProductAlias, ProductTag, ProductTagMember
+from src.models import Product, ProductAlias, ProductBarcode, ProductTag, ProductTagMember
+
+CATEGORIES = frozenset({"молочные", "мясо", "рыба", "овощи", "фрукты", "бакалея", "хлеб", "напитки", "кондитерские", "заморозка", "бытовые товары", "прочее"})
+
+
+def category_from_tags(tags: list[str]) -> str:
+    normalized = {normalize_name(tag) for tag in tags}
+    for category, markers in {
+        "молочные": {"молочка", "кисломолочка", "сыр", "творог"},
+        "мясо": {"мясо", "белок"},
+        "рыба": {"рыба", "морепродукты", "омега-3"},
+        "овощи": {"овощи", "зелень"},
+        "фрукты": {"фрукты", "цитрус"},
+        "бакалея": {"бакалея", "крупа", "специи"},
+        "хлеб": {"хлеб"},
+        "напитки": {"напитки"},
+        "заморозка": {"заморозка"},
+    }.items():
+        if normalized & markers:
+            return category
+    return "прочее"
 
 # Минимальный порог схожести для fuzzy matching
 FUZZY_THRESHOLD_EXACT = 90  # точное совпадение (thefuzz ratio)
@@ -82,6 +102,17 @@ async def find_product_by_alias(db: AsyncSession, normalized: str) -> Product | 
         .limit(1)
     )
     return product_result.scalar_one_or_none()
+
+
+async def find_product_by_gtin(db: AsyncSession, gtin: str) -> Product | None:
+    result = await db.execute(
+        select(Product)
+        .join(ProductBarcode)
+        .where(ProductBarcode.gtin == gtin)
+        .options(selectinload(Product.aliases), selectinload(Product.tags).selectinload(ProductTagMember.tag))
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
 
 
 async def find_product_by_name(db: AsyncSession, normalized: str) -> Product | None:
@@ -240,12 +271,18 @@ async def match_product(
     quantity: float = 1,
     unit: str | None = None,
     user_id: str | None = None,
+    gtin: str | None = None,
 ) -> dict[str, Any]:
     """
     Основной pipeline распознавания продукта.
     Возвращает dict с результатом.
     """
     normalized = normalize_name(raw_name)
+
+    if gtin:
+        product = await find_product_by_gtin(db, gtin)
+        if product:
+            return _build_result(product, 1.0, "gtin", [])
 
     # Шаг 1: Точный поиск по алиасам
     product = await find_product_by_alias(db, normalized)
@@ -271,7 +308,7 @@ async def match_product(
     # Шаг 4: AI fallback
     if user_id:
         ai_data = await _ai_match_product(raw_name, normalized)
-        if ai_data:
+        if ai_data and float(ai_data.get("confidence", 0) or 0) >= 0.85:
             nutrition_data = {
                 "calories": float(ai_data.get("calories", 0) or 0),
                 "proteins": float(ai_data.get("proteins", 0) or 0),
@@ -301,6 +338,8 @@ async def match_product(
                 raw_alias=raw_name,
                 nutrition_data=nutrition_data,
                 tags=[str(t) for t in tags],
+                category=category_from_tags([str(t) for t in tags]),
+                gtin=gtin,
             )
             await _ensure_product_relations(db, product)
             return _build_result(product, 0.7, "ai", [])
@@ -337,6 +376,8 @@ async def save_new_product(
     raw_alias: str,
     nutrition_data: dict[str, Any],
     tags: list[str] | None = None,
+    category: str = "прочее",
+    gtin: str | None = None,
 ) -> Product:
     """
     Сохранение нового продукта после AI-распознавания.
@@ -346,6 +387,7 @@ async def save_new_product(
 
     product = Product(
         name=normalized_name,
+        category=category if category in CATEGORIES else "прочее",
         calories=nutrition_data.get("calories", 0),
         proteins=nutrition_data.get("proteins", 0),
         fats=nutrition_data.get("fats", 0),
@@ -374,6 +416,8 @@ async def save_new_product(
         alias=normalize_name(raw_alias),
     )
     db.add(alias)
+    if gtin:
+        db.add(ProductBarcode(gtin=gtin, product_id=product.id))
 
     # Добавляем теги
     if tags:

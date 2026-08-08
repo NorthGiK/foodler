@@ -106,7 +106,7 @@ export async function pullServerReceipts(
         (item: ReceiptItemSchema, i: number) => ({
           receiptId: sr.id,
           name: item.name || `Товар ${i + 1}`,
-          category: "другое",
+          category: item.category || "другое",
           priceRub: Math.abs(item.price ?? 0),
           quantity: item.quantity ?? 1,
           sumRub: Math.abs(item.sum ?? item.price ?? 0),

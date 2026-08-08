@@ -17,6 +17,8 @@
   receipt cannot be re-added with a differently formatted QR string.
 - Statistics and category screens initially show the current year so receipts
   with an earlier fiscal purchase date are visible immediately after scanning.
+- Product categories are assigned by canonical server products and fiscal GTIN
+  mappings instead of mobile keyword rules after synchronization.
 
 ###
 

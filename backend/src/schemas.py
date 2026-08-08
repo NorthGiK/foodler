@@ -113,6 +113,8 @@ class ReceiptItemSchema(BaseModel):
     price: float = Field(ge=0, multiple_of=0.01)
     sum: float | None = None
     product_id: str | None = None  # связь с Product после распознавания
+    gtin: str | None = Field(default=None, min_length=8, max_length=32)
+    category: str | None = Field(default=None, max_length=100)
 
 
 class ReceiptSchema(BaseModel):

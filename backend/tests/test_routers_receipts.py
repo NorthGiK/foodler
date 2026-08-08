@@ -217,6 +217,8 @@ class TestGetReceiptByRawQr:
                 "price": 89.9,
                 "sum": None,
                 "product_id": None,
+                "gtin": None,
+                "category": "прочее",
             }
         ]
 
