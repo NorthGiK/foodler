@@ -89,6 +89,24 @@ class TestCreateReceipt:
         response = await client.post("/api/receipts", headers=auth_headers, json=receipt_data)
         assert response.status_code == 201
 
+    @pytest.mark.asyncio
+    async def test_bulk_create_ignores_duplicate_fiscal_qr(self, client: AsyncClient, auth_headers):
+        source_key = "t=20260723T1707&s=684.38&fn=7382440800075114&i=44391&fp=3657201638&n=1"
+        response = await client.post(
+            "/api/receipts/array",
+            headers=auth_headers,
+            json={
+                "receipts": [
+                    {"id": "first", "date": "2026-07-23", "total": 684.38, "source_key": source_key},
+                    {"id": "second", "date": "2026-07-23", "total": 684.38, "source_key": source_key.upper()},
+                ]
+            },
+        )
+
+        assert response.status_code == 201
+        receipts = await client.get("/api/receipts", headers=auth_headers)
+        assert [receipt["id"] for receipt in receipts.json()] == ["first"]
+
 
 class TestGetReceiptByRawQr:
     """Tests for the receipt image-recognition routes."""

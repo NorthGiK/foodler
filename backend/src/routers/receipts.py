@@ -50,7 +50,9 @@ logger = logging.getLogger(__name__)
 def _source_fingerprint(source_key: str | None) -> str | None:
     if not source_key:
         return None
-    normalized = "&".join(sorted(part.strip() for part in source_key.split("&") if part.strip()))
+    normalized = "&".join(
+        sorted(part.strip().lower() for part in source_key.split("&") if part.strip())
+    )
     return hashlib.sha256(normalized.encode()).hexdigest() if normalized else None
 
 
@@ -370,7 +372,30 @@ async def upload_receipts(
             status_code=status.HTTP_409_CONFLICT,
             detail="Receipt identifier is already in use",
         )
-    new_receipt_bodies = [receipt for receipt in receipt_bodies if receipt.id not in existing]
+    requested_fingerprints = {
+        fingerprint
+        for receipt in receipt_bodies
+        if (fingerprint := _source_fingerprint(receipt.source_key)) is not None
+    }
+    existing_fingerprints = set(
+        (
+            await db.scalars(
+                select(Receipt.source_fingerprint).where(
+                    Receipt.user_id == user.id,
+                    Receipt.source_fingerprint.in_(requested_fingerprints),
+                )
+            )
+        ).all()
+    )
+    seen_fingerprints = existing_fingerprints
+    new_receipt_bodies: list[ReceiptSchema] = []
+    for receipt in receipt_bodies:
+        fingerprint = _source_fingerprint(receipt.source_key)
+        if receipt.id in existing or (fingerprint and fingerprint in seen_fingerprints):
+            continue
+        new_receipt_bodies.append(receipt)
+        if fingerprint:
+            seen_fingerprints.add(fingerprint)
     receipts = [
         Receipt(
             id=r.id,

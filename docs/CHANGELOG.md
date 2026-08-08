@@ -13,6 +13,8 @@
 - Receipt import uses a provider's fiscal `dateTime` when `ticketDate` is absent.
 - QR recognition preserves the provider's fiscal QR payload, saves authenticated
   scans on the server, and uses that payload for duplicate detection.
+- Bulk sync and local SQLite normalize fiscal QR fields, so an already saved
+  receipt cannot be re-added with a differently formatted QR string.
 
 ###
 

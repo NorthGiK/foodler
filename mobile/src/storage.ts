@@ -60,6 +60,16 @@ function rublesFromKopeks(value?: number) {
   return typeof value === "number" ? value / 100 : 0;
 }
 
+function normalizeQrraw(qrraw: string): string {
+  return qrraw
+    .trim()
+    .split("&")
+    .map((part) => part.trim().toLowerCase())
+    .filter(Boolean)
+    .sort()
+    .join("&");
+}
+
 export type ReceiptResponse = {
   receipt: Receipt;
   items: ReceiptItem[];
@@ -142,13 +152,14 @@ export async function saveReceipt(
   receipt: Receipt,
   items: ReceiptItem[],
 ) {
+  const normalizedQrraw = normalizeQrraw(receipt.qrraw);
   await db.withExclusiveTransactionAsync(async (transaction) => {
-    await transaction.runAsync(
+    const insert = await transaction.runAsync(
       `INSERT OR IGNORE INTO receipts (id, qrraw, organization, ticketDate, operationType, totalSumRub, sourceCode)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         receipt.id,
-        receipt.qrraw,
+        normalizedQrraw,
         receipt.organization,
         receipt.ticketDate,
         receipt.operationType,
@@ -156,6 +167,8 @@ export async function saveReceipt(
         receipt.sourceCode,
       ],
     );
+
+    if (insert.changes === 0) return;
 
     await transaction.runAsync(
       `DELETE FROM receipt_items WHERE receiptId = ?`,
