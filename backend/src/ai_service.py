@@ -106,19 +106,25 @@ def _build_user_prompt(action: str, parameters: dict | None, context: dict) -> s
 
 
 async def _call_llm(
-    model: str, action: str, prompt: str, max_tokens: int = 500, temperature: float = 0.2
+    model: str,
+    action: str,
+    prompt: str,
+    max_tokens: int = 500,
+    temperature: float = 0.2,
+    system_prompt: str | None = None,
 ) -> str:
     """Call the OpenAI-compatible API and return the raw response text."""
-    system_prompt = "\n".join(
-        (
-            "# Ты — helpful nutrition assistant.",
-            "Отвечай **кратко** и **по делу**. Используй **только контекст пользователя**.",
-            "Упоминай в конце какая информация может помочь ответить лучше в следующий раз.",
-            "Возвращай только обычный Markdown без JSON, объектов, массивов и кодовых блоков.",
-            "",
-            "\n---\n",
+    if system_prompt is None:
+        system_prompt = "\n".join(
+            (
+                "# Ты — helpful nutrition assistant.",
+                "Отвечай **кратко** и **по делу**. Используй **только контекст пользователя**.",
+                "Упоминай в конце какая информация может помочь ответить лучше в следующий раз.",
+                "Возвращай только обычный Markdown без JSON, объектов, массивов и кодовых блоков.",
+                "",
+                "\n---\n",
+            )
         )
-    )
 
     headers = {
         "Content-Type": "application/json",
@@ -170,6 +176,65 @@ async def _call_llm(
         logger.warning("AI provider response structure not recognized", extra={"action": action})
 
         raise AiServiceError("Unexpected AI API response structure")
+
+
+async def categorize_product(
+    raw_name: str,
+    normalized_name: str,
+    allowed_categories: frozenset[str],
+) -> str | None:
+    """Classify a previously unknown product with the configured light model."""
+    category_list = sorted(allowed_categories)
+    system_prompt = (
+        "Ты классифицируешь товары из продуктового чека. "
+        "Выбери ровно одну категорию из разрешённого списка. "
+        'Верни только JSON вида {"category": "..."}, без Markdown и пояснений.'
+    )
+    prompt = json.dumps(
+        {
+            "raw_name": raw_name,
+            "normalized_name": normalized_name,
+            "allowed_categories": category_list,
+        },
+        ensure_ascii=False,
+    )
+    try:
+        raw = await _call_llm(
+            AI_LIGHT_MODEL,
+            "product-category",
+            prompt,
+            max_tokens=30,
+            temperature=0,
+            system_prompt=system_prompt,
+        )
+    except AiServiceError:
+        return None
+    try:
+        response = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    category = response.get("category") if isinstance(response, dict) else None
+    return category if isinstance(category, str) and category in allowed_categories else None
+
+
+async def describe_unknown_product(raw_name: str, normalized_name: str) -> str:
+    """Use the light model to identify an unknown receipt product as JSON."""
+    system_prompt = (
+        "Ты определяешь пищевую ценность товара из продуктового чека. "
+        "Верни только JSON с полями product_name, confidence, calories, proteins, fats, "
+        "carbs и tags (массив строк). Без Markdown и пояснений."
+    )
+    prompt = json.dumps(
+        {"raw_name": raw_name, "normalized_name": normalized_name}, ensure_ascii=False
+    )
+    return await _call_llm(
+        AI_LIGHT_MODEL,
+        "product-classification",
+        prompt,
+        max_tokens=300,
+        temperature=0,
+        system_prompt=system_prompt,
+    )
 
 
 # ---------------------------------------------------------------------------

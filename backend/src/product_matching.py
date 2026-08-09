@@ -21,11 +21,11 @@ from sqlalchemy import inspect, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.ai_service import AiServiceError, generate_ai_response
+from src.ai_service import AiServiceError, categorize_product, describe_unknown_product
 from src.config import PRODUCT_FUZZY_CANDIDATE_LIMIT
 from src.models import Product, ProductAlias, ProductBarcode, ProductTag, ProductTagMember
 
-CATEGORIES = frozenset({"молочные", "мясо", "рыба", "овощи", "фрукты", "бакалея", "хлеб", "напитки", "кондитерские", "заморозка", "бытовые товары", "прочее"})
+CATEGORIES = frozenset({"молочные", "мясо", "рыба", "овощи", "фрукты", "бакалея", "хлеб", "напитки", "кондитерские", "сладости", "заморозка", "бытовые товары", "прочее"})
 
 
 def category_from_tags(tags: list[str]) -> str:
@@ -39,6 +39,7 @@ def category_from_tags(tags: list[str]) -> str:
         "бакалея": {"бакалея", "крупа", "специи"},
         "хлеб": {"хлеб"},
         "напитки": {"напитки"},
+        "сладости": {"сладости", "конфеты", "шоколад"},
         "заморозка": {"заморозка"},
     }.items():
         if normalized & markers:
@@ -226,19 +227,8 @@ async def _ai_match_product(
     AI fallback для продукта.
     Возвращает nutrition_data и tags, или None, если AI недоступен.
     """
-    system = (
-        "Ты — эксперт по пищевой ценности. "
-        "Верни JSON с полями: product_name, calories, proteins, fats, carbs, tags (массив строк). "
-        "Только JSON, без Markdown, без текста."
-    )
-    user = json.dumps({"raw_name": raw_name, "normalized": normalized}, ensure_ascii=False)
-
     try:
-        raw = await generate_ai_response(
-            action="product-ai-fallback",
-            parameters=None,
-            context={"system": system, "user": user},
-        )
+        raw = await describe_unknown_product(raw_name, normalized)
     except AiServiceError:
         return None
 
@@ -331,6 +321,7 @@ async def match_product(
             }
             tags = ai_data.get("tags") or []
             product_name = ai_data.get("product_name") or normalized
+            category = await categorize_product(raw_name, normalized, CATEGORIES)
             # Сохраняем продукт
             product = await save_new_product(
                 db=db,
@@ -338,7 +329,7 @@ async def match_product(
                 raw_alias=raw_name,
                 nutrition_data=nutrition_data,
                 tags=[str(t) for t in tags],
-                category=category_from_tags([str(t) for t in tags]),
+                category=category or category_from_tags([str(t) for t in tags]),
                 gtin=gtin,
             )
             await _ensure_product_relations(db, product)

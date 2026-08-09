@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Добавлена категория «Сладости» для шоколада, конфет и похожих товаров.
+- Приведена к одному значению fallback-категория товаров: `прочее`.
+
 - Updated the production brace-expansion override to the security-fixed 1.1.18.
 - AI-agent changes require documentation review before commit and are delivered
   through a pushed `agent/...` branch, never directly to `main`.

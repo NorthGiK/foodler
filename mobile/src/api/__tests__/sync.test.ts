@@ -113,8 +113,8 @@ describe("receipt synchronization", () => {
       {
         id: receipt.id,
         date: "2026-08-01",
-      store: receipt.organization,
-      total: receipt.totalSumRub,
+        store: receipt.organization,
+        total: receipt.totalSumRub,
         items: [],
       },
     ]);

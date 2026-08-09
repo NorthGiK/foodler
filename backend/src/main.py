@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .config import CORS_ORIGINS, METRICS_TOKEN, RECEIPT_CLEANUP_INTERVAL_SECONDS
 from .database import async_session, check_database, get_db
 from .integrations.http import close_http_session
-from .logging_config import configure_logging, request_id_context
+from .logging_config import request_id_context
 from .metrics import record_http_request, render_prometheus
 from .receipt_retention import cleanup_expired_receipts
 from .routers import ROUTERS, legacy_router

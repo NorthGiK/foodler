@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api, getAccessToken } from "./client";
+import { FALLBACK_CATEGORY, normalizeCategory } from "../category";
 import type { Receipt, ReceiptItem } from "../types";
 import { openDb, loadReceipts, loadReceiptItems } from "../storage";
 import type { ReceiptItemSchema, ReceiptSchema } from "./generated/types.gen";
@@ -106,7 +107,7 @@ export async function pullServerReceipts(
         (item: ReceiptItemSchema, i: number) => ({
           receiptId: sr.id,
           name: item.name || `Товар ${i + 1}`,
-          category: item.category || "другое",
+          category: normalizeCategory(item.category ?? FALLBACK_CATEGORY),
           priceRub: Math.abs(item.price ?? 0),
           quantity: item.quantity ?? 1,
           sumRub: Math.abs(item.sum ?? item.price ?? 0),

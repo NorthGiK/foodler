@@ -66,7 +66,8 @@ function receiptJson(value: unknown): ReceiptJson | undefined {
     dateTime: stringValue(value.dateTime),
     fiscalDriveNumber: stringValue(value.fiscalDriveNumber),
     fiscalDocumentNumber:
-      stringValue(value.fiscalDocumentNumber) ?? numberValue(value.fiscalDocumentNumber),
+      stringValue(value.fiscalDocumentNumber) ??
+      numberValue(value.fiscalDocumentNumber),
     fiscalSign: stringValue(value.fiscalSign) ?? numberValue(value.fiscalSign),
     items,
   };

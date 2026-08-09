@@ -62,6 +62,7 @@ type Tab = "scan" | "stats" | "types" | "receipts" | "profile" | "assistant";
 type MaterialIconName = ComponentProps<typeof MaterialIcons>["name"];
 
 export type RootStackParamList = {
+  __PoliciesAcception__: undefined;
   Main: undefined;
   Login: undefined;
   ForgotPassword: undefined;
