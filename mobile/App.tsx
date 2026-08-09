@@ -57,6 +57,7 @@ import {
   subscribeToReceiptChanges,
 } from "./src/storage";
 import type { Receipt, ReceiptItem } from "./src/types";
+import { createNavigationTheme } from "./src/navigationTheme";
 
 type Tab = "scan" | "stats" | "types" | "receipts" | "profile" | "assistant";
 type MaterialIconName = ComponentProps<typeof MaterialIcons>["name"];
@@ -421,7 +422,8 @@ function TabContent() {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-export default function App() {
+function AppNavigator() {
+  const { theme, themeName } = useTheme();
   const [policiesAccepted, setPoliciesAccepted] = useState<boolean | null>(
     null,
   );
@@ -442,62 +444,73 @@ export default function App() {
   };
 
   return (
+    <AuthProvider>
+      <NavigationContainer
+        theme={createNavigationTheme(theme, themeName)}
+      >
+        <Stack.Navigator
+          screenOptions={{
+            headerShown: false,
+            animation: "slide_from_bottom",
+            contentStyle: { backgroundColor: theme.bg },
+          }}
+        >
+          {/* TODO: change to false */}
+          <Stack.Screen
+            name="__PoliciesAcception__"
+            component={
+              policiesAccepted
+                ? TabContent
+                : () => (
+                    <LoginScreen
+                      skipable={true}
+                      onPoliciesAccepted={handlePoliciesAccepted}
+                    />
+                  )
+            }
+          />
+          <Stack.Screen name="Main" component={TabContent} />
+          <Stack.Screen
+            name="Login"
+            component={LoginScreen}
+            options={{ animation: "slide_from_bottom" }}
+          />
+          <Stack.Screen
+            name="ForgotPassword"
+            component={ForgotPasswordScreen}
+            options={{ animation: "slide_from_bottom" }}
+          />
+          <Stack.Screen
+            name="ReceiptDetail"
+            component={ReceiptDetailScreen}
+            options={{ animation: "slide_from_right" }}
+          />
+          <Stack.Screen
+            name="NewReceipt"
+            component={NewReceiptScreen}
+            options={{ animation: "slide_from_bottom" }}
+          />
+          <Stack.Screen
+            name="Ask"
+            component={AskScreen}
+            options={{ animation: "slide_from_right" }}
+          />
+          <Stack.Screen
+            name="Subscription"
+            component={SubscriptionScreen}
+            options={{ animation: "slide_from_right" }}
+          />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </AuthProvider>
+  );
+}
+
+export default function App() {
+  return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <AuthProvider>
-          <NavigationContainer>
-            <Stack.Navigator
-                screenOptions={{
-                  headerShown: false,
-                  animation: "slide_from_bottom",
-                  contentStyle: { backgroundColor: "transparent" },
-                }}
-              >
-            
-            {/* TODO: change to false */}
-            <Stack.Screen
-              name="__PoliciesAcception__"
-              component={policiesAccepted? TabContent : () =>
-                  <LoginScreen
-                    skipable={true}
-                    onPoliciesAccepted={handlePoliciesAccepted}
-                  />
-                }
-              />
-                <Stack.Screen name="Main" component={TabContent} />
-                <Stack.Screen
-                  name="Login"
-                  component={LoginScreen}
-                  options={{ animation: "slide_from_bottom" }}
-                />
-                <Stack.Screen
-                  name="ForgotPassword"
-                  component={ForgotPasswordScreen}
-                  options={{ animation: "slide_from_bottom" }}
-                />
-                <Stack.Screen
-                  name="ReceiptDetail"
-                  component={ReceiptDetailScreen}
-                  options={{ animation: "slide_from_right" }}
-                />
-                <Stack.Screen
-                  name="NewReceipt"
-                  component={NewReceiptScreen}
-                  options={{ animation: "slide_from_bottom" }}
-                />
-                <Stack.Screen
-                  name="Ask"
-                  component={AskScreen}
-                  options={{ animation: "slide_from_right" }}
-                />
-                <Stack.Screen
-                  name="Subscription"
-                  component={SubscriptionScreen}
-                  options={{ animation: "slide_from_right" }}
-                />
-            </Stack.Navigator>
-          </NavigationContainer>
-        </AuthProvider>
+        <AppNavigator />
       </ThemeProvider>
     </SafeAreaProvider>
   );

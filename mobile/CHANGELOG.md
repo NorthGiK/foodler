@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Navigation transitions now keep the active theme background, preventing a
+  white flash when opening receipt details and returning from subscription or
+  AI questions in dark mode.
 - Добавлена категория «Сладости» для шоколада, конфет и похожих товаров.
 - Приведена к одному значению fallback-категория товаров: `прочее`.
 - Newly recognized receipts retain backend product categories in local SQLite;
