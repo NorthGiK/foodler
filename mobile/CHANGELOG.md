@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Добавлена категория «Сладости» для шоколада, конфет и похожих товаров.
 - Приведена к одному значению fallback-категория товаров: `прочее`.
 
 - Updated the production brace-expansion override to the security-fixed 1.1.18.

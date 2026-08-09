@@ -270,6 +270,20 @@ class TestAiProductCategory:
         assert captured["action"] == "product-category"
 
     @pytest.mark.asyncio
+    async def test_accepts_sweets_category(self, monkeypatch):
+        from src import ai_service
+        from src.product_matching import CATEGORIES
+
+        async def fake_call_llm(*args, **kwargs):
+            return '{"category": "сладости"}'
+
+        monkeypatch.setattr(ai_service, "_call_llm", fake_call_llm)
+
+        category = await ai_service.categorize_product("Шоколад", "шоколад", CATEGORIES)
+
+        assert category == "сладости"
+
+    @pytest.mark.asyncio
     async def test_returns_none_when_ai_provider_fails(self, monkeypatch):
         from src import ai_service
 

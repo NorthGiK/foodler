@@ -25,7 +25,7 @@ from src.ai_service import AiServiceError, categorize_product, describe_unknown_
 from src.config import PRODUCT_FUZZY_CANDIDATE_LIMIT
 from src.models import Product, ProductAlias, ProductBarcode, ProductTag, ProductTagMember
 
-CATEGORIES = frozenset({"молочные", "мясо", "рыба", "овощи", "фрукты", "бакалея", "хлеб", "напитки", "кондитерские", "заморозка", "бытовые товары", "прочее"})
+CATEGORIES = frozenset({"молочные", "мясо", "рыба", "овощи", "фрукты", "бакалея", "хлеб", "напитки", "кондитерские", "сладости", "заморозка", "бытовые товары", "прочее"})
 
 
 def category_from_tags(tags: list[str]) -> str:
@@ -39,6 +39,7 @@ def category_from_tags(tags: list[str]) -> str:
         "бакалея": {"бакалея", "крупа", "специи"},
         "хлеб": {"хлеб"},
         "напитки": {"напитки"},
+        "сладости": {"сладости", "конфеты", "шоколад"},
         "заморозка": {"заморозка"},
     }.items():
         if normalized & markers:

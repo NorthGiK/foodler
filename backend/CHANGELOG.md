@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- В список доступных категорий товаров добавлены `сладости`.
 - Для неизвестного продукта описание и категория определяются запросами к
   `AI_LIGHT_MODEL`; при недоступности AI сохраняется локальная эвристика по тегам.
 - Updated locked backend dependencies to remediate published aiohttp and

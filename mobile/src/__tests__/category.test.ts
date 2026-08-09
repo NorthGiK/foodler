@@ -7,4 +7,9 @@ describe("product categories", () => {
     expect(normalizeCategory("прочее")).toBe(FALLBACK_CATEGORY);
     expect(normalizeCategory(undefined)).toBe(FALLBACK_CATEGORY);
   });
+
+  it("classifies sweets separately from other confectionery", () => {
+    expect(detectCategory("Шоколад молочный")).toBe("Сладости");
+    expect(detectCategory("Печенье овсяное")).toBe("Кондитерские изделия");
+  });
 });
