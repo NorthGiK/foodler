@@ -206,6 +206,8 @@ async def _receipt_item_from_provider(
     gtin = _gtin_from_provider(item)
     match = await match_product(db, name.strip(), normalized_quantity, "kg", user_id, gtin)
     product = match["product"]
+    item["gtin"] = gtin
+    item["category"] = product.category if product else "прочее"
     return ReceiptItem(
         receipt_id=receipt_id,
         name=name.strip(),

@@ -97,8 +97,18 @@ class TestCreateReceipt:
             headers=auth_headers,
             json={
                 "receipts": [
-                    {"id": "first", "date": "2026-07-23", "total": 684.38, "source_key": source_key},
-                    {"id": "second", "date": "2026-07-23", "total": 684.38, "source_key": source_key.upper()},
+                    {
+                        "id": "first",
+                        "date": "2026-07-23",
+                        "total": 684.38,
+                        "source_key": source_key,
+                    },
+                    {
+                        "id": "second",
+                        "date": "2026-07-23",
+                        "total": 684.38,
+                        "source_key": source_key.upper(),
+                    },
                 ]
             },
         )
@@ -147,6 +157,7 @@ class TestGetReceiptByRawQr:
                                     "quantity": 1,
                                     "price": 8990,
                                     "unit": "шт",
+                                    "productCodeNew": {"ean13": {"gtin": "4601234567890"}},
                                 }
                             ],
                         }
@@ -185,6 +196,7 @@ class TestGetReceiptByRawQr:
                                     "quantity": 1,
                                     "price": 8990,
                                     "unit": "шт",
+                                    "productCodeNew": {"ean13": {"gtin": "4601234567890"}},
                                 }
                             ],
                         }
@@ -202,6 +214,9 @@ class TestGetReceiptByRawQr:
             app.dependency_overrides.pop(get_receipt_gateway, None)
 
         assert response.status_code == 200
+        recognized_item = response.json()["data"]["json"]["items"][0]
+        assert recognized_item["category"] == "молочные"
+        assert recognized_item["gtin"] == "4601234567890"
         receipts = await client.get("/api/receipts", headers=auth_headers)
         assert receipts.status_code == 200
         saved_receipts = receipts.json()
@@ -209,18 +224,11 @@ class TestGetReceiptByRawQr:
         assert saved_receipts[0]["date"] == "2026-08-06"
         assert saved_receipts[0]["store"] == "Магнит"
         assert saved_receipts[0]["total"] == 159.9
-        assert saved_receipts[0]["items"] == [
-            {
-                "name": "Молоко",
-                "quantity": 1,
-                "unit": "kg",
-                "price": 89.9,
-                "sum": None,
-                "product_id": None,
-                "gtin": None,
-                "category": "прочее",
-            }
-        ]
+        saved_item = saved_receipts[0]["items"][0]
+        assert saved_item["name"] == "Молоко"
+        assert saved_item["product_id"] is not None
+        assert saved_item["gtin"] == "4601234567890"
+        assert saved_item["category"] == "молочные"
 
 
 class TestGetReceipt:

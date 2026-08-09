@@ -47,6 +47,8 @@ function receiptItem(value: unknown): ReceiptJsonItem | null {
     quantity: numberValue(value.quantity),
     price: numberValue(value.price),
     sum: numberValue(value.sum),
+    gtin: stringValue(value.gtin),
+    category: stringValue(value.category),
   };
 }
 

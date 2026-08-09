@@ -4,7 +4,9 @@
 
 - Добавлена категория «Сладости» для шоколада, конфет и похожих товаров.
 - Приведена к одному значению fallback-категория товаров: `прочее`.
-
+- Newly recognized receipts retain backend product categories in local SQLite;
+  expanded offline rules cover common fruit, grocery, household, egg, sauce,
+  snack, alcohol and ready-meal names.
 - Updated the production brace-expansion override to the security-fixed 1.1.18.
 - AI-agent changes require documentation review before commit and are delivered
   through a pushed `agent/...` branch, never directly to `main`.

@@ -2,6 +2,7 @@ import {
   detectCategory,
   FALLBACK_CATEGORY,
   normalizeCategory,
+  normalizeServerCategory,
 } from "../category";
 
 describe("product categories", () => {
@@ -15,5 +16,22 @@ describe("product categories", () => {
   it("classifies sweets separately from other confectionery", () => {
     expect(detectCategory("Шоколад молочный")).toBe("Сладости");
     expect(detectCategory("Печенье овсяное")).toBe("Кондитерские изделия");
+  });
+
+  it("normalizes server category names", () => {
+    expect(normalizeServerCategory("сладости")).toBe("Сладости");
+    expect(normalizeServerCategory("прочее")).toBe(FALLBACK_CATEGORY);
+    expect(normalizeServerCategory("unknown")).toBeNull();
+  });
+
+  it.each([
+    ["ЧЕРЕШНЯ 1кг", "Фрукты"],
+    ["МАГНИТ Салфетки бум 2сл 50шт", "Бытовая химия"],
+    ["Сыр Пармезан Гранд 45%", "Молочные продукты"],
+    ["Крупа гречневая ядрица", "Бакалея"],
+    ["Фасоль продовольственная 500г", "Бакалея"],
+    ["Рис длиннозерный 800г", "Бакалея"],
+  ])("classifies %s as %s", (name, expected) => {
+    expect(detectCategory(name)).toBe(expected);
   });
 });

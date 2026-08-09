@@ -1,5 +1,9 @@
 import * as SQLite from "expo-sqlite";
-import { detectCategory, normalizeCategory } from "./category";
+import {
+  detectCategory,
+  normalizeCategory,
+  normalizeServerCategory,
+} from "./category";
 import {
   batchReceiptChanges,
   notifyReceiptChange,
@@ -79,14 +83,13 @@ export type ReceiptResponse = {
   items: ReceiptItem[];
 };
 
-
 function createQrraw(receipt: ApiReceiptResponse): string | undefined {
   // example value is `2026-07-23T17:07:00`
   // should be        `20260723T1707
   const strDate = receipt.data?.json?.dateTime;
   if (!strDate) return;
   const ticketDate = strDate.replace(/[-:]/g, "").slice(0, 13);
-  
+
   if (typeof receipt.data?.json?.totalSum !== "number") return;
   const sum = receipt.data?.json?.totalSum * 0.01;
 
@@ -112,9 +115,9 @@ export function normalizeReceiptResponse(
 
   // данные могут не содержать qrraw, но полностью валидны и имеют фискальные данные
   // TODO: сделать создание по данным из чека
-  const qrraw: string | undefined = response.request?.qrraw || createQrraw(response);
-  if (!qrraw)
-    return null;
+  const qrraw: string | undefined =
+    response.request?.qrraw || createQrraw(response);
+  if (!qrraw) return null;
 
   // Providers use either ticketDate or dateTime for the fiscal purchase time.
   // Never replace a supplied purchase date with the scan time.
@@ -122,9 +125,10 @@ export function normalizeReceiptResponse(
   const operationType: number = data.operationType ?? 3;
   const sign: number = operationType === 2 || operationType === 4 ? -1 : 1;
   const totalSumRub: number = sign * rublesFromKopeks(data.totalSum);
-  const organization: string = {
-    "АКЦИОНЕРНОЕ ОБЩЕСТВО \"ТАНДЕР\"": "Магнит",
-  }[data.user?.trim() || ""] || "Неизвестно";
+  const organization: string =
+    {
+      'АКЦИОНЕРНОЕ ОБЩЕСТВО "ТАНДЕР"': "Магнит",
+    }[data.user?.trim() || ""] || "Неизвестно";
 
   const receipt: Receipt = {
     id: `${ticketDate}-${Math.random().toString(36).slice(2, 10)}`,
@@ -141,7 +145,9 @@ export function normalizeReceiptResponse(
     return {
       receiptId: receipt.id,
       name: item.name?.trim() || "Без названия",
-      category: detectCategory(item.name || ""),
+      category:
+        normalizeServerCategory(item.category) ??
+        detectCategory(item.name || ""),
       priceRub: sign * rublesFromKopeks(item.price),
       quantity: item.quantity ?? 1,
       sumRub: itemSumRub,

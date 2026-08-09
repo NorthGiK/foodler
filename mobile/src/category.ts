@@ -42,6 +42,37 @@ export function normalizeCategory(category: string | null | undefined): string {
   return normalized;
 }
 
+const SERVER_CATEGORY_LABELS: Record<string, string> = {
+  алкоголь: "Алкоголь",
+  бакалея: "Бакалея",
+  "бытовые товары": "Бытовые товары",
+  "готовая еда": "Готовая еда",
+  заморозка: "Замороженные продукты",
+  кондитерские: "Кондитерские изделия",
+  колбасы: "Колбасы",
+  молочные: "Молочные продукты",
+  мясо: "Мясо",
+  напитки: "Напитки",
+  овощи: "Овощи",
+  прочее: FALLBACK_CATEGORY,
+  рыба: "Рыба и морепродукты",
+  сладости: "Сладости",
+  соусы: "Соусы",
+  снеки: "Снеки",
+  фрукты: "Фрукты",
+  хлеб: "Хлеб и выпечка",
+  яйца: "Яйца",
+};
+
+export function normalizeServerCategory(
+  category: string | null | undefined,
+): string | null {
+  if (!category) return null;
+  return (
+    SERVER_CATEGORY_LABELS[category.trim().toLocaleLowerCase("ru-RU")] ?? null
+  );
+}
+
 export function detectCategory(name: string): string {
   const normalized = name.toLowerCase().replace(/[()\[\]{}.,;:!?"'`]/g, " ");
   const found = RULES.find((rule) =>
