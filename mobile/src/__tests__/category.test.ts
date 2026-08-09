@@ -1,4 +1,8 @@
-import { detectCategory, FALLBACK_CATEGORY, normalizeCategory } from "../category";
+import {
+  detectCategory,
+  FALLBACK_CATEGORY,
+  normalizeCategory,
+} from "../category";
 
 describe("product categories", () => {
   it("uses one canonical fallback category", () => {
