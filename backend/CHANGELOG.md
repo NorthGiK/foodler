@@ -5,6 +5,10 @@
 - В список доступных категорий товаров добавлены `сладости`.
 - Для неизвестного продукта описание и категория определяются запросами к
   `AI_LIGHT_MODEL`; при недоступности AI сохраняется локальная эвристика по тегам.
+- AI-действия общего анализа, сроков годности, рецептов и состава продуктов
+  стали гибридными: сервер сначала рассчитывает факты локально, передаёт их в
+  AI-контекст для персональных рекомендаций и резервирует AI-credit на
+  некэшированный запрос.
 - Updated locked backend dependencies to remediate published aiohttp and
   cryptography advisories, and refreshed reviewed secret-scan findings.
 - AI-agent changes require documentation review before commit and are delivered

@@ -35,7 +35,8 @@ uv run alembic upgrade head
 - `src/schemas.py` — публичные request/response DTO.
 - `src/models.py` — SQLAlchemy-модели.
 - `src/analytics.py` — локальная аналитика без LLM.
-- `src/ai_service.py` — маршрутизация LOCAL/LIGHT/STRONG.
+- `src/ai_service.py` — маршрутизация HYBRID/LIGHT/STRONG: гибридные действия
+  добавляют к проверяемым локальным фактам AI-рекомендации и расходуют credit.
 - `src/integrations/` — адаптеры внешних API с timeout.
 - `src/services/` — транзакционная бизнес-логика.
 - `alembic/` — миграции.

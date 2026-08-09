@@ -89,10 +89,10 @@ class TestRunAi:
         assert response.status_code == 429
 
     @pytest.mark.asyncio
-    async def test_credits_not_checked_for_local_actions(
+    async def test_credits_checked_for_hybrid_actions(
         self, client: AsyncClient, auth_headers, async_session, test_user
     ):
-        """LOCAL actions should NOT check credits even if exhausted."""
+        """Hybrid actions should reject the request when credits are exhausted."""
         from datetime import datetime, timedelta
 
         from src.models import AiCreditUsage
@@ -109,18 +109,12 @@ class TestRunAi:
             async_session.add(usage)
         await async_session.commit()
 
-        with patch("src.routers.ai.task_router.route", new_callable=AsyncMock) as mock_route:
-            mock_route.return_value = [
-                {"type": "text", "title": "Анализ", "text": "Локальный ответ"}
-            ]
-
-            response = await client.post(
-                "/api/ai/run",
-                headers=auth_headers,
-                json={"action": "overall-analysis", "parameters": {}},
-            )
-            # Should succeed even though credits are exhausted (LOCAL action)
-            assert response.status_code == 200, f"Response: {response.text}"
+        response = await client.post(
+            "/api/ai/run",
+            headers=auth_headers,
+            json={"action": "overall-analysis", "parameters": {}},
+        )
+        assert response.status_code == 429, f"Response: {response.text}"
 
     @pytest.mark.asyncio
     async def test_successful_response(self, client: AsyncClient, auth_headers):
@@ -343,13 +337,13 @@ class TestRunAi:
                     f"Expected 1 receipt, got {context['receipt_count']}"
                 )
 
-    # ---- LOCAL action tests (no AI, no credits) ----
+    # ---- Hybrid action tests (local facts plus AI advice) ----
 
     @pytest.mark.asyncio
-    async def test_local_action_no_credits_needed(
+    async def test_hybrid_action_reserves_credit(
         self, client: AsyncClient, auth_headers, async_session, test_user
     ):
-        """LOCAL actions should not check credits."""
+        """Hybrid actions use the normal credit reservation flow."""
         with patch("src.routers.ai.task_router.route", new_callable=AsyncMock) as mock_route:
             mock_route.return_value = [
                 {"type": "text", "title": "Анализ", "text": "Локальный ответ"}
@@ -366,8 +360,8 @@ class TestRunAi:
             assert len(data["sections"]) == 1
 
     @pytest.mark.asyncio
-    async def test_local_action_recipes(self, client: AsyncClient, auth_headers):
-        """LOCAL recipes action should work without AI."""
+    async def test_hybrid_action_recipes(self, client: AsyncClient, auth_headers):
+        """Hybrid recipes action returns the combined advice response."""
         with patch("src.routers.ai.task_router.route", new_callable=AsyncMock) as mock_route:
             mock_route.return_value = [{"type": "text", "title": "Рецепт", "text": "Суп"}]
 
@@ -382,8 +376,8 @@ class TestRunAi:
             assert data["sections"][0]["text"] == "Суп"
 
     @pytest.mark.asyncio
-    async def test_local_action_expiring(self, client: AsyncClient, auth_headers):
-        """LOCAL expiring-products action should work without AI."""
+    async def test_hybrid_action_expiring(self, client: AsyncClient, auth_headers):
+        """Hybrid expiring-products action returns the combined advice response."""
         with patch("src.routers.ai.task_router.route", new_callable=AsyncMock) as mock_route:
             mock_route.return_value = [
                 {"type": "list", "title": "Скоро закончится", "items": ["Молоко"]}
@@ -400,8 +394,8 @@ class TestRunAi:
             assert data["sections"][0]["type"] == "list"
 
     @pytest.mark.asyncio
-    async def test_local_action_ingredients(self, client: AsyncClient, auth_headers):
-        """LOCAL ingredients action should work without AI."""
+    async def test_hybrid_action_ingredients(self, client: AsyncClient, auth_headers):
+        """Hybrid ingredients action returns the combined advice response."""
         with patch("src.routers.ai.task_router.route", new_callable=AsyncMock) as mock_route:
             mock_route.return_value = [{"type": "text", "title": "Нутриенты", "text": "КБЖУ"}]
 
@@ -416,15 +410,15 @@ class TestRunAi:
             assert data["sections"][0]["type"] == "text"
 
     @pytest.mark.asyncio
-    async def test_local_action_does_not_load_receipts(
+    async def test_hybrid_action_loads_receipts_for_ai_context(
         self, client: AsyncClient, auth_headers, async_session, test_user
     ):
-        """LOCAL actions should NOT load receipts (they query DB themselves)."""
+        """Hybrid actions load receipt context in addition to local facts."""
         import uuid
 
         from src.models import Receipt
 
-        # Create a receipt — LOCAL action should NOT load it
+        # Create a receipt — it must be sent as part of AI context.
         r = Receipt(
             id=uuid.uuid4().hex,
             date="2026-07-14",
@@ -447,16 +441,16 @@ class TestRunAi:
             )
             assert response.status_code == 200, f"Response: {response.text}"
 
-            # Verify that context passed to task_router has 0 receipts
+            # Verify that context passed to task_router includes the receipt.
             call_args = mock_route.call_args
             assert call_args is not None
             context = call_args[1]["context"]
-            assert context["receipt_count"] == 0, (
-                f"Expected 0 receipts for LOCAL action, got {context['receipt_count']}"
+            assert context["receipt_count"] == 1, (
+                f"Expected 1 receipt for hybrid action, got {context['receipt_count']}"
             )
 
     @pytest.mark.asyncio
-    async def test_real_local_action_never_calls_llm_or_uses_credits(
+    async def test_real_hybrid_action_uses_llm_and_records_credit(
         self,
         client: AsyncClient,
         auth_headers,
@@ -469,7 +463,7 @@ class TestRunAi:
 
         with patch(
             "src.ai_service._call_llm",
-            new=AsyncMock(side_effect=AssertionError("LLM must not be called")),
+            new=AsyncMock(return_value="## Следующий шаг\n\nКупите овощи к ближайшему приёму пищи."),
         ):
             response = await client.post(
                 "/api/ai/run",
@@ -482,7 +476,7 @@ class TestRunAi:
         usage_count = await async_session.scalar(
             select(func.count()).where(AiCreditUsage.user_id == test_user.id)
         )
-        assert usage_count == 0
+        assert usage_count == 1
 
 
 class TestGetHistory:
