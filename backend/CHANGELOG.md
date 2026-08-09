@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Для неизвестного продукта категория определяется отдельным запросом к
+  `AI_LIGHT_MODEL`; при недоступности AI сохраняется локальная эвристика по тегам.
 - Updated locked backend dependencies to remediate published aiohttp and
   cryptography advisories, and refreshed reviewed secret-scan findings.
 - AI-agent changes require documentation review before commit and are delivered

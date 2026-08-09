@@ -21,7 +21,7 @@ from sqlalchemy import inspect, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.ai_service import AiServiceError, generate_ai_response
+from src.ai_service import AiServiceError, categorize_product, generate_ai_response
 from src.config import PRODUCT_FUZZY_CANDIDATE_LIMIT
 from src.models import Product, ProductAlias, ProductBarcode, ProductTag, ProductTagMember
 
@@ -331,6 +331,7 @@ async def match_product(
             }
             tags = ai_data.get("tags") or []
             product_name = ai_data.get("product_name") or normalized
+            category = await categorize_product(raw_name, normalized, CATEGORIES)
             # Сохраняем продукт
             product = await save_new_product(
                 db=db,
@@ -338,7 +339,7 @@ async def match_product(
                 raw_alias=raw_name,
                 nutrition_data=nutrition_data,
                 tags=[str(t) for t in tags],
-                category=category_from_tags([str(t) for t in tags]),
+                category=category or category_from_tags([str(t) for t in tags]),
                 gtin=gtin,
             )
             await _ensure_product_relations(db, product)

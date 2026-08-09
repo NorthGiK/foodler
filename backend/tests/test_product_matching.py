@@ -210,6 +210,82 @@ class TestMatchProduct:
         result = await match_product(async_session, "  Молоко  3.2%!!! ")
         assert result["product"] is not None
 
+    @pytest.mark.asyncio
+    async def test_ai_fallback_uses_ai_category(self, async_session, monkeypatch):
+        """Unknown products use the light-model category when it is valid."""
+
+        async def fake_ai_match_product(raw_name: str, normalized: str):
+            return {
+                "confidence": 0.9,
+                "product_name": "томатный сок",
+                "calories": 17,
+                "proteins": 1,
+                "fats": 0,
+                "carbs": 3,
+                "tags": ["овощи"],
+            }
+
+        captured: dict[str, object] = {}
+
+        async def fake_categorize_product(raw_name, normalized_name, allowed_categories):
+            captured.update(
+                raw_name=raw_name,
+                normalized_name=normalized_name,
+                allowed_categories=allowed_categories,
+            )
+            return "напитки"
+
+        monkeypatch.setattr("src.product_matching._ai_match_product", fake_ai_match_product)
+        monkeypatch.setattr("src.product_matching.categorize_product", fake_categorize_product)
+
+        result = await match_product(async_session, "Сок томатный", user_id="user-1")
+
+        assert result["product"] is not None
+        assert result["product"].category == "напитки"
+        assert captured["raw_name"] == "Сок томатный"
+        assert captured["normalized_name"] == "сок томатный"
+
+
+class TestAiProductCategory:
+    @pytest.mark.asyncio
+    async def test_uses_light_model_and_returns_allowed_category(self, monkeypatch):
+        from src import ai_service
+
+        captured: dict[str, object] = {}
+
+        async def fake_call_llm(model, action, prompt, **kwargs):
+            captured.update(model=model, action=action, prompt=prompt, **kwargs)
+            return '{"category": "напитки"}'
+
+        monkeypatch.setattr(ai_service, "_call_llm", fake_call_llm)
+
+        category = await ai_service.categorize_product(
+            "Сок томатный",
+            "сок томатный",
+            frozenset({"напитки", "овощи"}),
+        )
+
+        assert category == "напитки"
+        assert captured["model"] == ai_service.AI_LIGHT_MODEL
+        assert captured["action"] == "product-category"
+
+    @pytest.mark.asyncio
+    async def test_returns_none_when_ai_provider_fails(self, monkeypatch):
+        from src import ai_service
+
+        async def fake_call_llm(*args, **kwargs):
+            raise ai_service.AiServiceError("unavailable", status_code=503)
+
+        monkeypatch.setattr(ai_service, "_call_llm", fake_call_llm)
+
+        category = await ai_service.categorize_product(
+            "Сок томатный",
+            "сок томатный",
+            frozenset({"напитки", "овощи"}),
+        )
+
+        assert category is None
+
 
 class TestSaveNewProduct:
     """Tests for saving new products from AI fallback."""
