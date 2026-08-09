@@ -217,6 +217,26 @@ async def categorize_product(
     return category if isinstance(category, str) and category in allowed_categories else None
 
 
+async def describe_unknown_product(raw_name: str, normalized_name: str) -> str:
+    """Use the light model to identify an unknown receipt product as JSON."""
+    system_prompt = (
+        "Ты определяешь пищевую ценность товара из продуктового чека. "
+        "Верни только JSON с полями product_name, confidence, calories, proteins, fats, "
+        "carbs и tags (массив строк). Без Markdown и пояснений."
+    )
+    prompt = json.dumps(
+        {"raw_name": raw_name, "normalized_name": normalized_name}, ensure_ascii=False
+    )
+    return await _call_llm(
+        AI_LIGHT_MODEL,
+        "product-classification",
+        prompt,
+        max_tokens=300,
+        temperature=0,
+        system_prompt=system_prompt,
+    )
+
+
 # ---------------------------------------------------------------------------
 #  Tier-0 helpers — local AiSection builders
 # ---------------------------------------------------------------------------

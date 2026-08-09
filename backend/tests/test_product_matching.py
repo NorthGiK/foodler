@@ -286,6 +286,24 @@ class TestAiProductCategory:
 
         assert category is None
 
+    @pytest.mark.asyncio
+    async def test_product_description_uses_light_model(self, monkeypatch):
+        from src import ai_service
+
+        captured: dict[str, object] = {}
+
+        async def fake_call_llm(model, action, prompt, **kwargs):
+            captured.update(model=model, action=action, prompt=prompt, **kwargs)
+            return '{"product_name": "томатный сок"}'
+
+        monkeypatch.setattr(ai_service, "_call_llm", fake_call_llm)
+
+        response = await ai_service.describe_unknown_product("Сок томатный", "сок томатный")
+
+        assert response == '{"product_name": "томатный сок"}'
+        assert captured["model"] == ai_service.AI_LIGHT_MODEL
+        assert captured["action"] == "product-classification"
+
 
 class TestSaveNewProduct:
     """Tests for saving new products from AI fallback."""

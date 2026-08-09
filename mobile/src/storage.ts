@@ -1,5 +1,5 @@
 import * as SQLite from "expo-sqlite";
-import { detectCategory } from "./category";
+import { detectCategory, normalizeCategory } from "./category";
 import {
   batchReceiptChanges,
   notifyReceiptChange,
@@ -44,6 +44,10 @@ export async function openDb() {
   );
   await db.execAsync(
     "CREATE INDEX IF NOT EXISTS idx_receipt_items_receiptId ON receipt_items(receiptId);",
+  );
+  await db.runAsync(
+    "UPDATE receipt_items SET category = ? WHERE category IN (?, ?)",
+    ["прочее", "Прочее", "прочее"],
   );
   _db = db;
   return db;
@@ -185,7 +189,7 @@ export async function saveReceipt(
         await statement.executeAsync({
           $receiptId: receipt.id,
           $name: item.name,
-          $category: item.category,
+          $category: normalizeCategory(item.category),
           $priceRub: item.priceRub,
           $quantity: item.quantity,
           $sumRub: item.sumRub,

@@ -49,9 +49,19 @@ const RULES: { category: string; patterns: RegExp[] }[] = [
   },
 ];
 
+export const FALLBACK_CATEGORY = "прочее";
+
+export function normalizeCategory(category: string | null | undefined): string {
+  const normalized = category?.trim();
+  if (!normalized || normalized.toLocaleLowerCase("ru-RU") === FALLBACK_CATEGORY) {
+    return FALLBACK_CATEGORY;
+  }
+  return normalized;
+}
+
 export function detectCategory(name: string): string {
   const normalized = name.toLowerCase().replace(/[()\[\]{}.,;:!?"'`]/g, ' ');
   const found = RULES.find((rule) => rule.patterns.some((pattern) => pattern.test(normalized)));
   if (found) return found.category;
-  return 'Прочее';
+  return FALLBACK_CATEGORY;
 }
