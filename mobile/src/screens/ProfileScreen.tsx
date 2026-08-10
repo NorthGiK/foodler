@@ -167,7 +167,9 @@ export function ProfileScreen() {
           />
         </Animated.View>
 
-        <Animated.View style={cardStyles[2]}>
+        <Animated.View
+          style={[cardStyles[2], styles.subscriptionButtonSpacing]}
+        >
           <SubscriptionButton />
         </Animated.View>
 
@@ -259,6 +261,9 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: "800",
     letterSpacing: -0.5,
+  },
+  subscriptionButtonSpacing: {
+    marginBottom: 24,
   },
   logoutBtn: {
     flexDirection: "row",

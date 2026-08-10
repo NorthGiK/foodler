@@ -206,6 +206,11 @@ export function AiResultView({
         <AiSectionRenderer key={i} section={section} />
       ))}
 
+      <Text style={[styles.disclaimer, { color: theme.muted }]}>
+        Рекомендации носят информационный характер и могут содержать ошибки.
+        Проверяйте важные решения самостоятельно.
+      </Text>
+
       {/* Разделитель */}
       <View style={styles.separator}>
         <View
@@ -336,6 +341,13 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 20,
     fontStyle: "italic",
+  },
+  disclaimer: {
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 4,
+    marginBottom: 16,
+    textAlign: "center",
   },
   separator: {
     flexDirection: "row",
