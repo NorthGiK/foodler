@@ -25,6 +25,8 @@ def test_overall_analysis_prompt_has_no_service_action_blocks():
     assert "служебные" in prompt
     assert "снизить расходы" in prompt
     assert "состав продуктов" in prompt
+    assert "900–1500 символов" in prompt
+    assert "ровно такую структуру" in prompt
 
 
 def test_create_prompt_returns_none_for_unknown_action():
