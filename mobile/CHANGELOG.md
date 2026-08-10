@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Receipt-image recognition now normalizes a configured API host to the `/api`
+  prefix, so uploads reach FastAPI rather than a web-proxy endpoint.
 - Navigation transitions now keep the active theme background, preventing a
   white flash when opening receipt details and returning from subscription or
   AI questions in dark mode.
