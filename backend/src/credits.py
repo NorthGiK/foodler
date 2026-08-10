@@ -49,7 +49,9 @@ def _utcnow() -> datetime:
 
 
 def credit_cost(action: str) -> float:
-    return 2.0 if action == "ask" else 1.0
+    # Общий анализ объединяет два самостоятельных направления рекомендаций:
+    # экономию и состав корзины. Каждое направление считается отдельным action.
+    return {"ask": 2.0, "overall-analysis": 2.0}.get(action, 1.0)
 
 
 def _premium_period(now: datetime) -> CreditPeriod:

@@ -128,11 +128,19 @@ class TestDeductCredits:
 
     @pytest.mark.asyncio
     async def test_deduct_credits_for_other_actions(self, async_session, test_user):
-        """Non-'ask' actions should cost 1 credit."""
-        await deduct_credits(async_session, test_user, ip=None, action="overall-analysis")
+        """A regular AI action costs 1 credit."""
+        await deduct_credits(async_session, test_user, ip=None, action="diet")
 
         info = await get_user_credits_info(async_session, test_user)
         assert info["remaining"] == 1.0  # 2 - 1
+
+    @pytest.mark.asyncio
+    async def test_overall_analysis_costs_for_two_directions(self, async_session, test_user):
+        """Overall analysis charges one credit for each recommendation direction."""
+        await deduct_credits(async_session, test_user, ip=None, action="overall-analysis")
+
+        info = await get_user_credits_info(async_session, test_user)
+        assert info["remaining"] == 0.0  # 2 - 2
 
     @pytest.mark.asyncio
     async def test_deduct_credits_multiple_times(self, async_session, test_user):
@@ -153,7 +161,7 @@ class TestDeductCredits:
 
     @pytest.mark.asyncio
     async def test_ask_cannot_overdraw_one_remaining_credit(self, async_session, test_user):
-        await deduct_credits(async_session, test_user, ip=None, action="overall-analysis")
+        await deduct_credits(async_session, test_user, ip=None, action="diet")
 
         with pytest.raises(InsufficientCreditsError):
             await deduct_credits(async_session, test_user, ip=None, action="ask")

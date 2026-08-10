@@ -481,11 +481,11 @@ class TaskRouter:
         # ---- LLM calls ----
         if force_light or action in HYBRID_ACTIONS | LIGHT_ACTIONS:
             model = AI_LIGHT_MODEL
-            max_tokens = 400
+            max_tokens = 1200
             temperature = 0.2
         else:  # STRONG_ACTIONS
             model = AI_STRONG_MODEL or AI_LIGHT_MODEL
-            max_tokens = 800
+            max_tokens = 1600
             temperature = 0.3
 
         prompt = _build_user_prompt(action, parameters, context)
