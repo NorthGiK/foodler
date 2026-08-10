@@ -14,6 +14,10 @@ make test
 запустить через `cd backend && make run`. `/ready` проверяет доступность БД, в
 отличие от простого liveness `/health`.
 
+Release APK собирается командой `make build-apk`. Готовый файл находится в
+`mobile/android/app/build/outputs/apk/release/app-release.apk`; сборка по
+умолчанию рассчитана на ARM64-устройства.
+
 Для изменения API:
 
 1. Изменить Pydantic-схему и FastAPI route.

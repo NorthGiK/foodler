@@ -29,6 +29,7 @@ make dev
 |---|---|
 | `make bootstrap` | Установить фиксированные зависимости обоих проектов |
 | `make dev` | Применить backend-миграции, затем запустить API и Expo |
+| `make build-apk` | Собрать release APK мобильного приложения (ARM64) |
 | `make check` | Линтеры, форматирование, typecheck, контракт и секреты |
 | `make test` | Все backend- и mobile-тесты |
 | `make audit` | Проверить backend lockfile и production-граф mobile |

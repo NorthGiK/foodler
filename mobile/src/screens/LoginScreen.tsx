@@ -144,11 +144,7 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
       setError("");
       setStep("code");
     } catch (error: unknown) {
-      const originalMessage =
-        error instanceof Error ? error.message : "Не удалось отправить код";
-      const msg = originalMessage.includes("fetch failed")
-        ? "Ошибка отправки. Проверьте подключение к интернету"
-        : originalMessage;
+      const msg = "Ошибка отправки. Проверьте подключение к интернету. Если включён VPN, выключите его.";
       setError(msg);
       errorAlert(msg);
     } finally {

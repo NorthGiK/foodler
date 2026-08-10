@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: bootstrap dev dev-backend dev-mobile check test backend-check mobile-check \
+.PHONY: bootstrap dev dev-backend dev-mobile build-apk check test backend-check mobile-check \
 	backend-test mobile-test contract contract-check secrets audit backend-audit mobile-audit
 
 bootstrap:
@@ -16,6 +16,10 @@ dev-backend:
 
 dev-mobile:
 	cd mobile && npx expo start -ag
+
+build-apk:
+	cd mobile && npx expo prebuild --clean
+	cd mobile/android && ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a
 
 check: backend-check mobile-check contract-check secrets
 
