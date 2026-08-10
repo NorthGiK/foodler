@@ -22,7 +22,7 @@ export const API_ORIGIN = apiUrls.apiOrigin;
 export const API_BASE = apiUrls.apiBase;
 
 // Ссылки на документы
-const BASE_POLICY_URL = "https://foodler.site/legal";
+const BASE_POLICY_URL = "http://foodler.site/legal";
 export const SUBSCRIPTION_TERMS = `${BASE_POLICY_URL}/subscription_terms.html`;
 
 export const policy = {

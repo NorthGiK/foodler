@@ -263,7 +263,7 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
             )}
 
             {/* Policy checkboxes */}
-            { skipable &&
+            {skipable && (
               <View
                 style={[
                   styles.card,
@@ -310,31 +310,31 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
                   ))}
                 </View>
               </View>
-            }
+            )}
 
             {skipable && (
               <Pressable
-                  style={[
-                    styles.submitBtn,
-                    {
-                      backgroundColor: theme.primary,
-                      opacity: loading || !allPoliciesAccepted ? 0.6 : 1,
-                    },
-                  ]}
-                  onPress={async () => {
-                    await handleSkipLogin();
-                    navigation.navigate("Login");
-                  }}
-                  disabled={loading || !allPoliciesAccepted}
-                >
-                  {loading ? (
-                    <ActivityIndicator color={theme.white} />
-                  ) : (
-                    <Text style={[styles.submitText, { color: theme.white }]}>
-                      Войти
-                    </Text>
-                  )}
-                </Pressable>
+                style={[
+                  styles.submitBtn,
+                  {
+                    backgroundColor: theme.primary,
+                    opacity: loading || !allPoliciesAccepted ? 0.6 : 1,
+                  },
+                ]}
+                onPress={async () => {
+                  await handleSkipLogin();
+                  navigation.navigate("Login");
+                }}
+                disabled={loading || !allPoliciesAccepted}
+              >
+                {loading ? (
+                  <ActivityIndicator color={theme.white} />
+                ) : (
+                  <Text style={[styles.submitText, { color: theme.white }]}>
+                    Войти
+                  </Text>
+                )}
+              </Pressable>
             )}
 
             {!skipable && (

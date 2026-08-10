@@ -199,7 +199,9 @@ export function ProfileInfoCard({
             <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
               <MaterialIcons name="person" size={18} color={theme.muted} />
               <View style={styles.infoContent}>
-                <Text style={[styles.infoLabel, { color: theme.muted }]}>Имя</Text>
+                <Text style={[styles.infoLabel, { color: theme.muted }]}>
+                  Имя
+                </Text>
                 <Text style={[styles.infoValue, { color: theme.text }]}>
                   {profile.name}
                 </Text>
@@ -210,7 +212,9 @@ export function ProfileInfoCard({
           <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
             <MaterialIcons name="cake" size={18} color={theme.muted} />
             <View style={styles.infoContent}>
-              <Text style={[styles.infoLabel, { color: theme.muted }]}>Возраст</Text>
+              <Text style={[styles.infoLabel, { color: theme.muted }]}>
+                Возраст
+              </Text>
               <Text style={[styles.infoValue, { color: theme.text }]}>
                 {profile.age} лет
               </Text>
@@ -220,7 +224,9 @@ export function ProfileInfoCard({
           <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
             <MaterialIcons name="wc" size={18} color={theme.muted} />
             <View style={styles.infoContent}>
-              <Text style={[styles.infoLabel, { color: theme.muted }]}>Пол</Text>
+              <Text style={[styles.infoLabel, { color: theme.muted }]}>
+                Пол
+              </Text>
               <Text style={[styles.infoValue, { color: theme.text }]}>
                 {profile.gender === "male" ? "Мужской" : "Женский"}
               </Text>
@@ -230,7 +236,9 @@ export function ProfileInfoCard({
           <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
             <MaterialIcons name="straighten" size={18} color={theme.muted} />
             <View style={styles.infoContent}>
-              <Text style={[styles.infoLabel, { color: theme.muted }]}>Рост</Text>
+              <Text style={[styles.infoLabel, { color: theme.muted }]}>
+                Рост
+              </Text>
               <Text style={[styles.infoValue, { color: theme.text }]}>
                 {profile.heightCm} см
               </Text>
@@ -238,9 +246,15 @@ export function ProfileInfoCard({
           </View>
 
           <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
-            <MaterialIcons name="fitness-center" size={18} color={theme.muted} />
+            <MaterialIcons
+              name="fitness-center"
+              size={18}
+              color={theme.muted}
+            />
             <View style={styles.infoContent}>
-              <Text style={[styles.infoLabel, { color: theme.muted }]}>Вес</Text>
+              <Text style={[styles.infoLabel, { color: theme.muted }]}>
+                Вес
+              </Text>
               <Text style={[styles.infoValue, { color: theme.text }]}>
                 {profile.weightKg} кг
               </Text>

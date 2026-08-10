@@ -238,6 +238,7 @@ export function FamilySection({
                 multiline
                 numberOfLines={3}
                 textAlignVertical="top"
+                maxLength={1000}
               />
             </View>
           </CashFormSection>

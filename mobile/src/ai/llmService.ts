@@ -207,7 +207,9 @@ export async function generateAiResponse(
   const profile = await loadProfile();
   const profileParts = [
     profile.healthGoals.length ? `Цели: ${profile.healthGoals.join(", ")}` : "",
-    profile.dietaryPreferences.length ? `Ограничения: ${profile.dietaryPreferences.join(", ")}` : "",
+    profile.dietaryPreferences.length
+      ? `Ограничения: ${profile.dietaryPreferences.join(", ")}`
+      : "",
     profile.additionalInfo ? `Дополнительно: ${profile.additionalInfo}` : "",
   ].filter(Boolean);
   if (profileParts.length) parameters.profile_context = profileParts.join(". ");
@@ -243,6 +245,8 @@ export async function generateAiResponse(
     ) {
       kind = "server";
     }
+
+    console.debug(`kind of generateAiResponse error is ${kind}`);
 
     const userMessage =
       kind === "network"

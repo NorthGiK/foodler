@@ -18,10 +18,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { RootStackParamList } from "../../App";
-import {
-  queueReceiptDeletion,
-  syncPendingReceiptDeletions,
-} from "../api/sync";
+import { queueReceiptDeletion, syncPendingReceiptDeletions } from "../api/sync";
 import { useTheme } from "../components/ThemeContext";
 import { deleteReceipt, loadReceiptItems, openDb } from "../storage";
 import type { ReceiptItem } from "../types";

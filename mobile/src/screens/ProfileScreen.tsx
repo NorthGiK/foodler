@@ -133,7 +133,7 @@ export function ProfileScreen() {
           <AiCreditsCard />
         </Animated.View>
 
-        <Animated.View style={cardStyles[2]}>
+        <Animated.View style={[cardStyles[2], { marginBottom: styles.content.paddingBottom }]}>
           <SubscriptionButton />
         </Animated.View>
 

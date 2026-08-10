@@ -53,7 +53,10 @@ export function FamilyMemberCard({
           {member.heightCm} см · {member.weightKg} кг
         </Text>
         {member.additionalInfo ? (
-          <Text style={[styles.additionalInfo, { color: theme.muted }]} numberOfLines={1}>
+          <Text
+            style={[styles.additionalInfo, { color: theme.muted }]}
+            numberOfLines={1}
+          >
             {member.additionalInfo}
           </Text>
         ) : null}

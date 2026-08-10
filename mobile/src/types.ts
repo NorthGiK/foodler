@@ -28,7 +28,7 @@ export interface ApiReceiptResponse {
 export interface FamilyMember {
   name: string;
   age: number;
-  gender: 'male' | 'female';
+  gender: "male" | "female";
   heightCm: number;
   weightKg: number;
   dietaryPreferences: string[];
@@ -43,9 +43,9 @@ export interface UserProfile extends FamilyMember {
 }
 
 export const defaultProfile: UserProfile = {
-  name: '',
+  name: "",
   age: 30,
-  gender: 'male',
+  gender: "male",
   heightCm: 170,
   weightKg: 70,
   familySize: 1,
@@ -55,7 +55,7 @@ export const defaultProfile: UserProfile = {
   familyMembers: [],
 };
 
-export type ChartKind = 'bar' | 'line'
+export type ChartKind = "bar" | "line";
 
 export interface Receipt {
   id: string;
@@ -78,5 +78,5 @@ export interface ReceiptItem {
   sumRub: number;
 }
 
-export type Period = 'day' | 'week' | 'month' | 'year';
-export type CategoryMode = 'sum' | 'count';
+export type Period = "day" | "week" | "month" | "year";
+export type CategoryMode = "sum" | "count";

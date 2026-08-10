@@ -200,7 +200,9 @@ export function AiCreditsCard() {
       {/* Progress Bar with Charging Effect */}
       {!loadError && (
         <View style={styles.progressContainer}>
-          <View style={[styles.progressTrack, { backgroundColor: theme.border }]}>
+          <View
+            style={[styles.progressTrack, { backgroundColor: theme.border }]}
+          >
             <Animated.View
               style={[
                 styles.progressFill,
@@ -216,7 +218,9 @@ export function AiCreditsCard() {
             />
           </View>
           <View style={styles.progressLabels}>
-            <Text style={[styles.progressLabel, { color: theme.muted }]}>0</Text>
+            <Text style={[styles.progressLabel, { color: theme.muted }]}>
+              0
+            </Text>
             <Text style={[styles.progressLabel, { color: theme.muted }]}>
               {maxCredits}
             </Text>
