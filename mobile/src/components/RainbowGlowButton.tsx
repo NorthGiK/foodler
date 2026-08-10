@@ -44,7 +44,7 @@ export function RainbowGlowButton({
       return {
         cornerRadius: 100,
         outlineWidth: 0,
-        animationSpeed: 1.2,
+        animationSpeed: 0.3,
         borderSpeedMultiplier: 1,
         glowLayers: [
           {
@@ -56,7 +56,7 @@ export function RainbowGlowButton({
               "#00BFFF",
               "#FFD700",
             ],
-            glowSize: 12,
+            glowSize: 6,
             opacity: 0.6,
           },
         ],

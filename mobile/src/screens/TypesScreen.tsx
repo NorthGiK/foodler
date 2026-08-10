@@ -88,27 +88,11 @@ export function TypesScreen({ receipts, joinedItems }: TypesScreenProps) {
 
       <Animated.View style={cardStyles[1]}>
         <StatList
-          title={mode === "count" ? "Самые частые типы" : "Самые дорогие типы"}
+          title={mode === "count" ? "Самые частые категории" : "Самые дорогие категории"}
           data={stats.slice(0, 10)}
         />
       </Animated.View>
 
-      <Animated.View style={cardStyles[2]}>
-        <View
-          style={[
-            styles.card,
-            { backgroundColor: theme.surface, borderColor: theme.border },
-          ]}
-        >
-          <Text style={[styles.title, { color: theme.text }]}>
-            Как определяется тип
-          </Text>
-          <Text style={[styles.body, { color: theme.muted }]}>
-            Названия вроде «колбаса Вязанка» и «сервелат Папа Может» попадают в
-            тип «Колбасы» по ключевым словам, а не по бренду.
-          </Text>
-        </View>
-      </Animated.View>
     </ScrollView>
   );
 }

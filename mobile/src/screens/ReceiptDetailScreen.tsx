@@ -60,7 +60,9 @@ export function ReceiptDetailScreen() {
       const db = await openDb();
       await deleteReceipt(db, receipt.id);
       await queueReceiptDeletion(receipt.id);
-      navigation.goBack();
+      try {
+        navigation.goBack();
+      } catch {};
       void syncPendingReceiptDeletions();
     } catch {
       Alert.alert("Ошибка", "Не удалось удалить локальный чек.");

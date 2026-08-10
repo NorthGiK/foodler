@@ -125,10 +125,7 @@ export function normalizeReceiptResponse(
   const operationType: number = data.operationType ?? 3;
   const sign: number = operationType === 2 || operationType === 4 ? -1 : 1;
   const totalSumRub: number = sign * rublesFromKopeks(data.totalSum);
-  const organization: string =
-    {
-      'АКЦИОНЕРНОЕ ОБЩЕСТВО "ТАНДЕР"': "Магнит",
-    }[data.user?.trim() || ""] || "Неизвестно";
+  const organization: string = data.user?.trim() || "Неизвестно";
 
   const receipt: Receipt = {
     id: `${ticketDate}-${Math.random().toString(36).slice(2, 10)}`,
