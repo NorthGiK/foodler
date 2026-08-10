@@ -1,17 +1,25 @@
 // Expo embeds EXPO_PUBLIC_* values into the application bundle. Never put
 // secrets here: the base URL is public configuration.
-export function normalizeApiBase(apiBase: string): string {
-  const normalized = apiBase.replace(/\/+$/, "");
-  return normalized.endsWith("/api") ? normalized : `${normalized}/api`;
+export function resolveApiUrls(configuredBase: string): {
+  apiOrigin: string;
+  apiBase: string;
+} {
+  const normalized = configuredBase.replace(/\/+$/, "");
+  const apiOrigin = normalized.endsWith("/api")
+    ? normalized.slice(0, -"/api".length)
+    : normalized;
+  return { apiOrigin, apiBase: `${apiOrigin}/api` };
 }
 
 const configuredApiBase = process.env.EXPO_PUBLIC_API_BASE_URL;
 if (!configuredApiBase && !__DEV__) {
   throw new Error("EXPO_PUBLIC_API_BASE_URL is required in production builds");
 }
-export const API_BASE = normalizeApiBase(
+const apiUrls = resolveApiUrls(
   configuredApiBase ?? "http://10.0.2.2:8000/api",
 );
+export const API_ORIGIN = apiUrls.apiOrigin;
+export const API_BASE = apiUrls.apiBase;
 
 // Ссылки на документы
 const BASE_POLICY_URL = "https://foodler.site/legal";

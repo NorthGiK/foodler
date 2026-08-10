@@ -2,8 +2,8 @@
 
 ## Unreleased
 
-- Receipt-image recognition now normalizes a configured API host to the `/api`
-  prefix, so uploads reach FastAPI rather than a web-proxy endpoint.
+- Mobile API URLs now normalize a configured host to exactly one `/api` prefix,
+  so QR uploads and generated SDK requests reach FastAPI.
 - Navigation transitions now keep the active theme background, preventing a
   white flash when opening receipt details and returning from subscription or
   AI questions in dark mode.

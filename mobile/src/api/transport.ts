@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { API_BASE } from "@/config";
+import { API_BASE, API_ORIGIN } from "@/config";
 
 import { client } from "./generated/client.gen";
 import type { HttpValidationError } from "./generated/types.gen";
@@ -124,7 +124,7 @@ async function authenticatedFetch(
 }
 
 client.setConfig({
-  baseUrl: API_BASE,
+  baseUrl: API_ORIGIN,
   fetch: authenticatedFetch,
   responseStyle: "fields",
 });

@@ -1,12 +1,15 @@
-import { normalizeApiBase } from "../config";
+import { resolveApiUrls } from "../config";
 
-describe("normalizeApiBase", () => {
+describe("resolveApiUrls", () => {
   it.each([
-    ["https://api.example.test", "https://api.example.test/api"],
-    ["https://api.example.test/", "https://api.example.test/api"],
-    ["https://api.example.test/api", "https://api.example.test/api"],
-    ["https://api.example.test/api/", "https://api.example.test/api"],
-  ])("uses the API prefix for %s", (configuredBase, expectedBase) => {
-    expect(normalizeApiBase(configuredBase)).toBe(expectedBase);
+    ["https://api.example.test", "https://api.example.test"],
+    ["https://api.example.test/", "https://api.example.test"],
+    ["https://api.example.test/api", "https://api.example.test"],
+    ["https://api.example.test/api/", "https://api.example.test"],
+  ])("keeps a single API prefix for %s", (configuredBase, expectedOrigin) => {
+    expect(resolveApiUrls(configuredBase)).toEqual({
+      apiOrigin: expectedOrigin,
+      apiBase: `${expectedOrigin}/api`,
+    });
   });
 });
