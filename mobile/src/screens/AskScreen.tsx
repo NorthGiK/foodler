@@ -376,7 +376,6 @@ export function AskScreen() {
                 {
                   backgroundColor: theme.surface,
                   borderColor: theme.border,
-                  position: "absolute",
                 },
               ]}
             >

@@ -23,6 +23,7 @@ import { policy } from "../config";
 import { AnimatedPressable } from "@/components/animations";
 
 type Step = "credentials" | "code";
+type CredentialField = "email" | "password";
 
 const POLICIES_ACCEPTED_KEY = "@policies_accepted";
 
@@ -64,6 +65,10 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [credentialError, setCredentialError] = useState<{
+    field: CredentialField;
+    message: string;
+  } | null>(null);
   const [acceptedPolicies, setAcceptedPolicies] = useState<
     Record<keyof typeof policy, boolean>
   >({
@@ -91,6 +96,7 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
   useEffect(() => {
     if (step === "code") {
       setError("");
+      setCredentialError(null);
     }
   }, [step]);
 
@@ -100,6 +106,7 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
     setPassword("");
     setCode("");
     setError("");
+    setCredentialError(null);
     setAcceptedPolicies({
       PRIVACY_POLICY: false,
       TERMS_OF_SERVICE: false,
@@ -120,31 +127,55 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
   const handleBackToCredentials = () => {
     setStep("credentials");
     setError("");
+    setCredentialError(null);
+  };
+
+  const updateCredential = (field: CredentialField, value: string) => {
+    if (field === "email") {
+      setEmail(value);
+    } else {
+      setPassword(value);
+    }
+    setError("");
+    setCredentialError((current) =>
+      current?.field === field ? null : current,
+    );
   };
 
   const handleSendCode = async () => {
+    setError("");
     if (!email.trim()) {
-      setError("Введите email");
+      setCredentialError({ field: "email", message: "Введите email" });
       return;
     } else if (!isValidEmail(email.trim())) {
-      setError("Введён некорректный email");
+      setCredentialError({
+        field: "email",
+        message: "Введён некорректный email",
+      });
       return;
     } else if (password.length < 8) {
-      setError("Пароль должен быть не менее 8 символов");
+      setCredentialError({
+        field: "password",
+        message: "Пароль должен быть не менее 8 символов",
+      });
       return;
     } else if (!/[A-Z]/.test(password)) {
-      setError("Пароль должен содержать хотя бы одну заглавную букву");
+      setCredentialError({
+        field: "password",
+        message: "Пароль должен содержать хотя бы одну заглавную букву",
+      });
       return;
     }
 
     setLoading(true);
-    setError("");
+    setCredentialError(null);
     try {
       await sendCode(email.trim(), password.trim());
       setError("");
       setStep("code");
     } catch (error: unknown) {
-      const msg = "Ошибка отправки. Проверьте подключение к интернету. Если включён VPN, выключите его.";
+      const msg =
+        "Ошибка отправки. Проверьте подключение к интернету. Если включён VPN, выключите его.";
       setError(msg);
       errorAlert(msg);
     } finally {
@@ -235,26 +266,35 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
                 <ShakeInput
                   label="Email"
                   value={email}
-                  onChangeText={setEmail}
+                  onChangeText={(value) => updateCredential("email", value)}
                   placeholder="example@mail.com"
                   placeholderTextColor={theme.muted}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
-                  error={error}
+                  error={
+                    credentialError?.field === "email"
+                      ? credentialError.message
+                      : undefined
+                  }
                   style={{ marginBottom: 12 }}
                 />
 
                 <ShakeInput
                   label="Пароль"
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={(value) => updateCredential("password", value)}
                   placeholder="••••••••"
                   placeholderTextColor={theme.muted}
                   secureTextEntry
-                  error={error}
+                  error={
+                    credentialError?.field === "password"
+                      ? credentialError.message
+                      : undefined
+                  }
                   style={{ marginBottom: 12 }}
                 />
+                {error ? <Text style={styles.formError}>{error}</Text> : null}
               </View>
             )}
 
@@ -516,5 +556,9 @@ const styles = StyleSheet.create({
   toggleText: {
     fontSize: 15,
     fontWeight: "600",
+  },
+  formError: {
+    color: "#ef4444",
+    fontSize: 13,
   },
 });

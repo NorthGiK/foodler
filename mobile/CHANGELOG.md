@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Login validation now shows email and password errors only beside the relevant
+  field and clears them when that field is edited.
+- The Ask screen input bar is anchored below the message list and moves above
+  the keyboard through `KeyboardAvoidingView`.
 - AI answers in the question screen now render Markdown, and the family-member
   form keeps focused inputs visible above the keyboard.
 - Added a local Profile manager for store display names. Aliases apply to
