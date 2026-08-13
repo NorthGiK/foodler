@@ -3,14 +3,14 @@
     "name": "Foodler",
     "slug": "food-spend-tracker",
     "scheme": "foodspendtracker",
-    "version": "2.0.2",
+    "version": "2.0.3",
     "orientation": "portrait",
     "platforms": [
       "android"
     ],
     "userInterfaceStyle": "automatic",
     "android": {
-      "versionCode": 2,
+      "versionCode": 3,
       "package": "com.Foodler.chih_pih",
       "icon": "./assets/FoodlerIcon.png",
       "permissions": [
