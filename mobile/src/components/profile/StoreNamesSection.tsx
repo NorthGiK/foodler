@@ -151,9 +151,22 @@ export function StoreNamesSection({
                 </Text>
                 <View style={styles.headerSpacer} />
               </View>
-              <Text style={[styles.sourceLabel, { color: theme.muted }]}>
-                В чеке: {selectedStore}
-              </Text>
+              <Text style={[styles.label, { color: theme.text }]}>В чеке</Text>
+              <TextInput
+                accessibilityLabel="Исходное название магазина"
+                editable={false}
+                selectTextOnFocus
+                style={[
+                  styles.input,
+                  styles.sourceInput,
+                  {
+                    backgroundColor: theme.surfaceElevated,
+                    borderColor: theme.outline,
+                    color: theme.muted,
+                  },
+                ]}
+                value={selectedStore}
+              />
               <Text style={[styles.label, { color: theme.text }]}>
                 Показывать как
               </Text>
@@ -332,12 +345,6 @@ const styles = StyleSheet.create({
     paddingVertical: 36,
     textAlign: "center",
   },
-  sourceLabel: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 22,
-    textAlign: "center",
-  },
   label: { fontSize: 14, fontWeight: "600", marginBottom: 8 },
   input: {
     borderRadius: 14,
@@ -345,6 +352,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     minHeight: 50,
     paddingHorizontal: 14,
+  },
+  sourceInput: {
+    marginBottom: 18,
   },
   error: { fontSize: 13, marginTop: 7 },
   primaryButton: {
