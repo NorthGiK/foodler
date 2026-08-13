@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useTheme } from "../components/ThemeContext";
 import { Receipt } from "../types";
+import { getStoreDisplayName, StoreAliases } from "../storeAliases";
 import { fmtDate, fmtRub } from "../utils";
 
 const RECEIPT_ROW_HEIGHT = 86;
@@ -20,23 +21,27 @@ interface Props {
   onRefresh: () => Promise<void>;
   onOpenReceiptDetail: (receipt: Receipt) => void;
   onNewReceipt: () => void;
+  storeAliases: StoreAliases;
 }
 
 interface ReceiptRowProps {
   receipt: Receipt;
   onPress: (receipt: Receipt) => void;
+  storeAliases: StoreAliases;
 }
 
 const ReceiptRow = memo(function ReceiptRow({
   receipt,
   onPress,
+  storeAliases,
 }: ReceiptRowProps) {
   const { theme } = useTheme();
+  const storeName = getStoreDisplayName(receipt.organization, storeAliases);
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Открыть чек ${receipt.organization}`}
+      accessibilityLabel={`Открыть чек ${storeName}`}
       onPress={() => onPress(receipt)}
       style={({ pressed }) => [
         styles.card,
@@ -53,7 +58,7 @@ const ReceiptRow = memo(function ReceiptRow({
           style={[styles.organization, { color: theme.text }]}
           numberOfLines={1}
         >
-          {receipt.organization}
+          {storeName}
         </Text>
         <Text style={[styles.date, { color: theme.muted }]} numberOfLines={1}>
           {fmtDate(receipt.ticketDate)}
@@ -71,6 +76,7 @@ export function ReceiptsScreen({
   onRefresh,
   onOpenReceiptDetail,
   onNewReceipt,
+  storeAliases,
 }: Props) {
   const { theme } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
@@ -86,9 +92,13 @@ export function ReceiptsScreen({
 
   const renderReceipt = useCallback(
     ({ item }: { item: Receipt }) => (
-      <ReceiptRow receipt={item} onPress={onOpenReceiptDetail} />
+      <ReceiptRow
+        receipt={item}
+        onPress={onOpenReceiptDetail}
+        storeAliases={storeAliases}
+      />
     ),
-    [onOpenReceiptDetail],
+    [onOpenReceiptDetail, storeAliases],
   );
 
   return (

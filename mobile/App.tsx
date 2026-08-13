@@ -58,6 +58,12 @@ import {
 } from "./src/storage";
 import type { Receipt, ReceiptItem } from "./src/types";
 import { createNavigationTheme } from "./src/navigationTheme";
+import {
+  loadStoreAliases,
+  removeStoreAlias,
+  saveStoreAlias,
+  StoreAliases,
+} from "./src/storeAliases";
 
 type Tab = "scan" | "stats" | "types" | "receipts" | "profile" | "assistant";
 type MaterialIconName = ComponentProps<typeof MaterialIcons>["name"];
@@ -67,7 +73,7 @@ export type RootStackParamList = {
   Main: undefined;
   Login: undefined;
   ForgotPassword: undefined;
-  ReceiptDetail: { receipt: Receipt };
+  ReceiptDetail: { receipt: Receipt; storeAliases: StoreAliases };
   NewReceipt: undefined;
   Ask: undefined;
   Subscription: undefined;
@@ -99,6 +105,7 @@ function TabContent() {
   const [tab, setTab] = useState<Tab>("scan");
   const [db, setDb] = useState<SQLiteDatabase | null>(null);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [storeAliases, setStoreAliases] = useState<StoreAliases>({});
   const [joined, setJoined] = useState<
     (ReceiptItem & { ticketDate?: string })[]
   >([]);
@@ -144,6 +151,28 @@ function TabContent() {
     void NavigationBar.setHidden(true);
     void initializeStorage();
   }, [initializeStorage]);
+
+  useEffect(() => {
+    void loadStoreAliases()
+      .then(setStoreAliases)
+      .catch(() => setStoreAliases({}));
+  }, []);
+
+  const saveLocalStoreAlias = useCallback(
+    async (store: string, alias: string) => {
+      const updated = await saveStoreAlias(storeAliases, store, alias);
+      setStoreAliases(updated);
+    },
+    [storeAliases],
+  );
+
+  const restoreLocalStoreAlias = useCallback(
+    async (store: string) => {
+      const updated = await removeStoreAlias(storeAliases, store);
+      setStoreAliases(updated);
+    },
+    [storeAliases],
+  );
 
   useEffect(() => {
     Animated.spring(tabBarOpacity, {
@@ -331,12 +360,20 @@ function TabContent() {
             receipts={receipts}
             onRefresh={() => refresh(db)}
             onOpenReceiptDetail={(receipt) =>
-              navigation.navigate("ReceiptDetail", { receipt })
+              navigation.navigate("ReceiptDetail", { receipt, storeAliases })
             }
             onNewReceipt={() => navigation.navigate("NewReceipt")}
+            storeAliases={storeAliases}
           />
         )}
-        {tab === "profile" && <ProfileScreen />}
+        {tab === "profile" && (
+          <ProfileScreen
+            stores={receipts.map((receipt) => receipt.organization)}
+            storeAliases={storeAliases}
+            onSaveStoreAlias={saveLocalStoreAlias}
+            onRestoreStoreAlias={restoreLocalStoreAlias}
+          />
+        )}
         {tab === "assistant" && (
           <AssistantScreen db={db} receipts={receipts} joinedItems={joined} />
         )}
@@ -445,9 +482,7 @@ function AppNavigator() {
 
   return (
     <AuthProvider>
-      <NavigationContainer
-        theme={createNavigationTheme(theme, themeName)}
-      >
+      <NavigationContainer theme={createNavigationTheme(theme, themeName)}>
         <Stack.Navigator
           screenOptions={{
             headerShown: false,

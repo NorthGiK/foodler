@@ -1,5 +1,13 @@
 # Changelog
 
+# Unreleased
+
+### changed
+
+- Mobile users can set device-local display names for stores from Profile.
+  Aliases affect receipt UI only and never alter the original receipt or its
+  backend synchronization payload.
+
 # v0.0.8 — receipt identity and AI plans
 
 ### changed

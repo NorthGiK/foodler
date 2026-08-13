@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added a local Profile manager for store display names. Aliases apply to
+  receipt views on the current device only, can be restored to the original
+  name, and never change the receipt or server sync payload.
 - Profile subscription button now has enough space below its glow, and AI
   reports show a small notice that recommendations may contain errors.
 - Mobile API URLs now normalize a configured host to exactly one `/api` prefix,

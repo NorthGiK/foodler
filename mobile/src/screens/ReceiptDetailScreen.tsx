@@ -23,6 +23,7 @@ import { useTheme } from "../components/ThemeContext";
 import { deleteReceipt, loadReceiptItems, openDb } from "../storage";
 import type { ReceiptItem } from "../types";
 import { fmtDate, fmtRub } from "../utils";
+import { getStoreDisplayName } from "../storeAliases";
 
 type LoadState = "loading" | "success" | "error";
 
@@ -62,7 +63,7 @@ export function ReceiptDetailScreen() {
       await queueReceiptDeletion(receipt.id);
       try {
         navigation.goBack();
-      } catch {};
+      } catch {}
       void syncPendingReceiptDeletions();
     } catch {
       Alert.alert("Ошибка", "Не удалось удалить локальный чек.");
@@ -101,7 +102,7 @@ export function ReceiptDetailScreen() {
           style={[styles.headerTitle, { color: theme.text }]}
           numberOfLines={2}
         >
-          {receipt.organization}
+          {getStoreDisplayName(receipt.organization, route.params.storeAliases)}
         </Text>
         <View style={styles.headerButton} />
       </View>

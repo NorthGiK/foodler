@@ -29,11 +29,25 @@ import {
   FeedbackSection,
   ConfirmModal,
   AiCreditsCard,
+  StoreNamesSection,
 } from "../components/profile";
 import { loadProfile, saveProfile } from "../profileStorage";
 import { FamilyMember, UserProfile, defaultProfile } from "../types";
+import { StoreAliases } from "../storeAliases";
 
-export function ProfileScreen() {
+type Props = {
+  stores: string[];
+  storeAliases: StoreAliases;
+  onSaveStoreAlias: (store: string, alias: string) => Promise<void>;
+  onRestoreStoreAlias: (store: string) => Promise<void>;
+};
+
+export function ProfileScreen({
+  stores,
+  storeAliases,
+  onSaveStoreAlias,
+  onRestoreStoreAlias,
+}: Props) {
   const { theme } = useTheme();
   const { user, logout, isAuthenticated } = useAuth();
   const navigation =
@@ -45,7 +59,7 @@ export function ProfileScreen() {
     null,
   );
   const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
-  const cardStyles = useStaggeredFadeIn(8, 80);
+  const cardStyles = useStaggeredFadeIn(9, 80);
 
   useEffect(() => {
     loadProfile().then(setProfile);
@@ -130,10 +144,16 @@ export function ProfileScreen() {
 
         <Animated.View style={cardStyles[1]}>
           <ProfileGuestCard onLoginPress={() => navigation.navigate("Login")} />
+          <StoreNamesSection
+            stores={stores}
+            aliases={storeAliases}
+            onSave={onSaveStoreAlias}
+            onRestore={onRestoreStoreAlias}
+          />
           <AiCreditsCard />
         </Animated.View>
 
-        <Animated.View style={[cardStyles[2], {marginBottom: 16}]}>
+        <Animated.View style={[cardStyles[2], { marginBottom: 16 }]}>
           <SubscriptionButton />
         </Animated.View>
 
@@ -197,6 +217,15 @@ export function ProfileScreen() {
         </Animated.View>
 
         <Animated.View style={cardStyles[6]}>
+          <StoreNamesSection
+            stores={stores}
+            aliases={storeAliases}
+            onSave={onSaveStoreAlias}
+            onRestore={onRestoreStoreAlias}
+          />
+        </Animated.View>
+
+        <Animated.View style={cardStyles[7]}>
           <AnimatedPressable scaleTo={0.95} onPress={handleLogout}>
             <View
               style={[
@@ -218,7 +247,7 @@ export function ProfileScreen() {
           </AnimatedPressable>
         </Animated.View>
 
-        <Animated.View style={cardStyles[7]}>
+        <Animated.View style={cardStyles[8]}>
           <FeedbackSection
             userEmail={user.email}
             onSendFeedback={handleSendFeedback}
