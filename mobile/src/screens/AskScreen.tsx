@@ -4,7 +4,6 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
-  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -16,6 +15,7 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { NavigationBar } from "expo-navigation-bar";
+import Markdown from "react-native-markdown-display";
 import { ACTION_TO_SERVER } from "../ai/types";
 import { useAuth } from "../api/auth";
 import { api } from "../api/client";
@@ -61,22 +61,6 @@ export function AskScreen() {
   const [errorMessage, setErrorMessage] = useState<string>("");
   const scrollRef = useRef<ScrollView>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
-  const [keyboardStatus, setKeyboardStatus] = useState("Keyboard Hidden");
-
-  useEffect(() => {
-    const showSubscription = Keyboard.addListener("keyboardDidShow", () => {
-      setKeyboardStatus("Keyboard Shown");
-    });
-    const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
-      setKeyboardStatus("Keyboard Hidden");
-    });
-
-    return () => {
-      showSubscription.remove();
-      hideSubscription.remove();
-    };
-  }, []);
-
   // Загружаем закреплённые сообщения при открытии
   useEffect(() => {
     loadPinnedMessages();
@@ -296,19 +280,71 @@ export function AskScreen() {
                         ],
                   ]}
                 >
-                  <Text
-                    style={[
-                      styles.messageText,
-                      {
-                        color:
-                          msg.role === "user"
-                            ? theme.onPrimaryContainer
-                            : theme.text,
-                      },
-                    ]}
-                  >
-                    {msg.text}
-                  </Text>
+                  {msg.role === "assistant" ? (
+                    <Markdown
+                      style={{
+                        body: {
+                          color: theme.text,
+                          fontSize: 15,
+                          lineHeight: 21,
+                        },
+                        bullet: { color: theme.primary },
+                        bullet_list: { marginBottom: 8 },
+                        code_block: {
+                          backgroundColor: theme.surfaceElevated,
+                          borderColor: theme.border,
+                          borderRadius: 8,
+                          borderWidth: 1,
+                          color: theme.text,
+                          padding: 10,
+                        },
+                        fence: {
+                          backgroundColor: theme.surfaceElevated,
+                          borderColor: theme.border,
+                          borderRadius: 8,
+                          borderWidth: 1,
+                          color: theme.text,
+                          padding: 10,
+                        },
+                        heading1: {
+                          color: theme.text,
+                          fontSize: 20,
+                          fontWeight: "700",
+                          marginBottom: 8,
+                          marginTop: 12,
+                        },
+                        heading2: {
+                          color: theme.text,
+                          fontSize: 18,
+                          fontWeight: "700",
+                          marginBottom: 6,
+                          marginTop: 10,
+                        },
+                        heading3: {
+                          color: theme.text,
+                          fontSize: 16,
+                          fontWeight: "700",
+                          marginBottom: 4,
+                          marginTop: 8,
+                        },
+                        link: { color: theme.primary },
+                        list_item: { marginBottom: 4 },
+                        paragraph: { marginBottom: 8 },
+                        strong: { color: theme.text, fontWeight: "700" },
+                      }}
+                    >
+                      {msg.text}
+                    </Markdown>
+                  ) : (
+                    <Text
+                      style={[
+                        styles.messageText,
+                        { color: theme.onPrimaryContainer },
+                      ]}
+                    >
+                      {msg.text}
+                    </Text>
+                  )}
                   {msg.role === "assistant" && (
                     <Pressable
                       onPress={() => togglePin(i)}

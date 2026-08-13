@@ -4,6 +4,8 @@
 
 ### changed
 
+- AI answers in the mobile question screen render Markdown, and the
+  family-member form avoids the on-screen keyboard.
 - Mobile users can set device-local display names for stores from Profile.
   Aliases affect receipt UI only and never alter the original receipt or its
   backend synchronization payload.

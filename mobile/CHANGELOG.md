@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- AI answers in the question screen now render Markdown, and the family-member
+  form keeps focused inputs visible above the keyboard.
 - Added a local Profile manager for store display names. Aliases apply to
   receipt views on the current device only, can be restored to the original
   name, and never change the receipt or server sync payload.

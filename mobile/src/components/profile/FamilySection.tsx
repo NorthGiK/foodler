@@ -1,5 +1,13 @@
 import React from "react";
-import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { useTheme } from "../ThemeContext";
 import { AnimatedPressable } from "../animations";
 import { FamilyMember, UserProfile } from "../../types";
@@ -96,163 +104,168 @@ export function FamilySection({
 
       {/* Add Member Modal */}
       <FullModalWindow visible={modalVisible} setVisible={setModalVisible}>
-        <CashFormScreen title="Добавить члена семьи">
-          <CashFormSection title="Основное">
-            <CashFormInput
-              label="Имя"
-              value={newMember.name}
-              onChangeText={(text: string) => {
-                setNewMember({ ...newMember, name: text });
-                if (memberError) setMemberError("");
-              }}
-              placeholder="Введите имя"
-              error={memberError}
-            />
-          </CashFormSection>
-
-          <CashFormSection title="Физические данные">
-            <View style={styles.row}>
-              <View style={[styles.field, { flex: 1 }]}>
-                <Text style={[styles.label, { color: theme.text }]}>
-                  Возраст
-                </Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      color: theme.text,
-                      borderColor: theme.outline,
-                      backgroundColor: theme.surfaceElevated,
-                    },
-                  ]}
-                  value={newMember.age.toString()}
-                  onChangeText={(text: string) =>
-                    setNewMember({ ...newMember, age: parseInt(text) || 0 })
-                  }
-                  keyboardType="number-pad"
-                  placeholder="30"
-                  placeholderTextColor={theme.muted}
-                />
-              </View>
-
-              <View style={[styles.field, { flex: 1 }]}>
-                <Text style={[styles.label, { color: theme.text }]}>Пол</Text>
-                <Pressable
-                  style={[
-                    styles.input,
-                    {
-                      borderColor: theme.outline,
-                      backgroundColor: theme.surfaceElevated,
-                    },
-                  ]}
-                  onPress={() =>
-                    setNewMember({
-                      ...newMember,
-                      gender: newMember.gender === "male" ? "female" : "male",
-                    })
-                  }
-                >
-                  <Text style={{ color: theme.text }}>
-                    {newMember.gender === "male" ? "Мужской" : "Женский"}
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-
-            <View style={styles.row}>
-              <View style={[styles.field, { flex: 1 }]}>
-                <Text style={[styles.label, { color: theme.text }]}>
-                  Рост (см)
-                </Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      color: theme.text,
-                      borderColor: theme.outline,
-                      backgroundColor: theme.surfaceElevated,
-                    },
-                  ]}
-                  value={newMember.heightCm.toString()}
-                  onChangeText={(text: string) =>
-                    setNewMember({
-                      ...newMember,
-                      heightCm: parseInt(text) || 0,
-                    })
-                  }
-                  keyboardType="number-pad"
-                  placeholder="170"
-                  placeholderTextColor={theme.muted}
-                />
-              </View>
-
-              <View style={[styles.field, { flex: 1 }]}>
-                <Text style={[styles.label, { color: theme.text }]}>
-                  Вес (кг)
-                </Text>
-                <TextInput
-                  style={[
-                    styles.input,
-                    {
-                      color: theme.text,
-                      borderColor: theme.outline,
-                      backgroundColor: theme.surfaceElevated,
-                    },
-                  ]}
-                  value={newMember.weightKg.toString()}
-                  onChangeText={(text: string) =>
-                    setNewMember({
-                      ...newMember,
-                      weightKg: parseInt(text) || 0,
-                    })
-                  }
-                  keyboardType="number-pad"
-                  placeholder="70"
-                  placeholderTextColor={theme.muted}
-                />
-              </View>
-            </View>
-          </CashFormSection>
-
-          <CashFormSection title="Дополнительная информация">
-            <View style={styles.field}>
-              <Text style={[styles.label, { color: theme.text }]}>
-                Дополнительно
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  styles.textArea,
-                  {
-                    color: theme.text,
-                    borderColor: theme.outline,
-                    backgroundColor: theme.surfaceElevated,
-                  },
-                ]}
-                value={newMember.additionalInfo || ""}
-                onChangeText={(text: string) =>
-                  setNewMember({ ...newMember, additionalInfo: text })
-                }
-                placeholder="Аллергии, особенности здоровья, диета..."
-                placeholderTextColor={theme.muted}
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-                maxLength={1000}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.keyboardAvoiding}
+        >
+          <CashFormScreen title="Добавить члена семьи">
+            <CashFormSection title="Основное">
+              <CashFormInput
+                label="Имя"
+                value={newMember.name}
+                onChangeText={(text: string) => {
+                  setNewMember({ ...newMember, name: text });
+                  if (memberError) setMemberError("");
+                }}
+                placeholder="Введите имя"
+                error={memberError}
               />
-            </View>
-          </CashFormSection>
+            </CashFormSection>
 
-          <AnimatedPressable scaleTo={0.97} onPress={() => void handleAdd()}>
-            <View
-              style={[styles.saveButton, { backgroundColor: theme.primary }]}
-            >
-              <Text style={[styles.saveButtonText, { color: theme.white }]}>
-                Добавить
-              </Text>
-            </View>
-          </AnimatedPressable>
-        </CashFormScreen>
+            <CashFormSection title="Физические данные">
+              <View style={styles.row}>
+                <View style={[styles.field, { flex: 1 }]}>
+                  <Text style={[styles.label, { color: theme.text }]}>
+                    Возраст
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        color: theme.text,
+                        borderColor: theme.outline,
+                        backgroundColor: theme.surfaceElevated,
+                      },
+                    ]}
+                    value={newMember.age.toString()}
+                    onChangeText={(text: string) =>
+                      setNewMember({ ...newMember, age: parseInt(text) || 0 })
+                    }
+                    keyboardType="number-pad"
+                    placeholder="30"
+                    placeholderTextColor={theme.muted}
+                  />
+                </View>
+
+                <View style={[styles.field, { flex: 1 }]}>
+                  <Text style={[styles.label, { color: theme.text }]}>Пол</Text>
+                  <Pressable
+                    style={[
+                      styles.input,
+                      {
+                        borderColor: theme.outline,
+                        backgroundColor: theme.surfaceElevated,
+                      },
+                    ]}
+                    onPress={() =>
+                      setNewMember({
+                        ...newMember,
+                        gender: newMember.gender === "male" ? "female" : "male",
+                      })
+                    }
+                  >
+                    <Text style={{ color: theme.text }}>
+                      {newMember.gender === "male" ? "Мужской" : "Женский"}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+
+              <View style={styles.row}>
+                <View style={[styles.field, { flex: 1 }]}>
+                  <Text style={[styles.label, { color: theme.text }]}>
+                    Рост (см)
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        color: theme.text,
+                        borderColor: theme.outline,
+                        backgroundColor: theme.surfaceElevated,
+                      },
+                    ]}
+                    value={newMember.heightCm.toString()}
+                    onChangeText={(text: string) =>
+                      setNewMember({
+                        ...newMember,
+                        heightCm: parseInt(text) || 0,
+                      })
+                    }
+                    keyboardType="number-pad"
+                    placeholder="170"
+                    placeholderTextColor={theme.muted}
+                  />
+                </View>
+
+                <View style={[styles.field, { flex: 1 }]}>
+                  <Text style={[styles.label, { color: theme.text }]}>
+                    Вес (кг)
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      {
+                        color: theme.text,
+                        borderColor: theme.outline,
+                        backgroundColor: theme.surfaceElevated,
+                      },
+                    ]}
+                    value={newMember.weightKg.toString()}
+                    onChangeText={(text: string) =>
+                      setNewMember({
+                        ...newMember,
+                        weightKg: parseInt(text) || 0,
+                      })
+                    }
+                    keyboardType="number-pad"
+                    placeholder="70"
+                    placeholderTextColor={theme.muted}
+                  />
+                </View>
+              </View>
+            </CashFormSection>
+
+            <CashFormSection title="Дополнительная информация">
+              <View style={styles.field}>
+                <Text style={[styles.label, { color: theme.text }]}>
+                  Дополнительно
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    styles.textArea,
+                    {
+                      color: theme.text,
+                      borderColor: theme.outline,
+                      backgroundColor: theme.surfaceElevated,
+                    },
+                  ]}
+                  value={newMember.additionalInfo || ""}
+                  onChangeText={(text: string) =>
+                    setNewMember({ ...newMember, additionalInfo: text })
+                  }
+                  placeholder="Аллергии, особенности здоровья, диета..."
+                  placeholderTextColor={theme.muted}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                  maxLength={1000}
+                />
+              </View>
+            </CashFormSection>
+
+            <AnimatedPressable scaleTo={0.97} onPress={() => void handleAdd()}>
+              <View
+                style={[styles.saveButton, { backgroundColor: theme.primary }]}
+              >
+                <Text style={[styles.saveButtonText, { color: theme.white }]}>
+                  Добавить
+                </Text>
+              </View>
+            </AnimatedPressable>
+          </CashFormScreen>
+        </KeyboardAvoidingView>
       </FullModalWindow>
     </>
   );
@@ -316,5 +329,9 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontSize: 16,
     fontWeight: "700",
+  },
+  keyboardAvoiding: {
+    flex: 1,
+    width: "100%",
   },
 });
