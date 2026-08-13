@@ -341,7 +341,6 @@ export function AskScreen() {
                   backgroundColor: theme.surface,
                   borderColor: theme.border,
                   position: "absolute",
-                  bottom: keyboardStatus === "Keyboard Hidden" ? 15 : 50,
                 },
               ]}
             >
@@ -354,7 +353,6 @@ export function AskScreen() {
                 multiline
                 maxLength={1000}
                 returnKeyType="send"
-                blurOnSubmit={false}
                 onSubmitEditing={() => void sendMessage()}
               />
               <Pressable
