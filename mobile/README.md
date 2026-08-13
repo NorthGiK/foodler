@@ -36,7 +36,8 @@ npx expo install --check
 ## Данные и API
 
 - `src/storage.ts` и `src/ai/storage.ts` — транзакционные локальные
-  SQLite-данные.
+  SQLite-данные; SQL-схема и запросы вынесены в
+  `src/database/receiptQueries.ts` и `src/ai/reportQueries.ts`.
 - `src/features/receipts/receiptChanges.ts` — batched observable-сигнал
   изменений чеков; активные экраны перечитывают SQLite без повторного входа.
 - `src/features/receipts/manualReceipt.ts` — валидация и создание ручного чека.

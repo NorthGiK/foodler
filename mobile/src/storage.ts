@@ -9,6 +9,10 @@ import {
   notifyReceiptChange,
   subscribeToReceiptChanges,
 } from "./features/receipts/receiptChanges";
+import {
+  RECEIPT_DATABASE_SETUP,
+  RECEIPT_QUERIES,
+} from "./database/receiptQueries";
 import { ApiReceiptResponse, Receipt, ReceiptItem } from "./types";
 
 const DB_NAME = "food_spend_tracker.db";
@@ -19,40 +23,16 @@ export { batchReceiptChanges, subscribeToReceiptChanges };
 export async function openDb() {
   if (_db) return _db;
   const db = await SQLite.openDatabaseAsync(DB_NAME);
-  await db.execAsync("PRAGMA journal_mode = WAL;");
-  await db.execAsync(`
-    CREATE TABLE IF NOT EXISTS receipts (
-      id TEXT PRIMARY KEY NOT NULL,
-      qrraw TEXT NOT NULL UNIQUE,
-      organization TEXT NOT NULL,
-      ticketDate TEXT NOT NULL,
-      operationType INTEGER NOT NULL,
-      totalSumRub REAL NOT NULL,
-      sourceCode INTEGER NOT NULL
-    );
-  `);
-  await db.execAsync(`
-    CREATE TABLE IF NOT EXISTS receipt_items (
-      id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-      receiptId TEXT NOT NULL,
-      name TEXT NOT NULL,
-      category TEXT NOT NULL,
-      priceRub REAL NOT NULL,
-      quantity REAL NOT NULL,
-      sumRub REAL NOT NULL,
-      FOREIGN KEY (receiptId) REFERENCES receipts(id) ON DELETE CASCADE
-    );
-  `);
-  await db.execAsync(
-    "CREATE INDEX IF NOT EXISTS idx_receipts_ticketDate ON receipts(ticketDate);",
-  );
-  await db.execAsync(
-    "CREATE INDEX IF NOT EXISTS idx_receipt_items_receiptId ON receipt_items(receiptId);",
-  );
-  await db.runAsync(
-    "UPDATE receipt_items SET category = ? WHERE category IN (?, ?)",
-    ["прочее", "Прочее", "прочее"],
-  );
+  await db.execAsync(RECEIPT_DATABASE_SETUP.enableWal);
+  await db.execAsync(RECEIPT_DATABASE_SETUP.createReceipts);
+  await db.execAsync(RECEIPT_DATABASE_SETUP.createReceiptItems);
+  await db.execAsync(RECEIPT_DATABASE_SETUP.createReceiptsDateIndex);
+  await db.execAsync(RECEIPT_DATABASE_SETUP.createReceiptItemsReceiptIndex);
+  await db.runAsync(RECEIPT_DATABASE_SETUP.normalizeCategories, [
+    "прочее",
+    "Прочее",
+    "прочее",
+  ]);
   _db = db;
   return db;
 }
@@ -161,30 +141,24 @@ export async function saveReceipt(
 ) {
   const normalizedQrraw = normalizeQrraw(receipt.qrraw);
   await db.withExclusiveTransactionAsync(async (transaction) => {
-    const insert = await transaction.runAsync(
-      `INSERT OR IGNORE INTO receipts (id, qrraw, organization, ticketDate, operationType, totalSumRub, sourceCode)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        receipt.id,
-        normalizedQrraw,
-        receipt.organization,
-        receipt.ticketDate,
-        receipt.operationType,
-        receipt.totalSumRub,
-        receipt.sourceCode,
-      ],
-    );
+    const insert = await transaction.runAsync(RECEIPT_QUERIES.insertReceipt, [
+      receipt.id,
+      normalizedQrraw,
+      receipt.organization,
+      receipt.ticketDate,
+      receipt.operationType,
+      receipt.totalSumRub,
+      receipt.sourceCode,
+    ]);
 
     if (insert.changes === 0) return;
 
-    await transaction.runAsync(
-      `DELETE FROM receipt_items WHERE receiptId = ?`,
-      [receipt.id],
-    );
+    await transaction.runAsync(RECEIPT_QUERIES.deleteReceiptItems, [
+      receipt.id,
+    ]);
 
     const statement = await transaction.prepareAsync(
-      `INSERT OR IGNORE INTO receipt_items (receiptId, name, category, priceRub, quantity, sumRub)
-       VALUES ($receiptId, $name, $category, $priceRub, $quantity, $sumRub)`,
+      RECEIPT_QUERIES.insertReceiptItem,
     );
 
     try {
@@ -206,32 +180,21 @@ export async function saveReceipt(
 }
 
 export async function loadReceipts(db: SQLite.SQLiteDatabase) {
-  return db.getAllAsync<Receipt>(
-    `SELECT id, qrraw, organization, ticketDate, operationType, totalSumRub, sourceCode
-     FROM receipts
-     ORDER BY datetime(ticketDate) DESC, id DESC`,
-  );
+  return db.getAllAsync<Receipt>(RECEIPT_QUERIES.selectReceipts);
 }
 
 export async function loadReceiptItems(
   db: SQLite.SQLiteDatabase,
   receiptId: string,
 ) {
-  return db.getAllAsync<ReceiptItem>(
-    `SELECT id, receiptId, name, category, priceRub, quantity, sumRub
-     FROM receipt_items
-     WHERE receiptId = ?
-     ORDER BY sumRub DESC, name ASC`,
-    [receiptId],
-  );
+  return db.getAllAsync<ReceiptItem>(RECEIPT_QUERIES.selectReceiptItems, [
+    receiptId,
+  ]);
 }
 
 export async function loadJoinedItems(db: SQLite.SQLiteDatabase) {
   return db.getAllAsync<ReceiptItem & { ticketDate: string }>(
-    `SELECT ri.id, ri.receiptId, ri.name, ri.category, ri.priceRub, ri.quantity, ri.sumRub, r.ticketDate
-     FROM receipt_items ri
-     JOIN receipts r ON r.id = ri.receiptId
-     ORDER BY datetime(r.ticketDate) DESC, ri.sumRub DESC`,
+    RECEIPT_QUERIES.selectJoinedItems,
   );
 }
 
@@ -240,13 +203,8 @@ export async function deleteReceipt(
   receiptId: string,
 ) {
   await db.withExclusiveTransactionAsync(async (transaction) => {
-    await transaction.runAsync(
-      `DELETE FROM receipt_items WHERE receiptId = ?`,
-      [receiptId],
-    );
-    await transaction.runAsync(`DELETE FROM receipts WHERE id = ?`, [
-      receiptId,
-    ]);
+    await transaction.runAsync(RECEIPT_QUERIES.deleteReceiptItems, [receiptId]);
+    await transaction.runAsync(RECEIPT_QUERIES.deleteReceipts, [receiptId]);
   });
   notifyReceiptChange();
 }
