@@ -24,14 +24,17 @@ from ..integrations.receipts import (
     get_receipt_gateway,
 )
 from ..models import Receipt, ReceiptItem, User
+from ..product_categories import normalize_category
 from ..product_matching import match_product
 from ..receipt_retention import compute_receipt_expiry
 from ..schemas import (
     GetReceiptFromQRSchema,
+    ReceiptCreateArraySchema,
+    ReceiptCreateSchema,
     ReceiptItemSchema,
     ReceiptRawResponseSchema,
-    ReceiptSchema,
-    ReceiptSchemaArray,
+    ReceiptResponseSchema,
+    ReceiptUpdateSchema,
     StatusResponse,
 )
 from ..services.entitlements import get_entitlement
@@ -64,7 +67,7 @@ def _item_schema(item: ReceiptItem) -> ReceiptItemSchema:
         price=item.price,
         product_id=item.product_id,
         gtin=item.gtin,
-        category=item.product.category if item.product else "прочее",
+        category=normalize_category(item.product.category if item.product else "прочее"),
     )
 
 
@@ -207,7 +210,7 @@ async def _receipt_item_from_provider(
     match = await match_product(db, name.strip(), normalized_quantity, "kg", user_id, gtin)
     product = match["product"]
     item["gtin"] = gtin
-    item["category"] = product.category if product else "прочее"
+    item["category"] = normalize_category(product.category if product else "прочее")
     return ReceiptItem(
         receipt_id=receipt_id,
         name=name.strip(),
@@ -276,7 +279,7 @@ async def get_receipt_by_raw_qr_legacy(
     return result
 
 
-@get("/receipts", response_model=list[ReceiptSchema])
+@get("/receipts", response_model=list[ReceiptResponseSchema])
 async def get_receipts(
     response: Response,
     from_date: str | None = None,
@@ -308,11 +311,12 @@ async def get_receipts(
     response.headers["X-Page-Offset"] = str(offset)
     response.headers["X-Page-Limit"] = str(limit)
     return [
-        ReceiptSchema(
+        ReceiptResponseSchema(
             id=r.id,
             date=r.date,
             store=r.store,
             total=r.total,
+            createdAt=r.created_at,
             items=[
                 _item_schema(i)
                 for i in (r.items or [])
@@ -328,7 +332,7 @@ async def get_receipts(
     response_model=StatusResponse,
 )
 async def upload_receipt(
-    body: ReceiptSchema,
+    body: ReceiptCreateSchema,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -375,7 +379,7 @@ async def upload_receipt(
     response_model=StatusResponse,
 )
 async def upload_receipts(
-    body: ReceiptSchemaArray,
+    body: ReceiptCreateArraySchema,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -419,7 +423,7 @@ async def upload_receipts(
         ).all()
     )
     seen_fingerprints = existing_fingerprints
-    new_receipt_bodies: list[ReceiptSchema] = []
+    new_receipt_bodies: list[ReceiptCreateSchema] = []
     for receipt in receipt_bodies:
         fingerprint = _source_fingerprint(receipt.source_key)
         if receipt.id in existing or (fingerprint and fingerprint in seen_fingerprints):
@@ -450,7 +454,7 @@ async def upload_receipts(
     return {"status": "ok"}
 
 
-@get("/receipts/{receipt_id}", response_model=ReceiptSchema)
+@get("/receipts/{receipt_id}", response_model=ReceiptResponseSchema)
 async def get_receipt(
     receipt_id: str,
     user: User = Depends(get_current_user),
@@ -464,11 +468,12 @@ async def get_receipt(
     r = result.scalar_one_or_none()
     if not r:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Receipt not found")
-    return ReceiptSchema(
+    return ReceiptResponseSchema(
         id=r.id,
         date=r.date,
         store=r.store,
         total=r.total,
+        createdAt=r.created_at,
         items=[
             _item_schema(i)
             for i in (r.items or [])
@@ -476,10 +481,10 @@ async def get_receipt(
     )
 
 
-@patch("/receipts/{receipt_id}", response_model=ReceiptSchema)
+@patch("/receipts/{receipt_id}", response_model=ReceiptResponseSchema)
 async def update_receipt(
     receipt_id: str,
-    body: ReceiptSchema,
+    body: ReceiptUpdateSchema,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -515,11 +520,12 @@ async def update_receipt(
 
     # Re-fetch to get fresh items
     await db.refresh(r, ["items"])
-    return ReceiptSchema(
+    return ReceiptResponseSchema(
         id=r.id,
         date=r.date,
         store=r.store,
         total=r.total,
+        createdAt=r.created_at,
         items=[
             ReceiptItemSchema(name=i.name, quantity=i.quantity, unit=i.unit, price=i.price)
             for i in (r.items or [])

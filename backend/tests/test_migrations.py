@@ -109,14 +109,14 @@ def test_hardening_migrations_upgrade_previous_schema_and_data(tmp_path):
                 "INSERT INTO users "
                 "(id, email, password_hash, premium, subscription_expires, created_at) "
                 "VALUES ('u1', 'fixture@example.invalid', 'hash', 1, "
-                "'2030-01-01 00:00:00', CURRENT_TIMESTAMP)"
+                "'2030-01-01 00:00:00', '2024-01-02 03:04:05')"
             )
         )
         connection.execute(
             sa.text(
                 "INSERT INTO receipts "
                 "(id, date, store, total, user_id, created_at) "
-                "VALUES ('r1', '2026-01-02', 'store', 12.34, 'u1', CURRENT_TIMESTAMP)"
+                "VALUES ('r1', '2026-01-02', 'store', 12.34, 'u1', '2024-02-03 04:05:06')"
             )
         )
         connection.execute(
@@ -133,11 +133,17 @@ def test_hardening_migrations_upgrade_previous_schema_and_data(tmp_path):
     command.upgrade(config, "head")
 
     inspector = inspect(engine)
-    assert {"ai_credit_balances", "rate_limit_buckets"} <= set(inspector.get_table_names())
+    assert {
+        "ai_credit_balances",
+        "rate_limit_buckets",
+        "analytics_installations",
+        "analytics_events",
+    } <= set(inspector.get_table_names())
     assert "code_hash" in {c["name"] for c in inspector.get_columns("email_codes_storage")}
     assert "token_hash" in {c["name"] for c in inspector.get_columns("refresh_tokens")}
     assert "auth_version" in {c["name"] for c in inspector.get_columns("users")}
     assert "provider" in {c["name"] for c in inspector.get_columns("subscriptions")}
+    assert "analytics_enabled" in {c["name"] for c in inspector.get_columns("users")}
     receipt_date = next(c for c in inspector.get_columns("receipts") if c["name"] == "date")
     assert receipt_date["nullable"] is False
     subscription_indexes = {index["name"] for index in inspector.get_indexes("subscriptions")}
@@ -151,7 +157,7 @@ def test_hardening_migrations_upgrade_previous_schema_and_data(tmp_path):
 
     with engine.connect() as connection:
         receipt = connection.execute(
-            sa.text("SELECT date, total_cents FROM receipts WHERE id = 'r1'")
+            sa.text("SELECT date, total_cents, created_at FROM receipts WHERE id = 'r1'")
         ).one()
         item = connection.execute(
             sa.text("SELECT unit, price_cents FROM receipt_items WHERE id = 'i1'")
@@ -159,9 +165,17 @@ def test_hardening_migrations_upgrade_previous_schema_and_data(tmp_path):
         legacy_subscription = connection.execute(
             sa.text("SELECT provider FROM subscriptions WHERE user_id = 'u1'")
         ).scalar_one()
-    assert receipt == ("2026-01-02", 1234)
+        analytics_enabled = connection.execute(
+            sa.text("SELECT analytics_enabled FROM users WHERE id = 'u1'")
+        ).scalar_one()
+        user_created_at = connection.execute(
+            sa.text("SELECT created_at FROM users WHERE id = 'u1'")
+        ).scalar_one()
+    assert receipt == ("2026-01-02", 1234, "2024-02-03 04:05:06")
     assert item == ("kg", 456)
     assert legacy_subscription == "legacy"
+    assert analytics_enabled == 1
+    assert user_created_at == "2024-01-02 03:04:05"
     engine.dispose()
 
 
@@ -182,10 +196,12 @@ def test_migrations_create_schema_for_empty_database(tmp_path):
         "ai_credit_usage",
         "ai_credit_balances",
         "rate_limit_buckets",
+        "analytics_installations",
+        "analytics_events",
     } <= set(inspector.get_table_names())
     with engine.connect() as connection:
         assert connection.execute(sa.text("SELECT version_num FROM alembic_version")).scalar_one() == (
-            "f1c4a9d2e706"
+            "b6e7f8a9c012"  # pragma: allowlist secret
         )
     assert {"action", "snapshot", "response"} <= {
         column["name"] for column in inspector.get_columns("ai_reports")
@@ -193,6 +209,13 @@ def test_migrations_create_schema_for_empty_database(tmp_path):
     assert {"response", "created_at"} <= {
         column["name"] for column in inspector.get_columns("ai_cache")
     }
+    analytics_event_indexes = {index["name"] for index in inspector.get_indexes("analytics_events")}
+    assert {
+        "ix_analytics_events_name_occurred",
+        "ix_analytics_events_user_occurred",
+        "ix_analytics_events_installation_occurred",
+        "ix_analytics_events_session_occurred",
+    } <= analytics_event_indexes
     engine.dispose()
 
 
@@ -268,7 +291,7 @@ def test_removed_subscription_provider_is_revoked_during_upgrade(tmp_path):
     config = Config("alembic.ini")
     config.attributes["database_url"] = url
     command.stamp(config, "c9a2e7714f30")  # pragma: allowlist secret
-    command.upgrade(config, "head")
+    command.upgrade(config, "f1c4a9d2e706")
 
     with engine.connect() as connection:
         unsupported_user = connection.execute(

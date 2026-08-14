@@ -20,6 +20,23 @@ const DB_NAME = "food_spend_tracker.db";
 let _db: SQLite.SQLiteDatabase | null = null;
 export { batchReceiptChanges, subscribeToReceiptChanges };
 
+export async function normalizePersistedCategories(db: SQLite.SQLiteDatabase) {
+  await db.withExclusiveTransactionAsync(async (transaction) => {
+    const rows = await transaction.getAllAsync<{ category: string }>(
+      RECEIPT_QUERIES.selectReceiptItemCategories,
+    );
+    for (const row of rows) {
+      const normalized = normalizeCategory(row.category);
+      if (normalized !== row.category) {
+        await transaction.runAsync(RECEIPT_QUERIES.updateReceiptItemCategory, [
+          normalized,
+          row.category,
+        ]);
+      }
+    }
+  });
+}
+
 export async function openDb() {
   if (_db) return _db;
   const db = await SQLite.openDatabaseAsync(DB_NAME);
@@ -28,11 +45,7 @@ export async function openDb() {
   await db.execAsync(RECEIPT_DATABASE_SETUP.createReceiptItems);
   await db.execAsync(RECEIPT_DATABASE_SETUP.createReceiptsDateIndex);
   await db.execAsync(RECEIPT_DATABASE_SETUP.createReceiptItemsReceiptIndex);
-  await db.runAsync(RECEIPT_DATABASE_SETUP.normalizeCategories, [
-    "прочее",
-    "Прочее",
-    "прочее",
-  ]);
+  await normalizePersistedCategories(db);
   _db = db;
   return db;
 }

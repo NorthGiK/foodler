@@ -19,7 +19,9 @@ class TestGetMe:
         assert "email" in data
         assert data["email"] == "test@example.com"
         assert "premium" in data
+        assert data["analyticsEnabled"] is True
         assert "subscriptionExpires" in data
+        assert data["createdAt"].endswith("Z")
 
     @pytest.mark.asyncio
     async def test_get_me_unauthenticated(self, client: AsyncClient):

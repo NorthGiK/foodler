@@ -38,6 +38,7 @@ class TestGetSubscription:
             "active": False,
             "platform": None,
             "expiresAt": None,
+            "plan": None,
         }
 
     @pytest.mark.asyncio

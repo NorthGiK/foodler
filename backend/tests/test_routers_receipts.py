@@ -6,9 +6,11 @@ import uuid
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 
 from src.integrations.receipts import get_receipt_gateway
 from src.main import app
+from src.models import Receipt
 
 
 class TestListReceipts:
@@ -30,6 +32,7 @@ class TestListReceipts:
         assert receipts[0]["id"] == test_receipt.id
         assert receipts[0]["store"] == "Магнит"
         assert receipts[0]["total"] == 850.50
+        assert receipts[0]["createdAt"].endswith("Z")
         assert len(receipts[0]["items"]) == 3
 
     @pytest.mark.asyncio
@@ -75,6 +78,21 @@ class TestCreateReceipt:
         response = await client.post("/api/receipts", headers=auth_headers, json=receipt_data)
         assert response.status_code == 201
         assert response.json() == {"status": "ok"}
+
+    @pytest.mark.asyncio
+    async def test_create_receipt_rejects_client_created_at(self, client: AsyncClient, auth_headers):
+        response = await client.post(
+            "/api/receipts",
+            headers=auth_headers,
+            json={
+                "id": uuid.uuid4().hex,
+                "date": "2024-06-01",
+                "total": 1500.0,
+                "createdAt": "2000-01-01T00:00:00Z",
+            },
+        )
+
+        assert response.status_code == 422
 
     @pytest.mark.asyncio
     async def test_create_receipt_no_items(self, client: AsyncClient, auth_headers):
@@ -258,7 +276,6 @@ class TestUpdateReceipt:
     async def test_update_receipt(self, client: AsyncClient, auth_headers, test_receipt):
         """Should update a receipt."""
         update_data = {
-            "id": test_receipt.id,
             "date": "2024-06-15",
             "store": "Пятёрочка",
             "total": 999.99,
@@ -272,6 +289,45 @@ class TestUpdateReceipt:
         assert data["store"] == "Пятёрочка"
         assert data["total"] == 999.99
         assert len(data["items"]) == 1
+
+    @pytest.mark.asyncio
+    async def test_legacy_update_fields_do_not_reassign_receipt(
+        self, client: AsyncClient, auth_headers, async_session, test_receipt
+    ):
+        response = await client.patch(
+            f"/api/receipts/{test_receipt.id}",
+            headers=auth_headers,
+            json={
+                "id": "other-receipt-id",
+                "date": "2024-06-15",
+                "store": "Пятёрочка",
+                "total": 999.99,
+                "source_key": "legacy-source-key",
+                "items": [],
+            },
+        )
+
+        assert response.status_code == 200
+        assert response.json()["id"] == test_receipt.id
+        receipt = await async_session.scalar(select(Receipt).where(Receipt.id == test_receipt.id))
+        assert receipt is not None
+        assert receipt.source_fingerprint is None
+
+    @pytest.mark.asyncio
+    async def test_update_receipt_rejects_client_created_at(
+        self, client: AsyncClient, auth_headers, test_receipt
+    ):
+        response = await client.patch(
+            f"/api/receipts/{test_receipt.id}",
+            headers=auth_headers,
+            json={
+                "date": "2024-06-15",
+                "total": 999.99,
+                "createdAt": "2000-01-01T00:00:00Z",
+            },
+        )
+
+        assert response.status_code == 422
 
 
 class TestDeleteReceipt:

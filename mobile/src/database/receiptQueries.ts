@@ -27,8 +27,6 @@ export const RECEIPT_DATABASE_SETUP = {
     "CREATE INDEX IF NOT EXISTS idx_receipts_ticketDate ON receipts(ticketDate);",
   createReceiptItemsReceiptIndex:
     "CREATE INDEX IF NOT EXISTS idx_receipt_items_receiptId ON receipt_items(receiptId);",
-  normalizeCategories:
-    "UPDATE receipt_items SET category = ? WHERE category IN (?, ?)",
 } as const;
 
 export const RECEIPT_QUERIES = {
@@ -59,4 +57,8 @@ export const RECEIPT_QUERIES = {
     ORDER BY datetime(r.ticketDate) DESC, ri.sumRub DESC
   `,
   deleteReceipts: "DELETE FROM receipts WHERE id = ?",
+  selectReceiptItemCategories:
+    "SELECT DISTINCT category FROM receipt_items WHERE category IS NOT NULL",
+  updateReceiptItemCategory:
+    "UPDATE receipt_items SET category = ? WHERE category = ?",
 } as const;

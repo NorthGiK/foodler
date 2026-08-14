@@ -32,6 +32,7 @@ import { useTheme } from "../components/ThemeContext";
 import { ActionCard, HeroCard, ReportCard } from "../components/ui";
 import type { FamilyMember, Receipt, ReceiptItem } from "../types";
 import { useAuth } from "@/api/auth";
+import { analyticsEvents } from "@/analytics/facade";
 import type { MaterialIconName } from "../components/icons";
 
 interface Props {
@@ -61,6 +62,10 @@ export function AssistantScreen({ db, receipts, joinedItems }: Props) {
   const [showAllReports, setShowAllReports] = useState(false);
   const [errorKind, setErrorKind] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>("");
+
+  useEffect(() => {
+    void analyticsEvents.aiScreenViewed();
+  }, []);
 
   const loadRecentReports = useCallback(async () => {
     if (!db) return;
@@ -111,6 +116,8 @@ export function AssistantScreen({ db, receipts, joinedItems }: Props) {
       setErrorKind(null);
       setErrorMessage("");
       setViewMode("result");
+      const startedAt = Date.now();
+      void analyticsEvents.ai("ai_action_started", action, startedAt);
 
       try {
         const totalSpent = receipts.reduce(
@@ -171,7 +178,9 @@ export function AssistantScreen({ db, receipts, joinedItems }: Props) {
 
         openReport(report);
         await loadRecentReports();
+        void analyticsEvents.ai("ai_action_succeeded", action, startedAt);
       } catch (error: unknown) {
+        void analyticsEvents.ai("ai_action_failed", action, startedAt, error);
         setErrorKind(error instanceof AiServiceError ? error.kind : "unknown");
         setErrorMessage(
           error instanceof Error ? error.message : "Что-то пошло не так.",

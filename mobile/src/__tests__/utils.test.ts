@@ -1,5 +1,5 @@
-import { buildAllTimeSeries } from "../utils";
-import type { Receipt } from "../types";
+import { buildAllTimeSeries, groupReceiptItems } from "../utils";
+import type { Receipt, ReceiptItem } from "../types";
 
 function receipt(id: string, ticketDate: string, totalSumRub: number): Receipt {
   return {
@@ -37,5 +37,55 @@ describe("buildAllTimeSeries", () => {
     expect(byDate.get("2026-07-30")).toBe(30);
     expect(byDate.get("2026-07-31")).toBe(0);
     expect(byDate.get("2026-08-01")).toBe(5);
+  });
+});
+
+describe("groupReceiptItems", () => {
+  const item = (
+    id: number,
+    name: string,
+    priceRub: number,
+    quantity: number,
+    sumRub: number,
+  ): ReceiptItem => ({
+    id,
+    receiptId: "receipt-1",
+    name,
+    category: "Молочные продукты",
+    priceRub,
+    quantity,
+    sumRub,
+  });
+
+  it("combines equal product names at the same price", () => {
+    const grouped = groupReceiptItems([
+      item(1, "Молоко Саратовское", 134, 1, 134),
+      item(2, "Молоко Саратовское", 134, 1, 134),
+    ]);
+
+    expect(grouped).toEqual([
+      expect.objectContaining({
+        name: "Молоко Саратовское",
+        priceRub: 134,
+        quantity: 2,
+        sumRub: 268,
+      }),
+    ]);
+  });
+
+  it("compares names case-insensitively but keeps different prices separate", () => {
+    const grouped = groupReceiptItems([
+      item(1, " Молоко Саратовское ", 134, 1, 134),
+      item(2, "молоко саратовское", 134, 0.5, 67),
+      item(3, "Молоко Саратовское", 135, 1, 135),
+    ]);
+
+    expect(grouped).toHaveLength(2);
+    expect(grouped[0]).toEqual(
+      expect.objectContaining({ quantity: 1.5, sumRub: 201 }),
+    );
+    expect(grouped[1]).toEqual(
+      expect.objectContaining({ priceRub: 135, quantity: 1, sumRub: 135 }),
+    );
   });
 });

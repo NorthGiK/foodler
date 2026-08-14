@@ -246,8 +246,6 @@ export async function generateAiResponse(
       kind = "server";
     }
 
-    console.debug(`kind of generateAiResponse error is ${kind}`);
-
     const userMessage =
       kind === "network"
         ? "Проблема с интернетом. Проверьте подключение и попробуйте снова."

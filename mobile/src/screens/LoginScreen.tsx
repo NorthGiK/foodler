@@ -173,7 +173,7 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
       await sendCode(email.trim(), password.trim());
       setError("");
       setStep("code");
-    } catch (error: unknown) {
+    } catch {
       const msg =
         "Ошибка отправки. Проверьте подключение к интернету. Если включён VPN, выключите его.";
       setError(msg);

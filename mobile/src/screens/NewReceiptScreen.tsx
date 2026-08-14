@@ -29,6 +29,7 @@ import {
   validateManualReceipt,
   type ReceiptDraftItem,
 } from "../features/receipts/manualReceipt";
+import { analyticsEvents } from "../analytics/facade";
 
 export function NewReceiptScreen() {
   const { theme } = useTheme();
@@ -136,6 +137,7 @@ export function NewReceiptScreen() {
       const db = await openDb();
       const result = buildManualReceipt(draft);
       await saveReceipt(db, result.receipt, result.items);
+      void analyticsEvents.receiptManualCreated();
       navigation.goBack();
     } catch {
       Alert.alert("Ошибка", "Не удалось сохранить чек. Попробуйте ещё раз.");

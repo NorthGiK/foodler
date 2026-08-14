@@ -25,6 +25,7 @@ import {
   AnimatedPressable,
   useStaggeredFadeIn,
 } from "../components/animations";
+import { AnalyticsCancelledError, analyticsEvents } from "../analytics/facade";
 import { normalizeReceiptResponse, saveReceipt } from "../storage";
 
 interface Props {
@@ -42,6 +43,12 @@ export function ScanScreen({ db, switchTab }: Props) {
   const pickImage = async (type: "camera" | "image") => {
     if (busy) return;
     setBusy(true);
+    const startedAt = Date.now();
+    void analyticsEvents.receiptCapture(
+      "receipt_capture_started",
+      "image",
+      startedAt,
+    );
     try {
       const requestPermissions =
         type === "image"
@@ -55,6 +62,12 @@ export function ScanScreen({ db, switchTab }: Props) {
             ? "Разрешите доступ к фотографиям, чтобы выбрать изображение чека."
             : "Разрешите доступ к камере, чтобы сфотографировать чек.",
         );
+        void analyticsEvents.receiptCapture(
+          "receipt_capture_failed",
+          "image",
+          startedAt,
+          new AnalyticsCancelledError(),
+        );
         return;
       }
 
@@ -66,19 +79,43 @@ export function ScanScreen({ db, switchTab }: Props) {
         quality: 0.85,
       });
       const imageUri = image.assets?.[0]?.uri;
-      if (image.canceled || !imageUri || !db) return;
+      if (image.canceled || !imageUri || !db) {
+        void analyticsEvents.receiptCapture(
+          "receipt_capture_failed",
+          "image",
+          startedAt,
+          new AnalyticsCancelledError(),
+        );
+        return;
+      }
 
       const res = await getReceiptByRawQR(imageUri.replace("file://", ""));
       const resp = normalizeReceiptResponse(res);
       if (!resp) {
         Alert.alert("Чек не найден", "Не удалось распознать QR-код на фото.");
+        void analyticsEvents.receiptCapture(
+          "receipt_capture_failed",
+          "image",
+          startedAt,
+        );
         return;
       }
 
       await saveReceipt(db, resp.receipt, resp.items);
+      void analyticsEvents.receiptCapture(
+        "receipt_capture_succeeded",
+        "image",
+        startedAt,
+      );
       switchTab("receipts");
       return true;
     } catch (error) {
+      void analyticsEvents.receiptCapture(
+        "receipt_capture_failed",
+        "image",
+        startedAt,
+        error,
+      );
       Alert.alert(
         "Ошибка",
         error instanceof Error
@@ -110,9 +147,26 @@ export function ScanScreen({ db, switchTab }: Props) {
   const handle = async (raw: string) => {
     if (busy) return;
     setBusy(true);
+    const startedAt = Date.now();
+    void analyticsEvents.receiptCapture(
+      "receipt_capture_started",
+      "qr",
+      startedAt,
+    );
     const res = await scanQR("parsed", raw);
     setBusy(false);
-    if (!res) {
+    if (res) {
+      void analyticsEvents.receiptCapture(
+        "receipt_capture_succeeded",
+        "qr",
+        startedAt,
+      );
+    } else {
+      void analyticsEvents.receiptCapture(
+        "receipt_capture_failed",
+        "qr",
+        startedAt,
+      );
       Alert.alert("Чек не найден");
     }
   };

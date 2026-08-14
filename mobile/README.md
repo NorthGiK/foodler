@@ -29,7 +29,7 @@ npm run typecheck
 npm run lint
 npm run format:check
 npm run test -- --runInBand
-npm run audit:prod
+npm run audit:prod # optional diagnostic; not a CI gate
 npx expo install --check
 ```
 
@@ -51,6 +51,9 @@ npx expo install --check
   исходное поле чека и данные, отправляемые на сервер, не меняются.
 - Независимо от источника товара fallback-категория хранится как `прочее`;
   существующее локальное значение `Прочее` нормализуется при открытии SQLite.
+- Категории сравниваются без учёта регистра и приводятся к единой подписи;
+  legacy-варианты вроде `молоченые`/`Молочные продукты` и
+  `фрукты`/`Фрукты` не образуют отдельные группы статистики.
 - Поля пароля имеют доступный переключатель показа/скрытия введённого значения;
   значение по умолчанию скрыто.
 - Фото QR-кода чека можно распознать без входа; результат сохраняется в
@@ -60,6 +63,11 @@ npx expo install --check
   ответа backend. При гостевом, ручном или офлайн-сценарии остаётся локальная
   классификация распространённых продуктов; неизвестное значение безопасно
   попадает в «Прочее».
+- Product analytics begins only after policy acceptance, uses a bounded local
+  queue, and respects the account preference returned after login. Opt-out stops
+  local collection immediately; a failed offline preference update is retried.
+  Guests and signed-in users manage it from the Profile analytics card. Events
+  use the generated Foodler client and no third-party analytics SDK.
 
 Для изменения Foodler API сначала меняют FastAPI/Pydantic, затем из корня
 выполняют `make contract`. Прямой `fetch` к Foodler API и ручные копии backend
@@ -75,7 +83,13 @@ Expo public variables попадают в bundle и не могут содерж
 
 ## Зависимости
 
-`npm run audit:prod` обязан завершаться без advisory и выполняется в CI.
+`npm run audit:prod` — ручная диагностическая проверка и не является
+обязательным CI/Definition-of-done gate. На 2026-08-14 она сообщает
+upstream-уязвимости parser-ов `image-size`, который приходит через Metro:
+исправленной версии пока нет, а предложенный npm downgrade несовместим с
+текущими Expo 56 и React Native 0.85. До выпуска патча Metro обрабатывает только
+доверенные локальные build assets; риск и условие закрытия зафиксированы в
+`docs/known-issues.md`.
 Полный `npm audit` на 2026-08-02 содержит одно принятое moderate-исключение
 только для devDependency `@hey-api/openapi-ts@0.97.0`: исправляющая его версия
 попадает под более серьёзный advisory транзитивного parser. Владелец —

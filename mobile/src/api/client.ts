@@ -8,7 +8,9 @@ import type { ApiReceiptResponse } from "@/types";
 import { Sdk } from "./generated/sdk.gen";
 import type {
   AiRequestParameters,
-  ReceiptSchema,
+  AnalyticsEventsRequest,
+  AnalyticsPreferenceRequest,
+  ReceiptCreateSchema,
   SubscriptionStatusResponse,
 } from "./generated/types.gen";
 import { getAccessToken, unwrap } from "./transport";
@@ -155,6 +157,14 @@ export async function getDeviceId(): Promise<string> {
 }
 
 export const api = {
+  ingestAnalyticsEvents(body: AnalyticsEventsRequest) {
+    return unwrap(sdk.ingestEventsApiProductAnalyticsEventsPost({ body }));
+  },
+
+  setAnalyticsPreference(body: AnalyticsPreferenceRequest) {
+    return unwrap(sdk.setPreferenceApiProductAnalyticsPreferencePut({ body }));
+  },
+
   login(email: string, password: string) {
     return unwrap(sdk.loginApiAuthLoginPost({ body: { email, password } }));
   },
@@ -213,7 +223,7 @@ export const api = {
     );
   },
 
-  createReceipt(data: ReceiptSchema) {
+  createReceipt(data: ReceiptCreateSchema) {
     return unwrap(sdk.uploadReceiptApiReceiptsPost({ body: data }));
   },
 
@@ -225,7 +235,7 @@ export const api = {
     );
   },
 
-  createReceiptsArray(receipts: ReceiptSchema[]) {
+  createReceiptsArray(receipts: ReceiptCreateSchema[]) {
     return unwrap(
       sdk.uploadReceiptsApiReceiptsArrayPost({
         body: { receipts },

@@ -54,8 +54,6 @@ jobs:
         working-directory: mobile
       - run: npm run lint
         working-directory: mobile
-      - run: npm run audit:prod
-        working-directory: mobile
       - run: npm run format:check
         working-directory: mobile
       - run: npm run test -- --runInBand

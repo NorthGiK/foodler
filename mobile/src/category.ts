@@ -31,46 +31,47 @@ const RULES: CategoryRule[] = [
 
 export const FALLBACK_CATEGORY = "прочее";
 
-export function normalizeCategory(category: string | null | undefined): string {
-  const normalized = category?.trim();
-  if (
-    !normalized ||
-    normalized.toLocaleLowerCase("ru-RU") === FALLBACK_CATEGORY
-  ) {
-    return FALLBACK_CATEGORY;
-  }
-  return normalized;
-}
-
-const SERVER_CATEGORY_LABELS: Record<string, string> = {
+const CATEGORY_LABELS: Record<string, string> = {
   алкоголь: "Алкоголь",
   бакалея: "Бакалея",
   "бытовые товары": "Бытовые товары",
+  "бытовая химия": "Бытовая химия",
   "готовая еда": "Готовая еда",
   заморозка: "Замороженные продукты",
+  "замороженные продукты": "Замороженные продукты",
   кондитерские: "Кондитерские изделия",
+  "кондитерские изделия": "Кондитерские изделия",
   колбасы: "Колбасы",
   молочные: "Молочные продукты",
+  "молочные продукты": "Молочные продукты",
+  молоченые: "Молочные продукты",
   мясо: "Мясо",
   напитки: "Напитки",
   овощи: "Овощи",
   прочее: FALLBACK_CATEGORY,
   рыба: "Рыба и морепродукты",
+  "рыба и морепродукты": "Рыба и морепродукты",
   сладости: "Сладости",
   соусы: "Соусы",
   снеки: "Снеки",
   фрукты: "Фрукты",
   хлеб: "Хлеб и выпечка",
+  "хлеб и выпечка": "Хлеб и выпечка",
   яйца: "Яйца",
 };
+
+export function normalizeCategory(category: string | null | undefined): string {
+  const normalized = category?.trim().toLocaleLowerCase("ru-RU");
+  if (!normalized) return FALLBACK_CATEGORY;
+  return CATEGORY_LABELS[normalized] ?? normalized;
+}
 
 export function normalizeServerCategory(
   category: string | null | undefined,
 ): string | null {
   if (!category) return null;
-  return (
-    SERVER_CATEGORY_LABELS[category.trim().toLocaleLowerCase("ru-RU")] ?? null
-  );
+  const key = category.trim().toLocaleLowerCase("ru-RU");
+  return CATEGORY_LABELS[key] ?? null;
 }
 
 export function detectCategory(name: string): string {

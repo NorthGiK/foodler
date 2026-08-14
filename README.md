@@ -32,7 +32,7 @@ make dev
 | `make build-apk` | Собрать release APK мобильного приложения (ARM64) |
 | `make check` | Линтеры, форматирование, typecheck, контракт и секреты |
 | `make test` | Все backend- и mobile-тесты |
-| `make audit` | Проверить backend lockfile и production-граф mobile |
+| `make audit` | Проверить backend lockfile через OSV |
 | `make contract` | Перегенерировать OpenAPI и TypeScript API-типы |
 | `make contract-check` | Проверить, что generated-файлы актуальны |
 
@@ -57,6 +57,7 @@ SQLite, а авторизованный пользователь синхрон�
 Подробности:
 
 - [Архитектура](docs/architecture.md)
+- [Примеры read-only product analytics reporting](docs/analytics-reporting.sql)
 - [Разработка и проверки](docs/development.md)
 - [Известные проблемы](docs/known-issues.md)
 - [Решение об API-контракте](docs/adr/0001-monorepo-and-api-contract.md)

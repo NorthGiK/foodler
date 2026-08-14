@@ -5,6 +5,27 @@ export function isValidEmail(email: string): boolean {
   return emailRegex.test(email);
 }
 
+export function groupReceiptItems(items: ReceiptItem[]): ReceiptItem[] {
+  const grouped = new Map<string, ReceiptItem>();
+
+  for (const item of items) {
+    const normalizedName = item.name.trim().toLocaleLowerCase("ru-RU");
+    const priceKopeks = Math.round(item.priceRub * 100);
+    const key = `${normalizedName}\u0000${priceKopeks}`;
+    const existing = grouped.get(key);
+
+    if (existing) {
+      existing.quantity += item.quantity;
+      existing.sumRub += item.sumRub;
+      continue;
+    }
+
+    grouped.set(key, { ...item });
+  }
+
+  return [...grouped.values()];
+}
+
 // Группировка чеков по дням / неделям / месяцам
 export function buildAllTimeSeries(
   receipts: Receipt[],

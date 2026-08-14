@@ -3,7 +3,11 @@ import { api, getAccessToken } from "./client";
 import { FALLBACK_CATEGORY, normalizeCategory } from "../category";
 import type { Receipt, ReceiptItem } from "../types";
 import { openDb, loadReceipts, loadReceiptItems } from "../storage";
-import type { ReceiptItemSchema, ReceiptSchema } from "./generated/types.gen";
+import type {
+  ReceiptCreateSchema,
+  ReceiptItemSchema,
+  ReceiptResponseSchema,
+} from "./generated/types.gen";
 import type { AiActionType, AiResult } from "../ai/types";
 import { parseServerSections } from "../ai/llmService";
 
@@ -21,7 +25,7 @@ async function isAuthenticated(): Promise<boolean> {
 
 /**
  * Sync a single receipt to the server.
- * Maps local Receipt fields to server's ReceiptSchema.
+ * Maps local Receipt fields to the server create schema.
  * Server schema: id, date, store, total, items[{name, quantity, price, sum, product_id}]
  */
 export async function syncReceiptToServer(
@@ -37,7 +41,7 @@ export async function syncReceiptToServer(
 function toServerReceipt(
   receipt: Receipt,
   items: ReceiptItem[],
-): ReceiptSchema {
+): ReceiptCreateSchema {
   return {
     id: receipt.id,
     date: receipt.ticketDate.slice(0, 10),
@@ -59,7 +63,7 @@ function toServerReceipt(
 /**
  * Pull receipts from server and merge into local SQLite.
  * Prevents duplicates by checking receipt IDs.
- * Maps server's ReceiptSchema fields back to local Receipt/ReceiptItem types.
+ * Maps the server response schema back to local Receipt/ReceiptItem types.
  * Server schema: id, date, store, total, items[{name, quantity, price, sum, product_id}]
  */
 export async function pullServerReceipts(
@@ -73,7 +77,7 @@ export async function pullServerReceipts(
   if (!(await isAuthenticated())) return result;
 
   try {
-    const serverReceipts: ReceiptSchema[] = [];
+    const serverReceipts: ReceiptResponseSchema[] = [];
     for (let offset = 0; ; offset += RECEIPT_PAGE_SIZE) {
       const page = await api.getReceipts(offset, RECEIPT_PAGE_SIZE);
       serverReceipts.push(...page);
@@ -215,7 +219,7 @@ export async function syncAllLocalReceiptsBulk(
     const receipts = await loadReceipts(db);
     const syncedIds = await getSyncedIds();
 
-    const unsyncedReceipts: ReceiptSchema[] = [];
+    const unsyncedReceipts: ReceiptCreateSchema[] = [];
 
     for (const receipt of receipts) {
       if (syncedIds.has(receipt.id)) continue;

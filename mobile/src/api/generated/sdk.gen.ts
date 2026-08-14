@@ -71,6 +71,9 @@ import type {
   GetSubstitutesApiProductsProductIdSubstitutesGetResponses,
   HealthHealthGetData,
   HealthHealthGetResponses,
+  IngestEventsApiProductAnalyticsEventsPostData,
+  IngestEventsApiProductAnalyticsEventsPostErrors,
+  IngestEventsApiProductAnalyticsEventsPostResponses,
   IsPremiumApiSubscriptionIsPremiumGetData,
   IsPremiumApiSubscriptionIsPremiumGetResponses,
   ListDevicesApiDevicesGetData,
@@ -112,6 +115,9 @@ import type {
   SendFeedbackApiUsersSendFeedbackPostData,
   SendFeedbackApiUsersSendFeedbackPostErrors,
   SendFeedbackApiUsersSendFeedbackPostResponses,
+  SetPreferenceApiProductAnalyticsPreferencePutData,
+  SetPreferenceApiProductAnalyticsPreferencePutErrors,
+  SetPreferenceApiProductAnalyticsPreferencePutResponses,
   SpendingAnalysisApiAnalyticsSpendingGetData,
   SpendingAnalysisApiAnalyticsSpendingGetErrors,
   SpendingAnalysisApiAnalyticsSpendingGetResponses,
@@ -552,6 +558,58 @@ export class Sdk extends HeyApiClient {
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/fridge",
       ...options,
+    });
+  }
+
+  /**
+   * Ingest Events
+   */
+  public ingestEventsApiProductAnalyticsEventsPost<
+    ThrowOnError extends boolean = false,
+  >(
+    options: Options<
+      IngestEventsApiProductAnalyticsEventsPostData,
+      ThrowOnError
+    >,
+  ) {
+    return (options.client ?? this.client).post<
+      IngestEventsApiProductAnalyticsEventsPostResponses,
+      IngestEventsApiProductAnalyticsEventsPostErrors,
+      ThrowOnError
+    >({
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/product-analytics/events",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Set Preference
+   */
+  public setPreferenceApiProductAnalyticsPreferencePut<
+    ThrowOnError extends boolean = false,
+  >(
+    options: Options<
+      SetPreferenceApiProductAnalyticsPreferencePutData,
+      ThrowOnError
+    >,
+  ) {
+    return (options.client ?? this.client).put<
+      SetPreferenceApiProductAnalyticsPreferencePutResponses,
+      SetPreferenceApiProductAnalyticsPreferencePutErrors,
+      ThrowOnError
+    >({
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/product-analytics/preference",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 

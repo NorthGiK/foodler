@@ -10,7 +10,7 @@ from aiohttp import ClientError, ClientTimeout, ContentTypeError
 
 from src.config import AI_API_KEY, AI_BASE_URL, AI_LIGHT_MODEL, AI_TIMEOUT_SECONDS
 from src.integrations.http import get_http_session
-from src.product_categories import CANONICAL_CATEGORIES
+from src.product_categories import CANONICAL_CATEGORIES, normalize_category
 
 
 class ProductClassifierError(RuntimeError):
@@ -78,10 +78,14 @@ async def classify_product_category(raw_name: str, gtin: str | None = None) -> d
     confidence = payload.get("confidence")
     if (
         not isinstance(category, str)
-        or category not in CANONICAL_CATEGORIES
         or isinstance(confidence, bool)
         or not isinstance(confidence, int | float)
         or not 0 <= float(confidence) <= 1
     ):
         raise ProductClassifierError("Product classifier returned invalid data")
-    return {"category": category, "confidence": float(confidence)}
+    normalized_category = normalize_category(category)
+    if normalized_category not in CANONICAL_CATEGORIES or (
+        normalized_category == "прочее" and category.strip().lower() != "прочее"
+    ):
+        raise ProductClassifierError("Product classifier returned invalid data")
+    return {"category": normalized_category, "confidence": float(confidence)}

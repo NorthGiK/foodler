@@ -139,6 +139,139 @@ export type AiSection = {
 };
 
 /**
+ * AnalyticsEventName
+ */
+export type AnalyticsEventName =
+  | "app_opened"
+  | "app_backgrounded"
+  | "tab_viewed"
+  | "policy_accepted"
+  | "registration_started"
+  | "registration_succeeded"
+  | "registration_failed"
+  | "login_started"
+  | "login_succeeded"
+  | "login_failed"
+  | "logout"
+  | "receipt_capture_started"
+  | "receipt_capture_succeeded"
+  | "receipt_capture_failed"
+  | "receipt_manual_created"
+  | "receipt_detail_viewed"
+  | "receipt_deleted"
+  | "ai_screen_viewed"
+  | "ai_action_started"
+  | "ai_action_succeeded"
+  | "ai_action_failed"
+  | "subscription_screen_viewed"
+  | "subscription_plan_selected"
+  | "subscription_terms_viewed"
+  | "subscription_checkout_opened"
+  | "subscription_checkout_failed"
+  | "feedback_submitted";
+
+/**
+ * AnalyticsEventRequest
+ */
+export type AnalyticsEventRequest = {
+  /**
+   * Eventid
+   */
+  eventId: string;
+  eventName: AnalyticsEventName;
+  /**
+   * Occurredat
+   */
+  occurredAt: string;
+  /**
+   * Properties
+   */
+  properties?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Sessionid
+   */
+  sessionId?: string | null;
+};
+
+/**
+ * AnalyticsEventsRequest
+ */
+export type AnalyticsEventsRequest = {
+  /**
+   * Appbuild
+   */
+  appBuild: string;
+  /**
+   * Appversion
+   */
+  appVersion: string;
+  /**
+   * Events
+   */
+  events: Array<AnalyticsEventRequest>;
+  /**
+   * Installationid
+   */
+  installationId: string;
+  /**
+   * Locale
+   */
+  locale: string;
+  /**
+   * Osversion
+   */
+  osVersion: string;
+  /**
+   * Platform
+   */
+  platform: "ios" | "android";
+  /**
+   * Timezone
+   */
+  timezone: string;
+};
+
+/**
+ * AnalyticsIngestResponse
+ */
+export type AnalyticsIngestResponse = {
+  /**
+   * Accepted
+   */
+  accepted: boolean;
+  /**
+   * Inserted
+   */
+  inserted: number;
+};
+
+/**
+ * AnalyticsPreferenceRequest
+ */
+export type AnalyticsPreferenceRequest = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Installationid
+   */
+  installationId: string;
+};
+
+/**
+ * AnalyticsPreferenceResponse
+ */
+export type AnalyticsPreferenceResponse = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+};
+
+/**
  * AuthResponse
  */
 export type AuthResponse = {
@@ -777,6 +910,48 @@ export type ProductTagSchema = {
 };
 
 /**
+ * ReceiptCreateArraySchema
+ */
+export type ReceiptCreateArraySchema = {
+  /**
+   * Receipts
+   */
+  receipts?: Array<ReceiptCreateSchema> | null;
+};
+
+/**
+ * ReceiptCreateSchema
+ *
+ * Client-controlled fields for creating a receipt.
+ */
+export type ReceiptCreateSchema = {
+  /**
+   * Date
+   */
+  date: string;
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Items
+   */
+  items?: Array<ReceiptItemSchema>;
+  /**
+   * Source Key
+   */
+  source_key?: string | null;
+  /**
+   * Store
+   */
+  store?: string | null;
+  /**
+   * Total
+   */
+  total: number;
+};
+
+/**
  * ReceiptItemSchema
  */
 export type ReceiptItemSchema = {
@@ -837,9 +1012,15 @@ export type ReceiptRawResponseSchema = {
 };
 
 /**
- * ReceiptSchema
+ * ReceiptResponseSchema
+ *
+ * Server response for persisted receipts, including server creation time.
  */
-export type ReceiptSchema = {
+export type ReceiptResponseSchema = {
+  /**
+   * Createdat
+   */
+  createdAt: string;
   /**
    * Date
    */
@@ -848,6 +1029,34 @@ export type ReceiptSchema = {
    * Id
    */
   id: string;
+  /**
+   * Items
+   */
+  items?: Array<ReceiptItemSchema>;
+  /**
+   * Store
+   */
+  store?: string | null;
+  /**
+   * Total
+   */
+  total: number;
+};
+
+/**
+ * ReceiptUpdateSchema
+ *
+ * Client-controlled fields for updating a receipt.
+ */
+export type ReceiptUpdateSchema = {
+  /**
+   * Date
+   */
+  date: string;
+  /**
+   * Id
+   */
+  id?: string | null;
   /**
    * Items
    */
@@ -864,16 +1073,6 @@ export type ReceiptSchema = {
    * Total
    */
   total: number;
-};
-
-/**
- * ReceiptSchemaArray
- */
-export type ReceiptSchemaArray = {
-  /**
-   * Receipts
-   */
-  receipts?: Array<ReceiptSchema> | null;
 };
 
 /**
@@ -1083,6 +1282,14 @@ export type SubscriptionStatusResponse = {
  * UserResponse
  */
 export type UserResponse = {
+  /**
+   * Analyticsenabled
+   */
+  analyticsEnabled: boolean;
+  /**
+   * Createdat
+   */
+  createdAt: string;
   /**
    * Email
    */
@@ -1662,6 +1869,60 @@ export type FridgeStatusApiFridgeGetResponses = {
 export type FridgeStatusApiFridgeGetResponse =
   FridgeStatusApiFridgeGetResponses[keyof FridgeStatusApiFridgeGetResponses];
 
+export type IngestEventsApiProductAnalyticsEventsPostData = {
+  body: AnalyticsEventsRequest;
+  path?: never;
+  query?: never;
+  url: "/api/product-analytics/events";
+};
+
+export type IngestEventsApiProductAnalyticsEventsPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type IngestEventsApiProductAnalyticsEventsPostError =
+  IngestEventsApiProductAnalyticsEventsPostErrors[keyof IngestEventsApiProductAnalyticsEventsPostErrors];
+
+export type IngestEventsApiProductAnalyticsEventsPostResponses = {
+  /**
+   * Successful Response
+   */
+  200: AnalyticsIngestResponse;
+};
+
+export type IngestEventsApiProductAnalyticsEventsPostResponse =
+  IngestEventsApiProductAnalyticsEventsPostResponses[keyof IngestEventsApiProductAnalyticsEventsPostResponses];
+
+export type SetPreferenceApiProductAnalyticsPreferencePutData = {
+  body: AnalyticsPreferenceRequest;
+  path?: never;
+  query?: never;
+  url: "/api/product-analytics/preference";
+};
+
+export type SetPreferenceApiProductAnalyticsPreferencePutErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetPreferenceApiProductAnalyticsPreferencePutError =
+  SetPreferenceApiProductAnalyticsPreferencePutErrors[keyof SetPreferenceApiProductAnalyticsPreferencePutErrors];
+
+export type SetPreferenceApiProductAnalyticsPreferencePutResponses = {
+  /**
+   * Successful Response
+   */
+  200: AnalyticsPreferenceResponse;
+};
+
+export type SetPreferenceApiProductAnalyticsPreferencePutResponse =
+  SetPreferenceApiProductAnalyticsPreferencePutResponses[keyof SetPreferenceApiProductAnalyticsPreferencePutResponses];
+
 export type CreateProductApiProductsPostData = {
   body: ProductCreateSchema;
   path?: never;
@@ -1858,14 +2119,14 @@ export type GetReceiptsApiReceiptsGetResponses = {
    *
    * Successful Response
    */
-  200: Array<ReceiptSchema>;
+  200: Array<ReceiptResponseSchema>;
 };
 
 export type GetReceiptsApiReceiptsGetResponse =
   GetReceiptsApiReceiptsGetResponses[keyof GetReceiptsApiReceiptsGetResponses];
 
 export type UploadReceiptApiReceiptsPostData = {
-  body: ReceiptSchema;
+  body: ReceiptCreateSchema;
   path?: never;
   query?: never;
   url: "/api/receipts";
@@ -1892,7 +2153,7 @@ export type UploadReceiptApiReceiptsPostResponse =
   UploadReceiptApiReceiptsPostResponses[keyof UploadReceiptApiReceiptsPostResponses];
 
 export type UploadReceiptsApiReceiptsArrayPostData = {
-  body: ReceiptSchemaArray;
+  body: ReceiptCreateArraySchema;
   path?: never;
   query?: never;
   url: "/api/receipts/array";
@@ -2030,14 +2291,14 @@ export type GetReceiptApiReceiptsReceiptIdGetResponses = {
   /**
    * Successful Response
    */
-  200: ReceiptSchema;
+  200: ReceiptResponseSchema;
 };
 
 export type GetReceiptApiReceiptsReceiptIdGetResponse =
   GetReceiptApiReceiptsReceiptIdGetResponses[keyof GetReceiptApiReceiptsReceiptIdGetResponses];
 
 export type UpdateReceiptApiReceiptsReceiptIdPatchData = {
-  body: ReceiptSchema;
+  body: ReceiptUpdateSchema;
   path: {
     /**
      * Receipt Id
@@ -2062,7 +2323,7 @@ export type UpdateReceiptApiReceiptsReceiptIdPatchResponses = {
   /**
    * Successful Response
    */
-  200: ReceiptSchema;
+  200: ReceiptResponseSchema;
 };
 
 export type UpdateReceiptApiReceiptsReceiptIdPatchResponse =

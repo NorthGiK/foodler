@@ -24,6 +24,13 @@ describe("product categories", () => {
     expect(normalizeServerCategory("unknown")).toBeNull();
   });
 
+  it("merges legacy labels regardless of case", () => {
+    expect(normalizeCategory("МОЛОЧНЫЕ ПРОДУКТЫ")).toBe("Молочные продукты");
+    expect(normalizeCategory("молоченые")).toBe("Молочные продукты");
+    expect(normalizeCategory("ФРУКТЫ")).toBe("Фрукты");
+    expect(normalizeServerCategory("ФРУКТЫ")).toBe("Фрукты");
+  });
+
   it.each([
     ["ЧЕРЕШНЯ 1кг", "Фрукты"],
     ["МАГНИТ Салфетки бум 2сл 50шт", "Бытовая химия"],

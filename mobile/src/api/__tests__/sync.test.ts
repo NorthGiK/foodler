@@ -115,6 +115,7 @@ describe("receipt synchronization", () => {
         date: "2026-08-01",
         store: receipt.organization,
         total: receipt.totalSumRub,
+        createdAt: "2026-08-01T00:00:00Z",
         items: [],
       },
     ]);

@@ -275,6 +275,214 @@
         "title": "AiSection",
         "type": "object"
       },
+      "AnalyticsEventName": {
+        "enum": [
+          "app_opened",
+          "app_backgrounded",
+          "tab_viewed",
+          "policy_accepted",
+          "registration_started",
+          "registration_succeeded",
+          "registration_failed",
+          "login_started",
+          "login_succeeded",
+          "login_failed",
+          "logout",
+          "receipt_capture_started",
+          "receipt_capture_succeeded",
+          "receipt_capture_failed",
+          "receipt_manual_created",
+          "receipt_detail_viewed",
+          "receipt_deleted",
+          "ai_screen_viewed",
+          "ai_action_started",
+          "ai_action_succeeded",
+          "ai_action_failed",
+          "subscription_screen_viewed",
+          "subscription_plan_selected",
+          "subscription_terms_viewed",
+          "subscription_checkout_opened",
+          "subscription_checkout_failed",
+          "feedback_submitted"
+        ],
+        "title": "AnalyticsEventName",
+        "type": "string"
+      },
+      "AnalyticsEventRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "eventId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Eventid",
+            "type": "string"
+          },
+          "eventName": {
+            "$ref": "#/components/schemas/AnalyticsEventName"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "title": "Occurredat",
+            "type": "string"
+          },
+          "properties": {
+            "additionalProperties": true,
+            "maxProperties": 4,
+            "title": "Properties",
+            "type": "object"
+          },
+          "sessionId": {
+            "anyOf": [
+              {
+                "maxLength": 96,
+                "pattern": "^[A-Za-z0-9_-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sessionid"
+          }
+        },
+        "required": [
+          "eventId",
+          "eventName",
+          "occurredAt"
+        ],
+        "title": "AnalyticsEventRequest",
+        "type": "object"
+      },
+      "AnalyticsEventsRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "appBuild": {
+            "maxLength": 32,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._-]+$",
+            "title": "Appbuild",
+            "type": "string"
+          },
+          "appVersion": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._+-]+$",
+            "title": "Appversion",
+            "type": "string"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsEventRequest"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Events",
+            "type": "array"
+          },
+          "installationId": {
+            "maxLength": 128,
+            "minLength": 16,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Installationid",
+            "type": "string"
+          },
+          "locale": {
+            "maxLength": 16,
+            "minLength": 2,
+            "pattern": "^[a-z]{2,3}(?:-[A-Z]{2})?$",
+            "title": "Locale",
+            "type": "string"
+          },
+          "osVersion": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9._ -]+$",
+            "title": "Osversion",
+            "type": "string"
+          },
+          "platform": {
+            "enum": [
+              "ios",
+              "android"
+            ],
+            "title": "Platform",
+            "type": "string"
+          },
+          "timezone": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^(?:UTC|[A-Za-z0-9_.+-]+(?:/[A-Za-z0-9_.+-]+){1,2})$",
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "installationId",
+          "platform",
+          "appVersion",
+          "appBuild",
+          "osVersion",
+          "locale",
+          "timezone",
+          "events"
+        ],
+        "title": "AnalyticsEventsRequest",
+        "type": "object"
+      },
+      "AnalyticsIngestResponse": {
+        "properties": {
+          "accepted": {
+            "title": "Accepted",
+            "type": "boolean"
+          },
+          "inserted": {
+            "title": "Inserted",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "accepted",
+          "inserted"
+        ],
+        "title": "AnalyticsIngestResponse",
+        "type": "object"
+      },
+      "AnalyticsPreferenceRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "installationId": {
+            "maxLength": 128,
+            "minLength": 16,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Installationid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "installationId",
+          "enabled"
+        ],
+        "title": "AnalyticsPreferenceRequest",
+        "type": "object"
+      },
+      "AnalyticsPreferenceResponse": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "AnalyticsPreferenceResponse",
+        "type": "object"
+      },
       "AuthResponse": {
         "properties": {
           "accessToken": {
@@ -1372,6 +1580,90 @@
         "title": "ProductTagSchema",
         "type": "object"
       },
+      "ReceiptCreateArraySchema": {
+        "additionalProperties": false,
+        "properties": {
+          "receipts": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ReceiptCreateSchema"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receipts"
+          }
+        },
+        "title": "ReceiptCreateArraySchema",
+        "type": "object"
+      },
+      "ReceiptCreateSchema": {
+        "additionalProperties": false,
+        "description": "Client-controlled fields for creating a receipt.",
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReceiptItemSchema"
+            },
+            "maxItems": 1000,
+            "title": "Items",
+            "type": "array"
+          },
+          "source_key": {
+            "anyOf": [
+              {
+                "maxLength": 4096,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Key"
+          },
+          "store": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store"
+          },
+          "total": {
+            "minimum": 0.0,
+            "multipleOf": 0.01,
+            "title": "Total",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "date",
+          "total"
+        ],
+        "title": "ReceiptCreateSchema",
+        "type": "object"
+      },
       "ReceiptItemSchema": {
         "properties": {
           "category": {
@@ -1497,7 +1789,58 @@
         "title": "ReceiptRawResponseSchema",
         "type": "object"
       },
-      "ReceiptSchema": {
+      "ReceiptResponseSchema": {
+        "description": "Server response for persisted receipts, including server creation time.",
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReceiptItemSchema"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "store": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store"
+          },
+          "total": {
+            "title": "Total",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "date",
+          "total",
+          "createdAt"
+        ],
+        "title": "ReceiptResponseSchema",
+        "type": "object"
+      },
+      "ReceiptUpdateSchema": {
+        "additionalProperties": false,
+        "description": "Client-controlled fields for updating a receipt.",
         "properties": {
           "date": {
             "format": "date",
@@ -1505,10 +1848,17 @@
             "type": "string"
           },
           "id": {
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
           },
           "items": {
             "items": {
@@ -1551,31 +1901,10 @@
           }
         },
         "required": [
-          "id",
           "date",
           "total"
         ],
-        "title": "ReceiptSchema",
-        "type": "object"
-      },
-      "ReceiptSchemaArray": {
-        "properties": {
-          "receipts": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/ReceiptSchema"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Receipts"
-          }
-        },
-        "title": "ReceiptSchemaArray",
+        "title": "ReceiptUpdateSchema",
         "type": "object"
       },
       "RecipeCreateSchema": {
@@ -1931,6 +2260,15 @@
       },
       "UserResponse": {
         "properties": {
+          "analyticsEnabled": {
+            "title": "Analyticsenabled",
+            "type": "boolean"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
           "email": {
             "title": "Email",
             "type": "string"
@@ -1959,7 +2297,9 @@
         "required": [
           "id",
           "email",
-          "premium"
+          "premium",
+          "analyticsEnabled",
+          "createdAt"
         ],
         "title": "UserResponse",
         "type": "object"
@@ -2871,6 +3211,98 @@
         ]
       }
     },
+    "/api/product-analytics/events": {
+      "post": {
+        "operationId": "ingest_events_api_product_analytics_events_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalyticsEventsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsIngestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Ingest Events",
+        "tags": [
+          "Product Analytics"
+        ]
+      }
+    },
+    "/api/product-analytics/preference": {
+      "put": {
+        "operationId": "set_preference_api_product_analytics_preference_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalyticsPreferenceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsPreferenceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Preference",
+        "tags": [
+          "Product Analytics"
+        ]
+      }
+    },
     "/api/products": {
       "post": {
         "description": "Создание нового продукта (вручную).",
@@ -3167,7 +3599,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/ReceiptSchema"
+                    "$ref": "#/components/schemas/ReceiptResponseSchema"
                   },
                   "title": "Response Get Receipts Api Receipts Get",
                   "type": "array"
@@ -3203,7 +3635,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ReceiptSchema"
+                "$ref": "#/components/schemas/ReceiptCreateSchema"
               }
             }
           },
@@ -3249,7 +3681,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ReceiptSchemaArray"
+                "$ref": "#/components/schemas/ReceiptCreateArraySchema"
               }
             }
           },
@@ -3432,7 +3864,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ReceiptSchema"
+                  "$ref": "#/components/schemas/ReceiptResponseSchema"
                 }
               }
             },
@@ -3476,7 +3908,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ReceiptSchema"
+                "$ref": "#/components/schemas/ReceiptUpdateSchema"
               }
             }
           },
@@ -3487,7 +3919,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ReceiptSchema"
+                  "$ref": "#/components/schemas/ReceiptResponseSchema"
                 }
               }
             },

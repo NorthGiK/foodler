@@ -6,7 +6,7 @@ import {
   type RouteProp,
 } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -19,10 +19,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { RootStackParamList } from "../../App";
 import { queueReceiptDeletion, syncPendingReceiptDeletions } from "../api/sync";
+import { analyticsEvents } from "../analytics/facade";
 import { useTheme } from "../components/ThemeContext";
 import { deleteReceipt, loadReceiptItems, openDb } from "../storage";
 import type { ReceiptItem } from "../types";
-import { fmtDate, fmtRub } from "../utils";
+import { fmtDate, fmtRub, groupReceiptItems } from "../utils";
 import { getStoreDisplayName } from "../storeAliases";
 
 type LoadState = "loading" | "success" | "error";
@@ -34,6 +35,7 @@ export function ReceiptDetailScreen() {
   const route = useRoute<RouteProp<RootStackParamList, "ReceiptDetail">>();
   const receipt = route.params.receipt;
   const [items, setItems] = useState<ReceiptItem[]>([]);
+  const groupedItems = useMemo(() => groupReceiptItems(items), [items]);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [deleting, setDeleting] = useState(false);
 
@@ -50,6 +52,7 @@ export function ReceiptDetailScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      void analyticsEvents.receiptDetailViewed();
       void loadItems();
     }, [loadItems]),
   );
@@ -61,6 +64,7 @@ export function ReceiptDetailScreen() {
       const db = await openDb();
       await deleteReceipt(db, receipt.id);
       await queueReceiptDeletion(receipt.id);
+      void analyticsEvents.receiptDeleted();
       try {
         navigation.goBack();
       } catch {}
@@ -108,7 +112,7 @@ export function ReceiptDetailScreen() {
       </View>
 
       <FlatList
-        data={items}
+        data={groupedItems}
         keyExtractor={(item, index) =>
           String(item.id ?? `${item.name}-${index}`)
         }

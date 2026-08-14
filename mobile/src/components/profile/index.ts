@@ -6,3 +6,4 @@ export { FeedbackSection } from "./FeedbackSection";
 export { ConfirmModal } from "./ConfirmModal";
 export { AiCreditsCard } from "./AiCreditsCard";
 export { StoreNamesSection } from "./StoreNamesSection";
+export { AnalyticsPreferenceCard } from "./AnalyticsPreferenceCard";

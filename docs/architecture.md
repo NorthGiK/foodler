@@ -16,6 +16,19 @@ Backend — FastAPI-приложение с async SQLAlchemy. Оно отвеч�
 и LLM используют общий process-local connection pool; SMTP и YooKassa
 используют собственные клиенты. Все адаптеры подменяются в тестах.
 
+Product analytics is a separate minimised event stream. Mobile queues events
+only after policy consent; backend hashes installation IDs and enforces
+account-wide opt-out/anonymization. Aggregate reporting is read-only and must
+not expose raw identifiers or complete event properties; reports may aggregate
+only specifically allowlisted scalar dimensions such as tab, action and plan.
+
+```text
+consented mobile queue -> generated SDK -> API validation/storage -> read-only SQL aggregates
+```
+
+`app_backgrounded` is an AppState inactive/background proxy: it is first queued
+locally, but a hard kill or process close is not guaranteed to deliver it.
+
 ```text
 UI -> transaction SQLite -> observable state -> sync queue -> typed client -> FastAPI
                                                 |

@@ -91,6 +91,7 @@ head`.
   сравнить median/p95 с сохранённым результатом той же среды.
 - Runtime: безопасные HTTP counters/duration доступны в `/metrics` только с
   отдельным `METRICS_TOKEN`.
-- Dependency security: `make audit` проверяет backend lockfile через OSV и
-  production-граф mobile через npm; CI блокирует новую production-уязвимость.
+- Dependency security: `make audit` проверяет backend lockfile через OSV.
+  `cd mobile && npm run audit:prod` остаётся ручной диагностикой и не блокирует
+  CI, пока upstream Expo/Metro не предоставляет исправленный dependency graph.
   Полный dev-граф и принятые исключения описаны в `mobile/README.md`.

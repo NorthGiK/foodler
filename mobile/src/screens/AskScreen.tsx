@@ -17,6 +17,7 @@ import { useNavigation } from "@react-navigation/native";
 import { NavigationBar } from "expo-navigation-bar";
 import Markdown from "react-native-markdown-display";
 import { ACTION_TO_SERVER } from "../ai/types";
+import { analyticsEvents } from "../analytics/facade";
 import { useAuth } from "../api/auth";
 import { api } from "../api/client";
 import { useTheme } from "../components/ThemeContext";
@@ -61,6 +62,10 @@ export function AskScreen() {
   const [errorMessage, setErrorMessage] = useState<string>("");
   const scrollRef = useRef<ScrollView>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
+  useEffect(() => {
+    void analyticsEvents.aiScreenViewed();
+  }, []);
+
   // Загружаем закреплённые сообщения при открытии
   useEffect(() => {
     loadPinnedMessages();
@@ -112,6 +117,8 @@ export function AskScreen() {
     messagesRef.current = updatedMessages;
     setInput("");
     setLoading(true);
+    const startedAt = Date.now();
+    void analyticsEvents.ai("ai_action_started", "ask", startedAt);
 
     try {
       const history = updatedMessages;
@@ -147,7 +154,9 @@ export function AskScreen() {
       messagesRef.current = withAnswer;
       setErrorKind(null);
       setErrorMessage("");
+      void analyticsEvents.ai("ai_action_succeeded", "ask", startedAt);
     } catch (error: unknown) {
+      void analyticsEvents.ai("ai_action_failed", "ask", startedAt, error);
       setErrorKind("unknown");
       setErrorMessage(
         error instanceof Error

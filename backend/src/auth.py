@@ -128,6 +128,16 @@ async def get_current_user_optional(
         return None
 
 
+async def get_current_user_optional_strict(
+    credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False)),
+    db: AsyncSession = Depends(get_db),
+) -> User | None:
+    """Allow anonymous requests, but never downgrade a supplied bad token."""
+    if credentials is None:
+        return None
+    return await get_current_user(credentials, db)
+
+
 async def get_current_user_optional_from_request(
     request: Request,
     db: AsyncSession = Depends(get_db),

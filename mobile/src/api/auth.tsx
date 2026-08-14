@@ -6,6 +6,8 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { analyticsEvents } from "../analytics/facade";
+import { analyticsTriggers } from "../analytics/triggers";
 import {
   api,
   clearTokens,
@@ -73,6 +75,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
+  useEffect(() => {
+    if (!isLoading) {
+      void analyticsTriggers.resolvedAuth(user?.analyticsEnabled);
+    }
+  }, [isLoading, user]);
+
   // Обновление токена каждые 2 недели
   useEffect(() => {
     refreshTimer.current = setInterval(
@@ -98,35 +106,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const data = await api.login(email, password);
-    await setTokens(data.accessToken, data.refreshToken);
-    setUser(data.user);
-
-    // Регистрируем устройство
+    void analyticsEvents.auth("login_started");
     try {
-      const deviceId = await getDeviceId();
-      await api.registerDevice(deviceId, "React Native", "Expo");
-    } catch {
-      /* не критично */
-    }
-  }, []);
-
-  const sendCode = useCallback(async (email: string, password: string) => {
-    await api.sendCode(email, password);
-  }, []);
-
-  const verifyCode = useCallback(
-    async (email: string, code: string, password?: string) => {
-      const data = await api.verifyCode(email, code, password);
+      const data = await api.login(email, password);
       await setTokens(data.accessToken, data.refreshToken);
       setUser(data.user);
+      void analyticsEvents.auth("login_succeeded");
 
       // Регистрируем устройство
       try {
         const deviceId = await getDeviceId();
         await api.registerDevice(deviceId, "React Native", "Expo");
       } catch {
-        // не критично
+        /* не критично */
+      }
+    } catch (error: unknown) {
+      void analyticsEvents.auth("login_failed", error);
+      throw error;
+    }
+  }, []);
+
+  const sendCode = useCallback(async (email: string, password: string) => {
+    void analyticsEvents.auth("registration_started");
+    try {
+      await api.sendCode(email, password);
+    } catch (error: unknown) {
+      void analyticsEvents.auth("registration_failed", error);
+      throw error;
+    }
+  }, []);
+
+  const verifyCode = useCallback(
+    async (email: string, code: string, password?: string) => {
+      try {
+        const data = await api.verifyCode(email, code, password);
+        await setTokens(data.accessToken, data.refreshToken);
+        setUser(data.user);
+        void analyticsEvents.auth("registration_succeeded");
+
+        // Регистрируем устройство
+        try {
+          const deviceId = await getDeviceId();
+          await api.registerDevice(deviceId, "React Native", "Expo");
+        } catch {
+          // не критично
+        }
+      } catch (error: unknown) {
+        void analyticsEvents.auth("registration_failed", error);
+        throw error;
       }
     },
     [],
@@ -135,6 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     await clearTokens();
     setUser(null);
+    void analyticsEvents.auth("logout");
   }, []);
 
   const refreshUser = useCallback(async () => {

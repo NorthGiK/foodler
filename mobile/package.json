@@ -24,6 +24,7 @@
     "@shopify/react-native-skia": "2.6.2",
     "expo": "~56.0.19",
     "expo-camera": "~56.0.8",
+    "expo-constants": "~56.0.23",
     "expo-dev-client": "~56.0.23",
     "expo-file-system": "~56.0.8",
     "expo-font": "~56.0.7",
@@ -33,7 +34,6 @@
     "expo-sqlite": "~56.0.5",
     "expo-status-bar": "~56.0.4",
     "expo-system-ui": "~56.0.5",
-    "ngrok": "^5.0.0-beta.2",
     "react": "19.2.3",
     "react-native": "0.85.3",
     "react-native-animated-glow": "^3.1.0",
@@ -63,7 +63,7 @@
   "overrides": {
     "react": "19.2.3",
     "brace-expansion@^1.1.7": "1.1.18",
-    "js-yaml": "4.3.0",
+    "js-yaml": "4.3.1",
     "react-native-markdown-display": {
       "markdown-it": "15.0.0"
     },

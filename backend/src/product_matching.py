@@ -26,7 +26,11 @@ from src.ai_service import AiServiceError, describe_unknown_product
 from src.config import PRODUCT_FUZZY_CANDIDATE_LIMIT
 from src.integrations.product_classifier import ProductClassifierError, classify_product_category
 from src.models import Product, ProductAlias, ProductBarcode, ProductTag, ProductTagMember
-from src.product_categories import CANONICAL_CATEGORIES, infer_category_from_name
+from src.product_categories import (
+    CANONICAL_CATEGORIES,
+    infer_category_from_name,
+    normalize_category,
+)
 
 CATEGORIES = CANONICAL_CATEGORIES
 
@@ -284,6 +288,7 @@ async def _complete_match(
     gtin: str | None,
 ) -> dict[str, Any]:
     await _ensure_product_relations(db, product)
+    product.category = normalize_category(product.category)
     if product.category == "прочее":
         tags = [member.tag.name for member in product.tags if member.tag]
         inferred = category_from_tags(tags)
@@ -341,7 +346,7 @@ async def match_product(
     if category is None and user_id:
         ai_data = await _ai_match_product(raw_name, normalized, gtin)
         if ai_data and float(ai_data["confidence"]) >= 0.8:
-            category = str(ai_data["category"])
+            category = normalize_category(str(ai_data["category"]))
             confidence = float(ai_data["confidence"])
             matched_by = "ai-category"
 
@@ -401,7 +406,7 @@ async def save_new_product(
 
     product = Product(
         name=normalized_name,
-        category=category if category in CATEGORIES else "прочее",
+        category=normalize_category(category),
         calories=nutrition_data.get("calories", 0),
         proteins=nutrition_data.get("proteins", 0),
         fats=nutrition_data.get("fats", 0),

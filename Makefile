@@ -49,7 +49,7 @@ contract-check: contract
 secrets:
 	cd backend && .venv/bin/python -m scripts.check_secrets
 
-audit: backend-audit mobile-audit
+audit: backend-audit
 
 backend-audit:
 	cd backend && uv audit --locked

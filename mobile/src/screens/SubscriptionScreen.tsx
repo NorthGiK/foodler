@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import type { RootStackParamList } from "../../App";
+import { analyticsEvents } from "@/analytics/facade";
 import { api, type SubscriptionPlan } from "@/api/client";
 import { useAuth } from "@/api/auth";
 import { AnimatedPressable } from "@/components/animations";
@@ -75,31 +76,39 @@ export function SubscriptionScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      void analyticsEvents.subscriptionScreenViewed();
       void loadStatus();
     }, [loadStatus]),
   );
 
   const purchase = async (plan: SubscriptionPlan) => {
     if (processingPlan) return;
+    void analyticsEvents.subscriptionPlan(plan);
     setProcessingPlan(plan);
     try {
       const purchaseUrl = await api.makePurchase(plan);
       if (!purchaseUrl) {
+        void analyticsEvents.checkoutFailed(plan, new Error("unavailable"));
         Alert.alert("Ошибка", "Не удалось получить страницу оплаты.");
         return;
       }
       await Linking.openURL(purchaseUrl);
-    } catch {
+      void analyticsEvents.checkoutOpened(plan);
+    } catch (error: unknown) {
+      void analyticsEvents.checkoutFailed(plan, error);
       Alert.alert("Ошибка", "Не удалось открыть страницу оплаты.");
     } finally {
       setProcessingPlan(null);
     }
   };
 
-  const openSubscriptionTerms = () => {
-    Linking.openURL(SUBSCRIPTION_TERMS).catch(() => {
+  const openSubscriptionTerms = async () => {
+    try {
+      await Linking.openURL(SUBSCRIPTION_TERMS);
+      void analyticsEvents.subscriptionTermsViewed();
+    } catch {
       Alert.alert("Ошибка", "Не удалось открыть условия подписки.");
-    });
+    }
   };
 
   const activePlan = status?.active ? status.plan : null;
@@ -265,7 +274,7 @@ export function SubscriptionScreen() {
             Продолжая оформление, вы соглашаетесь с{" "}
             <Text
               accessibilityRole="link"
-              onPress={openSubscriptionTerms}
+              onPress={() => void openSubscriptionTerms()}
               style={styles.termsLink}
             >
               условиями подписки

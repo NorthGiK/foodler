@@ -28,6 +28,33 @@ CANONICAL_CATEGORIES = frozenset(
     }
 )
 
+# Category values may come from providers, AI, old clients, or seeded data.
+# Keep the database/API key canonical and lowercase while accepting legacy
+# display labels and the common misspelling used by receipt providers.
+_CATEGORY_ALIASES = {
+    "бытовая химия": "бытовые товары",
+    "замороженные продукты": "заморозка",
+    "кондитерские изделия": "кондитерские",
+    "молочные": "молочные",
+    "молочные продукты": "молочные",
+    "молоченые": "молочные",
+    "фрукты": "фрукты",
+    "прочее": "прочее",
+    "рыба и морепродукты": "рыба",
+    "хлеб и выпечка": "хлеб",
+}
+
+
+def normalize_category(category: str | None) -> str:
+    """Return a case-insensitive, lowercase canonical category key."""
+    if not isinstance(category, str):
+        return "прочее"
+    normalized = " ".join(category.strip().lower().split())
+    return _CATEGORY_ALIASES.get(
+        normalized,
+        normalized if normalized in CANONICAL_CATEGORIES else "прочее",
+    )
+
 _CATEGORY_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = tuple(
     (category, re.compile(pattern, re.IGNORECASE))
     for category, pattern in (

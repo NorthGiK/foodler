@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Added consent-gated product analytics queue and account-wide preference
+  handling; disabled analytics clears local pending events.
+- Product category aliases are compared case-insensitively and rendered with a
+  single display label, preventing duplicate groups such as `фрукты`/`Фрукты`.
+- Receipt details combine repeated product lines with the same normalized name
+  and price, summing their quantity and line total for display.
+- Removed the unused vulnerable `ngrok` package and updated the locked
+  `js-yaml` override to 4.3.1.
+- Mobile `npm audit` remains available as a manual diagnostic but no longer
+  blocks CI while the Expo/Metro graph has no patched `image-size` release.
+
 - SQL локального SQLite вынесен из хранилищ в отдельные query-модули для чеков
   и AI-отчётов без изменения поведения базы данных.
 - Login validation now shows email and password errors only beside the relevant

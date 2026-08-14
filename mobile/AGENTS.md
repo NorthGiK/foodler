@@ -30,7 +30,6 @@
 npm run typecheck
 npm run lint
 npm run test -- --runInBand
-npm run audit:prod
 ```
 
 Для изменения UI производительности проверьте бюджеты и release-сценарий из

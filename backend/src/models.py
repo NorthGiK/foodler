@@ -99,6 +99,9 @@ class User(Base):
     email: Mapped[str] = mapped_column(unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(nullable=False)
     auth_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Account-wide analytics preference. Installations can additionally be
+    # disabled without retaining a raw device identifier.
+    analytics_enabled: Mapped[bool] = mapped_column(nullable=False, insert_default=True)
     premium: Mapped[bool] = mapped_column(insert_default=False)
     subscription_expires: Mapped[datetime] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=_utcnow)
@@ -112,6 +115,72 @@ class User(Base):
     ai_reports: Mapped[list["AiReport"]] = relationship(
         "AiReport", back_populates="user", cascade="all, delete-orphan"
     )
+    analytics_installations: Mapped[list["AnalyticsInstallation"]] = relationship(
+        "AnalyticsInstallation", back_populates="user"
+    )
+    analytics_events: Mapped[list["AnalyticsEvent"]] = relationship(
+        "AnalyticsEvent", back_populates="user"
+    )
+
+
+class AnalyticsInstallation(Base):
+    """Privacy-preserving analytics installation state.
+
+    ``installation_hash`` is a one-way identifier supplied by the analytics
+    ingestion layer; raw device identifiers are intentionally not persisted.
+    """
+
+    __tablename__ = "analytics_installations"
+
+    id: Mapped[str] = mapped_column(primary_key=True, default=_uuid)
+    installation_hash: Mapped[str] = mapped_column(unique=True, nullable=False, index=True)
+    user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    enabled: Mapped[bool] = mapped_column(nullable=False, insert_default=True)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
+
+    user: Mapped[User | None] = relationship("User", back_populates="analytics_installations")
+    events: Mapped[list["AnalyticsEvent"]] = relationship(
+        "AnalyticsEvent", back_populates="installation"
+    )
+
+
+class AnalyticsEvent(Base):
+    """An idempotent, minimised product analytics event."""
+
+    __tablename__ = "analytics_events"
+    __table_args__ = (
+        Index("ix_analytics_events_name_occurred", "event_name", "occurred_at"),
+        Index("ix_analytics_events_user_occurred", "user_id", "occurred_at"),
+        Index("ix_analytics_events_installation_occurred", "installation_id", "occurred_at"),
+        Index("ix_analytics_events_session_occurred", "session_id", "occurred_at"),
+    )
+
+    id: Mapped[str] = mapped_column(primary_key=True, default=_uuid)
+    idempotency_id: Mapped[str] = mapped_column(unique=True, nullable=False, index=True)
+    event_name: Mapped[str] = mapped_column(nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    received_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
+    installation_id: Mapped[str | None] = mapped_column(
+        ForeignKey("analytics_installations.id"), nullable=True
+    )
+    user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    session_id: Mapped[str | None] = mapped_column(nullable=True)
+    platform: Mapped[str | None] = mapped_column(nullable=True)
+    app_version: Mapped[str | None] = mapped_column(nullable=True)
+    app_build: Mapped[str | None] = mapped_column(nullable=True)
+    os_version: Mapped[str | None] = mapped_column(nullable=True)
+    locale: Mapped[str | None] = mapped_column(nullable=True)
+    timezone: Mapped[str | None] = mapped_column(nullable=True)
+    # Ingestion restricts this to an allowlisted, scalar-only property set.
+    properties: Mapped[dict[str, str | int | float | bool | None]] = mapped_column(
+        JSON, nullable=False, default=dict
+    )
+
+    installation: Mapped[AnalyticsInstallation | None] = relationship(
+        "AnalyticsInstallation", back_populates="events"
+    )
+    user: Mapped[User | None] = relationship("User", back_populates="analytics_events")
 
 
 class RefreshToken(Base):

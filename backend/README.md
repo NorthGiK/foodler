@@ -45,6 +45,20 @@ uv run alembic upgrade head
 Backend владеет API-контрактом. После изменения route/schema выполните из корня
 `make contract`, проверьте generated diff и обновите route test.
 
+## Product analytics
+
+Analytics stores a domain-separated installation hash, approved event dimensions
+and small allowlisted properties, never the raw ID, IP identity, email, QR or
+receipt payload, token, payment payload or AI text. It is default-enabled only
+after policy acceptance/consent resolution. `POST /api/product-analytics/events`
+accepts optional authentication, at most 50 events and 64 KiB with a 24-hour
+clock-skew bound; `PUT /api/product-analytics/preference` controls the guest
+installation or the authenticated account. Account-wide opt-out disables linked
+installations and irreversibly anonymizes historical links. Storage and
+reporting stay inside the Foodler backend; no external analytics provider is
+used. There is no automatic analytics retention; use read-only aggregates in
+[`docs/analytics-reporting.sql`](../docs/analytics-reporting.sql).
+
 ## Внешние сервисы
 
 QR receipt API, AI provider, SMTP и YooKassa конфигурируются только через
@@ -53,7 +67,9 @@ environment. Полный список с назначением и безопа
 TCP-соединения запрещены общей fixture.
 
 Для ранее неизвестного продукта backend запрашивает у AI-провайдера описание и
-одну из допустимых товарных категорий через `AI_LIGHT_MODEL`. Если провайдер
+одну из допустимых товарных категорий через `AI_LIGHT_MODEL`. Категории в API и
+каталоге нормализуются к lowercase canonical key; регистр, legacy display labels
+и известная опечатка `молоченые` не создают отдельные категории. Если провайдер
 недоступен или возвращает некорректную категорию, сохраняется результат локальной
 эвристики по тегам.
 

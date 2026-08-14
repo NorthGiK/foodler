@@ -26,6 +26,8 @@ import {
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { initAiReportsTable } from "./src/ai/storage";
+import { analyticsEvents, isNewAnalyticsTab } from "./src/analytics/facade";
+import { analyticsTriggers } from "./src/analytics/triggers";
 import { AuthProvider, useAuth } from "./src/api/auth";
 import {
   pullServerReceipts,
@@ -103,6 +105,7 @@ function TabContent() {
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { isAuthenticated } = useAuth();
   const [tab, setTab] = useState<Tab>("scan");
+  const activeTabRef = useRef<Tab>("scan");
   const [db, setDb] = useState<SQLiteDatabase | null>(null);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [storeAliases, setStoreAliases] = useState<StoreAliases>({});
@@ -249,7 +252,8 @@ function TabContent() {
   }, [isAuthenticated, db]);
 
   const switchTab = (newTab: Tab) => {
-    if (newTab === tab) return;
+    if (!isNewAnalyticsTab(activeTabRef.current, newTab)) return;
+    activeTabRef.current = newTab;
     const tabIndex = TABS.findIndex((t) => t.key === newTab);
     // Add 6 to account for the left: 6 in indicator style
     Animated.spring(indicatorPosition, {
@@ -258,6 +262,7 @@ function TabContent() {
     }).start();
 
     setTab(newTab);
+    void analyticsEvents.tabViewed(newTab);
     if ((newTab === "stats" || newTab === "types") && db) {
       refresh(db);
     }
@@ -464,20 +469,44 @@ function AppNavigator() {
   const [policiesAccepted, setPoliciesAccepted] = useState<boolean | null>(
     null,
   );
+  const openedTracked = useRef(false);
+
+  const trackOpenedOnce = useCallback(() => {
+    if (openedTracked.current) return;
+    openedTracked.current = true;
+    void analyticsEvents.appOpened();
+  }, []);
+
+  useEffect(() => {
+    analyticsTriggers.start();
+    return () => analyticsTriggers.stop();
+  }, []);
 
   useEffect(() => {
     (async () => {
       try {
         const val = await AsyncStorage.getItem(POLICIES_ACCEPTED_KEY);
-        setPoliciesAccepted(val === "true");
+        const accepted = val === "true";
+        setPoliciesAccepted(accepted);
+        await analyticsTriggers.resolvedConsent(accepted);
+        if (accepted) trackOpenedOnce();
       } catch {
         setPoliciesAccepted(false);
+        await analyticsTriggers.resolvedConsent(false);
       }
     })();
-  }, []);
+  }, [trackOpenedOnce]);
 
   const handlePoliciesAccepted = () => {
     setPoliciesAccepted(true);
+    void (async () => {
+      await analyticsTriggers.resolvedConsent(true);
+      await Promise.all([
+        analyticsEvents.policyAccepted("privacy", "1.1"),
+        analyticsEvents.policyAccepted("terms", "1.1"),
+      ]);
+      trackOpenedOnce();
+    })();
   };
 
   return (

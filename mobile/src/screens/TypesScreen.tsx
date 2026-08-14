@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Animated, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Animated, ScrollView, StyleSheet, View } from "react-native";
 import { Theme } from "@/themes";
 import { useTheme } from "@/components/ThemeContext";
 import Dropdown from "../components/Dropdown";

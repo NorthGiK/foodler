@@ -4,6 +4,14 @@
 
 ### changed
 
+- Added consent-gated privacy-preserving product analytics and read-only
+  aggregate reporting examples; account opt-out anonymizes historical links.
+- Product category keys and legacy display aliases are matched
+  case-insensitively across backend and mobile, including normalization of
+  existing local receipt rows.
+- Receipt details now combine repeated lines with the same product name and
+  unit price into one quantity-total row.
+
 - AI answers in the mobile question screen render Markdown, and the
   family-member form avoids the on-screen keyboard.
 - Mobile users can set device-local display names for stores from Profile.

@@ -15,6 +15,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../App";
 import { useAuth } from "../api/auth";
 import { api } from "../api/client";
+import { analyticsEvents } from "../analytics/facade";
 import { useTheme } from "../components/ThemeContext";
 import {
   AnimatedPressable,
@@ -30,6 +31,7 @@ import {
   ConfirmModal,
   AiCreditsCard,
   StoreNamesSection,
+  AnalyticsPreferenceCard,
 } from "../components/profile";
 import { loadProfile, saveProfile } from "../profileStorage";
 import { FamilyMember, UserProfile, defaultProfile } from "../types";
@@ -49,7 +51,7 @@ export function ProfileScreen({
   onRestoreStoreAlias,
 }: Props) {
   const { theme } = useTheme();
-  const { user, logout, isAuthenticated } = useAuth();
+  const { user, logout, isAuthenticated, refreshUser } = useAuth();
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [profile, setProfile] = useState<UserProfile>(defaultProfile);
@@ -59,7 +61,7 @@ export function ProfileScreen({
     null,
   );
   const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
-  const cardStyles = useStaggeredFadeIn(9, 80);
+  const cardStyles = useStaggeredFadeIn(10, 80);
 
   useEffect(() => {
     loadProfile().then(setProfile);
@@ -127,6 +129,7 @@ export function ProfileScreen({
     images: string[],
   ) => {
     await api.sendFeedback(email, text, images);
+    void analyticsEvents.feedbackSubmitted();
   };
 
   if (!isAuthenticated || !user) {
@@ -158,6 +161,10 @@ export function ProfileScreen({
         </Animated.View>
 
         <Animated.View style={cardStyles[3]}>
+          <AnalyticsPreferenceCard />
+        </Animated.View>
+
+        <Animated.View style={cardStyles[4]}>
           <FeedbackSection onSendFeedback={handleSendFeedback} />
         </Animated.View>
       </Animated.ScrollView>
@@ -198,6 +205,13 @@ export function ProfileScreen({
         </Animated.View>
 
         <Animated.View style={cardStyles[4]}>
+          <AnalyticsPreferenceCard
+            accountEnabled={user.analyticsEnabled}
+            onSynced={refreshUser}
+          />
+        </Animated.View>
+
+        <Animated.View style={cardStyles[5]}>
           <ProfileInfoCard
             profile={profile}
             editing={editing}
@@ -208,7 +222,7 @@ export function ProfileScreen({
           />
         </Animated.View>
 
-        <Animated.View style={cardStyles[5]}>
+        <Animated.View style={cardStyles[6]}>
           <FamilySection
             profile={profile}
             onAddMember={handleAddMember}
@@ -216,7 +230,7 @@ export function ProfileScreen({
           />
         </Animated.View>
 
-        <Animated.View style={cardStyles[6]}>
+        <Animated.View style={cardStyles[7]}>
           <StoreNamesSection
             stores={stores}
             aliases={storeAliases}
@@ -225,7 +239,7 @@ export function ProfileScreen({
           />
         </Animated.View>
 
-        <Animated.View style={cardStyles[7]}>
+        <Animated.View style={cardStyles[8]}>
           <AnimatedPressable scaleTo={0.95} onPress={handleLogout}>
             <View
               style={[
@@ -247,7 +261,7 @@ export function ProfileScreen({
           </AnimatedPressable>
         </Animated.View>
 
-        <Animated.View style={cardStyles[8]}>
+        <Animated.View style={cardStyles[9]}>
           <FeedbackSection
             userEmail={user.email}
             onSendFeedback={handleSendFeedback}

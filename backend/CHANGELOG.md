@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Added privacy-preserving product analytics storage, consent controls and
+  read-only aggregate reporting examples.
+- Product categories are normalized to lowercase canonical keys, including
+  legacy display labels and the common `молоченые` spelling, so case variants
+  no longer split the same category.
+
 - AI-ответы по анализу покупок теперь запрашиваются в компактном формате:
   только краткий вывод и 2–3 рекомендации общим объёмом до 1500 символов.
 - Общий анализ теперь формирует единый ответ без служебных `action`-меток,
