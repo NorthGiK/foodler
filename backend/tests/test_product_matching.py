@@ -120,10 +120,11 @@ class TestFindProductByName:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_name_matching_case_sensitive(self, async_session, test_product):
-        """Name matching should be exact (not case-insensitive)."""
+    async def test_name_matching_uses_common_normalization(self, async_session, test_product):
+        """Name matching is exact after case normalization."""
         result = await find_product_by_name(async_session, "молоко 3.2%")
-        assert result is None  # because db has "Молоко 3.2%" with capital М
+        assert result is not None
+        assert result.id == test_product.id
 
 
 class TestFindProductsFuzzy:
@@ -183,12 +184,12 @@ class TestMatchProduct:
         assert result["confidence"] >= 0.85
 
     @pytest.mark.asyncio
-    async def test_match_by_fuzzy(self, async_session, test_products):
-        """Should match by fuzzy with confidence 0.85."""
+    async def test_fuzzy_name_does_not_match_product(self, async_session, test_products):
+        """A fuzzy-looking name must not be used for categorization."""
         result = await match_product(async_session, "молочко")
-        assert result["product"] is not None
-        assert result["matched_by"] == "fuzzy"
-        assert result["confidence"] == 0.85
+        assert result["product"] is None
+        assert result["matched_by"] == "none"
+        assert result["confidence"] == 0.0
 
     @pytest.mark.asyncio
     async def test_match_no_result(self, async_session):
@@ -199,10 +200,10 @@ class TestMatchProduct:
         assert result["confidence"] == 0.0
 
     @pytest.mark.asyncio
-    async def test_match_with_alternatives(self, async_session, test_products):
-        """Should provide alternatives in fuzzy match."""
+    async def test_unknown_anonymous_name_has_no_alternatives(self, async_session, test_products):
+        """Categorization does not expose fuzzy alternatives."""
         result = await match_product(async_session, "молоко")
-        assert len(result["alternatives"]) >= 0
+        assert result["alternatives"] == []
 
     @pytest.mark.asyncio
     async def test_match_normalizes_input(self, async_session, test_product):
@@ -211,20 +212,25 @@ class TestMatchProduct:
         assert result["product"] is not None
 
     @pytest.mark.asyncio
-    async def test_local_category_creates_reusable_gtin_mapping(self, async_session):
+    async def test_ai_category_creates_reusable_gtin_mapping(self, async_session):
         from sqlalchemy import func, select
 
         from src.models import ProductAlias, ProductBarcode, ProductTagMember
 
-        result = await match_product(
-            async_session,
-            "ЧЕРЕШНЯ 1кг",
-            user_id="user-1",
-            gtin="4601234567890",
-        )
+        with patch(
+            "src.product_matching.classify_product_category",
+            new=AsyncMock(return_value={"category": "фрукты", "confidence": 0.94}),
+        ) as classifier:
+            result = await match_product(
+                async_session,
+                "ЧЕРЕШНЯ 1кг",
+                user_id="user-1",
+                gtin="4601234567890",
+            )
 
-        assert result["matched_by"] == "category-rule"
+        assert result["matched_by"] == "ai"
         assert result["product"].category == "фрукты"
+        classifier.assert_awaited_once()
 
         repeated = await match_product(
             async_session,
@@ -251,8 +257,31 @@ class TestMatchProduct:
                 gtin="4601234567891",
             )
 
-        assert result["matched_by"] == "ai-category"
+        assert result["matched_by"] == "ai"
         assert result["product"].category == "соусы"
+
+    @pytest.mark.asyncio
+    async def test_ai_category_is_saved_with_exact_alias(self, async_session):
+        with patch(
+            "src.product_matching.classify_product_category",
+            new=AsyncMock(return_value={"category": "овощи", "confidence": 0.91}),
+        ) as classifier:
+            first = await match_product(async_session, "Редкий продукт 500г", user_id="user-1")
+            second = await match_product(async_session, "  РЕДКИЙ продукт 500г!!! ", user_id="user-1")
+
+        assert first["matched_by"] == "ai"
+        assert second["matched_by"] == "alias"
+        assert second["product"].id == first["product"].id
+        classifier.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_local_category_words_do_not_trigger_category(self, async_session):
+        with patch("src.product_matching.classify_product_category", new=AsyncMock()) as classifier:
+            result = await match_product(async_session, "молоко")
+
+        assert result["product"] is None
+        assert result["matched_by"] == "none"
+        classifier.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_low_confidence_ai_result_does_not_pollute_catalog(self, async_session):

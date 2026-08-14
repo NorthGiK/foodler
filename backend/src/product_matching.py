@@ -3,11 +3,9 @@ Product Matching Pipeline.
 
 Алгоритм распознавания продуктов из сырых названий (из чеков, ручного ввода):
 1. Поиск ранее подтверждённого GTIN
-2. Нормализация и поиск по alias/имени
-3. Нечёткий поиск по каноническому каталогу
-4. Однозначная локальная категоризация
-5. Структурированный AI fallback для неоднозначного названия
-6. Сохранение уверенного результата, alias, тега и GTIN
+2. Нормализация и строгое совпадение по alias/имени
+3. Структурированный AI fallback для неизвестного названия
+4. Сохранение уверенного результата, alias, тега и GTIN
 """
 
 import hashlib
@@ -26,43 +24,12 @@ from src.ai_service import AiServiceError, describe_unknown_product
 from src.config import PRODUCT_FUZZY_CANDIDATE_LIMIT
 from src.integrations.product_classifier import ProductClassifierError, classify_product_category
 from src.models import Product, ProductAlias, ProductBarcode, ProductTag, ProductTagMember
-from src.product_categories import (
-    CANONICAL_CATEGORIES,
-    infer_category_from_name,
-    normalize_category,
-)
+from src.product_categories import CANONICAL_CATEGORIES, normalize_category
 
 CATEGORIES = CANONICAL_CATEGORIES
 
 
-def category_from_tags(tags: list[str]) -> str:
-    normalized = {normalize_name(tag) for tag in tags}
-    for category, markers in {
-        "молочные": {"молочка", "кисломолочка", "сыр", "творог"},
-        "мясо": {"мясо"},
-        "колбасы": {"колбаса", "колбасы"},
-        "рыба": {"рыба", "морепродукты", "омега-3"},
-        "яйца": {"яйца"},
-        "овощи": {"овощи", "зелень"},
-        "фрукты": {"фрукты", "цитрус"},
-        "бакалея": {"бакалея", "крупа", "специи"},
-        "хлеб": {"хлеб"},
-        "напитки": {"напитки"},
-        "алкоголь": {"алкоголь"},
-        "кондитерские": {"кондитерские", "кондитерское"},
-        "сладости": {"сладости", "сладость", "конфеты", "шоколад"},
-        "снеки": {"снеки"},
-        "соусы": {"соус", "соусы"},
-        "готовая еда": {"готовая еда"},
-        "бытовые товары": {"бытовые товары"},
-        "заморозка": {"заморозка"},
-    }.items():
-        if normalized & markers:
-            return category
-    return "прочее"
-
-
-# Минимальный порог схожести для fuzzy matching
+# Порог fuzzy-поиска каталога; fuzzy не используется для категоризации.
 FUZZY_THRESHOLD_EXACT = 90  # точное совпадение (thefuzz ratio)
 FUZZY_THRESHOLD_PARTIAL = 80  # частичное совпадение
 FUZZY_THRESHOLD_TOKEN = 75  # токенное совпадение (для "молоко 2.5%" vs "молоко 3.2%")
@@ -139,14 +106,15 @@ async def find_product_by_name(db: AsyncSession, normalized: str) -> Product | N
     """Поиск по точному имени продукта."""
     result = await db.execute(
         select(Product)
-        .where(Product.name == normalized)
         .options(
             selectinload(Product.aliases),
             selectinload(Product.tags).selectinload(ProductTagMember.tag),
         )
-        .limit(1)
     )
-    return result.scalar_one_or_none()
+    return next(
+        (product for product in result.scalars() if normalize_name(product.name) == normalized),
+        None,
+    )
 
 
 async def find_products_fuzzy(db: AsyncSession, normalized: str, limit: int = 5) -> list[Product]:
@@ -289,13 +257,6 @@ async def _complete_match(
 ) -> dict[str, Any]:
     await _ensure_product_relations(db, product)
     product.category = normalize_category(product.category)
-    inferred = infer_category_from_name(product.name)
-    if inferred is not None:
-        # Local rules correct stale catalog/AI categories for unambiguous names.
-        product.category = inferred
-    elif product.category == "прочее":
-        tags = [member.tag.name for member in product.tags if member.tag]
-        product.category = category_from_tags(tags)
     if gtin and await db.get(ProductBarcode, gtin) is None:
         db.add(ProductBarcode(gtin=gtin, product_id=product.id))
     return _build_result(product, confidence, matched_by, alternatives)
@@ -330,27 +291,17 @@ async def match_product(
     if product:
         return await _complete_match(db, product, 1.0, "exact", [], gtin)
 
-    # Шаг 3: high-confidence local category takes precedence over fuzzy matches.
-    category = infer_category_from_name(normalized)
-    if category is None:
-        fuzzy_results = await find_products_fuzzy(db, normalized)
-        if fuzzy_results:
-            best = fuzzy_results[0]
-            alternatives = fuzzy_results[1:]
-            for p in alternatives:
-                await _ensure_product_relations(db, p)
-            return await _complete_match(db, best, 0.85, "fuzzy", alternatives, gtin)
-
-    # Шаг 4: AI fallback for ambiguous names.
+    # Unknown names are classified only for an authenticated receipt request.
     ai_data: dict[str, Any] = {}
-    confidence = 1.0
-    matched_by = "category-rule"
-    if category is None and user_id:
+    confidence = 0.0
+    category = None
+    matched_by = "none"
+    if user_id:
         ai_data = await _ai_match_product(raw_name, normalized, gtin)
         if ai_data and float(ai_data["confidence"]) >= 0.8:
             category = normalize_category(str(ai_data["category"]))
             confidence = float(ai_data["confidence"])
-            matched_by = "ai-category"
+            matched_by = "ai"
 
     if category is not None:
         product = await save_new_product(

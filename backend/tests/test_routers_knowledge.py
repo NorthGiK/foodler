@@ -113,16 +113,16 @@ class TestMatchProduct:
         assert data["confidence"] > 0
 
     @pytest.mark.asyncio
-    async def test_match_by_fuzzy(self, client: AsyncClient, test_products):
-        """Should match product by fuzzy search."""
+    async def test_match_does_not_use_fuzzy_catalog_search(self, client: AsyncClient, test_products):
+        """Product categorization must not reuse the catalog fuzzy search."""
         response = await client.post(
             "/api/products/match",
             json={"raw_name": "молочко", "quantity": 1},
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["product"] is not None
-        assert data["matched_by"] == "fuzzy"
+        assert data["product"] is None
+        assert data["matched_by"] == "none"
 
     @pytest.mark.asyncio
     async def test_match_no_result(self, client: AsyncClient):

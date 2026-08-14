@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Категоризация чеков теперь использует только GTIN, точный нормализованный
+  alias или точное имя; неизвестные позиции авторизованных запросов сразу
+  классифицируются через `AI_STRONG_MODEL`. Fuzzy-поиск оставлен только для
+  отдельного поиска каталога, а локальные name/tag-эвристики удалены из
+  pipeline категоризации.
+
 - Действие `save-money` теперь передаёт AI проверенные локальные факты о тратах,
   а ответы кэшируются и обновляют срок жизни существующей записи при повторном
   использовании. Ключ кэша явно включает идентификаторы чеков.
@@ -27,15 +33,15 @@
   получает увеличенный лимит ответа модели.
 - В список доступных категорий товаров добавлены `сладости`.
 - Для неизвестного продукта описание и категория определяются запросами к
-  `AI_LIGHT_MODEL`; при недоступности AI сохраняется локальная эвристика по тегам.
+  AI; категоризация использует `AI_STRONG_MODEL`, без локальной эвристики по
+  имени или тегам.
 - AI-действия общего анализа, сроков годности, рецептов, состава продуктов и
   экономии стали гибридными: сервер сначала рассчитывает факты локально,
   передаёт их в AI-контекст для персональных рекомендаций и резервирует
   AI-credit на некэшированный запрос.
-- Receipt items now use a working category pipeline: reusable GTIN and alias
-  matches, high-confidence local rules, and a validated AI fallback for
-  ambiguous names. Confident results populate the canonical product catalog
-  and are returned with newly recognized authenticated receipts.
+- Receipt items use strict reusable GTIN, alias and name matches, followed by a
+  validated `AI_STRONG_MODEL` fallback for unknown authenticated names. Confident
+  results populate the canonical product catalog; fuzzy search remains separate.
 - Updated locked backend dependencies to remediate published aiohttp and
   cryptography advisories, and refreshed reviewed secret-scan findings.
 - AI-agent changes require documentation review before commit and are delivered
@@ -83,7 +89,7 @@
 - Monetary values are stored as integer kopecks, receipt dates are typed, legacy
   data is migrated, and database indexes cover common user/date/status lookups.
 - Receipt lists are paginated end to end; analytics aggregates spending in SQL,
-  eager loading removes N+1 tag queries, and fuzzy product matching has a bounded
+  eager loading removes N+1 tag queries, and fuzzy catalog search has a bounded
   candidate set.
 - The runtime no longer calls `create_all`; Alembic is mandatory. Migration,
   security, provider failure, pagination and exact-money tests cover the new

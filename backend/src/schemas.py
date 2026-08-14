@@ -529,7 +529,7 @@ class ProductMatchResult(BaseModel):
 
     product: ProductSchema | None
     confidence: float  # 0.0-1.0
-    matched_by: str  # "exact", "alias", "fuzzy", "ai"
+    matched_by: str  # "gtin", "exact", "alias", "ai", "none"
     alternatives: list[ProductSchema] = []
 
 
