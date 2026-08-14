@@ -262,3 +262,28 @@ class TestAiCache:
             context_hash="hash123",
         )
         assert cached is None
+
+    @pytest.mark.asyncio
+    async def test_set_cache_refreshes_existing_entry(self, async_session, test_user):
+        """Refreshing a response updates one cache row instead of duplicating it."""
+        from sqlalchemy import func, select
+
+        from src.models import AiCache
+
+        await set_cached_response(async_session, test_user.id, "diet", "same-context", "first")
+        await set_cached_response(
+            async_session, test_user.id, "diet", "same-context", "refreshed"
+        )
+
+        count = await async_session.scalar(
+            select(func.count()).where(
+                AiCache.user_id == test_user.id,
+                AiCache.action == "diet",
+                AiCache.context_hash == "same-context",
+            )
+        )
+        assert count == 1
+        assert (
+            await get_cached_response(async_session, test_user.id, "diet", "same-context")
+            == "refreshed"
+        )

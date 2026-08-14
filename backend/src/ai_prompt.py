@@ -170,8 +170,10 @@ _PROMPT = """Ты — AI-ассистент по анализу продукто
 Не пересказывай весь список покупок, не перечисляй все категории, не повторяй
 цифры из входных данных и не добавляй отдельный раздел с ограничениями. Если
 важное ограничение действительно влияет на совет, укажи его одной короткой
-фразой внутри соответствующей рекомендации. Не добавляй вступление, выводы
-после списка или предложение о том, какие данные нужны в будущем.
+фразой внутри соответствующей рекомендации. Не добавляй вступление или выводы
+после списка. Фразу о данных для будущих рекомендаций добавляй только после
+полноценного ответа и только если она действительно полезна. Эта фраза не
+заменяет ответ и рекомендации.
 
 """
 
@@ -393,7 +395,5 @@ def create_prompt(action, data: Any) -> str | None:
         "ingredients": GENERAL_ANALYSIS,
     }.get(action, GENERAL_ANALYSIS)
 
-    # The template contains literal JSON examples with braces.  ``str.format``
-    # interprets them as replacement fields and raises ``KeyError``. Replace
-    # only the two supported markers so literal braces remain in the prompt.
+    # Replace only the supported markers so literal braces remain in the prompt.
     return _PROMPT.replace("{INPUT_DATA}", str(data)).replace("{ACTION}", action_prompt)

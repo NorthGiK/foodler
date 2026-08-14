@@ -155,7 +155,7 @@ async def run_ai(
 
     context: dict[str, Any] = {}
 
-    # Важные поля — в начало, чтобы не обрезались _truncate
+    # Keep stable receipt identity in the cache key alongside the full context.
     context["receipt_count"] = len(receipts)
     context["total_spent"] = float(sum((r.total for r in receipts), start=0))
 
@@ -169,6 +169,7 @@ async def run_ai(
         context["history"] = [h.model_dump() for h in body.parameters.history]
 
     # Самый объёмный блок — в самый конец
+    context["receipt_ids"] = [r.id for r in receipts]
     context["receipts"] = receipts_info
 
     # ============================================================
@@ -237,18 +238,21 @@ async def run_ai(
             },
         )
 
-        # Кэшируем ответ
-        await set_cached_response(
-            db=db,
-            user_id=user.id,
-            action=body.action,
-            context_hash=context_hash,
-            response=json.dumps(sections_raw, ensure_ascii=False),
-            question_hash=question_hash,
-            ttl_hours=24,
-        )
-
         logger.info("Credits reserved", extra=log_ctx)
+
+    # Store or refresh every response, including cache hits. This keeps the TTL
+    # alive for actively used results without creating duplicate cache rows.
+    await set_cached_response(
+        db=db,
+        user_id=user.id,
+        action=body.action,
+        context_hash=context_hash,
+        response=sections_raw
+        if isinstance(sections_raw, str)
+        else json.dumps(sections_raw, ensure_ascii=False),
+        question_hash=question_hash,
+        ttl_hours=24,
+    )
 
     # ============================================================
     # Парсинг ответа в секции

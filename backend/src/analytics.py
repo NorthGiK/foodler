@@ -552,8 +552,10 @@ async def get_cached_response(
         AiCache.context_hash == context_hash,
         AiCache.expires_at > _utcnow(),
     )
-    if question_hash:
+    if question_hash is not None:
         query = query.where(AiCache.question_hash == question_hash)
+    else:
+        query = query.where(AiCache.question_hash.is_(None))
 
     result = await db.execute(query.order_by(AiCache.created_at.desc()).limit(1))
     cached = result.scalar_one_or_none()
@@ -569,14 +571,29 @@ async def set_cached_response(
     question_hash: str | None = None,
     ttl_hours: int = 24,
 ) -> None:
-    """Сохранение AI-ответа в кэш."""
-    cache = AiCache(
-        user_id=user_id,
-        action=action,
-        context_hash=context_hash,
-        question_hash=question_hash,
-        response=response,
-        expires_at=_utcnow() + timedelta(hours=ttl_hours),
+    """Сохранение или обновление AI-ответа в кэше."""
+    query = select(AiCache).where(
+        AiCache.user_id == user_id,
+        AiCache.action == action,
+        AiCache.context_hash == context_hash,
     )
-    db.add(cache)
+    if question_hash is not None:
+        query = query.where(AiCache.question_hash == question_hash)
+    else:
+        query = query.where(AiCache.question_hash.is_(None))
+
+    cache = (
+        await db.execute(query.order_by(AiCache.created_at.desc()).limit(1))
+    ).scalar_one_or_none()
+    if cache is None:
+        cache = AiCache(
+            user_id=user_id,
+            action=action,
+            context_hash=context_hash,
+            question_hash=question_hash,
+        )
+        db.add(cache)
+
+    cache.response = response
+    cache.expires_at = _utcnow() + timedelta(hours=ttl_hours)
     await db.commit()

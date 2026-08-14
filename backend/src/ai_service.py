@@ -59,13 +59,13 @@ HYBRID_ACTIONS = frozenset(
         "expiring-products",
         "recipes",
         "ingredients",
+        "save-money",
     }
 )
 
 # Actions best served by a cheap, fast LLM.
 LIGHT_ACTIONS = frozenset(
     {
-        "save-money",
         "healthy-food",
         "habits",
         "shopping-cart",
@@ -88,22 +88,16 @@ ALL_ACTIONS = HYBRID_ACTIONS | LIGHT_ACTIONS | STRONG_ACTIONS
 # ---------------------------------------------------------------------------
 
 
-def _truncate(text: str, limit: int = 12000) -> str:
-    if len(text) <= limit:
-        return text
-    return text[: limit - 3] + "..."
-
-
 def _build_user_prompt(action: str, parameters: dict | None, context: dict) -> str:
     rendered = create_prompt(action, {"parameters": parameters or {}, "context": context})
     if rendered is not None:
-        return _truncate(rendered, 12000)
+        return rendered
     parts: list[str] = []
     parts.append(f"action={action}")
     if parameters:
         parts.append("parameters=" + json.dumps(parameters, ensure_ascii=True))
     parts.append("context=" + json.dumps(context, ensure_ascii=True, default=str))
-    return _truncate("\n---\n".join(parts), 12000)
+    return "\n---\n".join(parts)
 
 
 async def _call_llm(
@@ -120,7 +114,9 @@ async def _call_llm(
             (
                 "# Ты — helpful nutrition assistant.",
                 "Отвечай **кратко** и **по делу**. Используй **только контекст пользователя**.",
-                "Упоминай в конце какая информация может помочь ответить лучше в следующий раз.",
+                "После полноценного ответа, если это действительно улучшит будущие рекомендации, "
+                "добавь в самом конце одну короткую фразу о том, какие данные пользователю стоит "
+                "указать или изменить в следующий раз. Эта фраза не заменяет ответ и рекомендации.",
                 "Возвращай только обычный Markdown без JSON, объектов, массивов и кодовых блоков.",
                 "",
                 "\n---\n",
@@ -417,6 +413,37 @@ async def _local_ingredients(db, user_id, period_from=None, period_to=None) -> l
     return sections
 
 
+async def _local_save_money(db, user_id, period_from=None, period_to=None) -> list[dict[str, Any]]:
+    """Return verified spending facts used to ground saving recommendations."""
+    spending = await get_spending_summary(db, user_id, period_from, period_to)
+    if spending["receipt_count"] == 0:
+        return [_section_text("Траты", "За выбранный период нет информации о покупках.")]
+
+    sections: list[dict[str, Any]] = [
+        _section_text(
+            "Траты за период",
+            f"Чеков: {spending['receipt_count']}\n"
+            f"Потрачено: {spending['total_spent']} ₽\n"
+            f"Средний чек: {spending['avg_receipt']} ₽",
+        )
+    ]
+    if spending["by_store"]:
+        sections.append(
+            _section_list(
+                "Траты по магазинам",
+                [f"{item['store']}: {item['total']} ₽" for item in spending["by_store"]],
+            )
+        )
+    if spending["by_month"]:
+        sections.append(
+            _section_list(
+                "Траты по месяцам",
+                [f"{item['month']}: {item['total']} ₽" for item in spending["by_month"]],
+            )
+        )
+    return sections
+
+
 async def _build_local_facts(
     action: str,
     db: Any,
@@ -430,6 +457,7 @@ async def _build_local_facts(
         "expiring-products": _local_expiring_products,
         "recipes": _local_recipes,
         "ingredients": _local_ingredients,
+        "save-money": _local_save_money,
     }
     return await local_handlers[action](db, user_id, period_from, period_to)
 
