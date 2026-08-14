@@ -193,7 +193,7 @@ export function ForgotPasswordScreen() {
                 label="Код подтверждения"
                 value={code}
                 onChangeText={setCode}
-                placeholder="abcd1234"
+                placeholder="12345678"
                 placeholderTextColor={theme.muted}
                 maxLength={8}
                 autoFocus
