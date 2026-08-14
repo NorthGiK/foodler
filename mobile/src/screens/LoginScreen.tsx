@@ -396,8 +396,8 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
                 <MutedButton
                   text="Забыли пароль?"
                   onPress={() => navigation.navigate("ForgotPassword")}
-                  textColor={theme.primary + (allPoliciesAccepted ? "" : "88")}
-                  active={allPoliciesAccepted}
+                  textColor={theme.primary}
+                  active
                 />
               </>
             )}

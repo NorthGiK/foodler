@@ -12,6 +12,8 @@
   `js-yaml` override to 4.3.1.
 - Mobile `npm audit` remains available as a manual diagnostic but no longer
   blocks CI while the Expo/Metro graph has no patched `image-size` release.
+- Login now keeps the password-recovery action enabled and anchors the
+  password visibility toggle to the input's right edge.
 
 - SQL локального SQLite вынесен из хранилищ в отдельные query-модули для чеков
   и AI-отчётов без изменения поведения базы данных.

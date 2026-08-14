@@ -101,6 +101,7 @@ export function ShakeInput({
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.inputWrapper}
         >
           <TextInput
             style={[styles.input, inputStyle]}
@@ -163,6 +164,9 @@ const getStyles = (theme: Theme) =>
       paddingVertical: 12,
       fontSize: 16,
       color: theme.text,
+    },
+    inputWrapper: {
+      flex: 1,
     },
     passwordToggle: {
       padding: 12,
