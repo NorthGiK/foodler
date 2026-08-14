@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: bootstrap dev dev-backend dev-mobile build-apk check test backend-check mobile-check \
+.PHONY: bootstrap dev dev-backend dev-mobile build-apk build-aab-rustore check test backend-check mobile-check \
 	backend-test mobile-test contract contract-check secrets audit backend-audit mobile-audit
 
 bootstrap:
@@ -20,6 +20,25 @@ dev-mobile:
 build-apk:
 	cd mobile && npx expo prebuild --clean
 	cd mobile/android && ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a
+
+build-aab-rustore:
+	@test -n "$$RUSTORE_KEYSTORE" || (echo "RUSTORE_KEYSTORE is required" >&2; exit 1)
+	@test -f "$$RUSTORE_KEYSTORE" || (echo "RUSTORE_KEYSTORE does not exist: $$RUSTORE_KEYSTORE" >&2; exit 1)
+	@test -n "$$RUSTORE_STORE_PASSWORD" || (echo "RUSTORE_STORE_PASSWORD is required" >&2; exit 1)
+	@test -n "$$RUSTORE_KEY_PASSWORD" || (echo "RUSTORE_KEY_PASSWORD is required" >&2; exit 1)
+	@mkdir -p mobile/dist
+	cd mobile && npx expo prebuild --clean
+	cd mobile/android && ./gradlew bundleRelease -PreactNativeArchitectures=arm64-v8a \
+		-PreleaseStoreFile="$$RUSTORE_KEYSTORE" \
+		-PreleaseStorePassword="$$RUSTORE_STORE_PASSWORD" \
+		-PreleaseKeyAlias=Foodler \
+		-PreleaseKeyPassword="$$RUSTORE_KEY_PASSWORD"
+	cp mobile/android/app/build/outputs/bundle/release/app-release.aab mobile/dist/Foodler-RuStore-release.aab
+	keytool -exportcert -rfc -alias "Foodler" \
+		-keystore "$$RUSTORE_KEYSTORE" -storepass "$$RUSTORE_STORE_PASSWORD" \
+		-file mobile/dist/Foodler-RuStore-release.cer.pem
+	@echo "AAB: mobile/dist/Foodler-RuStore-release.aab"
+	@echo "Certificate: mobile/dist/Foodler-RuStore-release.cer.pem"
 
 check: backend-check mobile-check contract-check secrets
 

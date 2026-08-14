@@ -18,6 +18,15 @@ Release APK собирается командой `make build-apk`. Готовы
 `mobile/android/app/build/outputs/apk/release/app-release.apk`; сборка по
 умолчанию рассчитана на ARM64-устройства.
 
+Подписанный AAB для RuStore собирается командой `make build-aab-rustore`.
+Команда требует переменные `RUSTORE_KEYSTORE`, `RUSTORE_STORE_PASSWORD`,
+`RUSTORE_KEY_ALIAS` и `RUSTORE_KEY_PASSWORD`, экспортирует публичный
+сертификат и не использует debug-ключ. Результаты находятся в
+`mobile/dist/Foodler-RuStore-release.aab` и
+`mobile/dist/Foodler-RuStore-release.cer.pem`. Keystore и пароли должны
+храниться вне Git; для обновления приложения используется тот же ключ, что и
+при предыдущей публикации.
+
 Для изменения API:
 
 1. Изменить Pydantic-схему и FastAPI route.

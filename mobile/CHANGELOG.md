@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added a `make build-aab-rustore` release command that requires an explicit
+  production keystore and exports its public certificate without storing
+  signing secrets in the repository.
 - Added consent-gated product analytics queue and account-wide preference
   handling; disabled analytics clears local pending events.
 - Product category aliases are compared case-insensitively and rendered with a

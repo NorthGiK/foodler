@@ -30,6 +30,7 @@ make dev
 | `make bootstrap` | Установить фиксированные зависимости обоих проектов |
 | `make dev` | Применить backend-миграции, затем запустить API и Expo |
 | `make build-apk` | Собрать release APK мобильного приложения (ARM64) |
+| `make build-aab-rustore` | Собрать подписанный AAB и сертификат для RuStore |
 | `make check` | Линтеры, форматирование, typecheck, контракт и секреты |
 | `make test` | Все backend- и mobile-тесты |
 | `make audit` | Проверить backend lockfile через OSV |
@@ -84,6 +85,20 @@ Backend читает `backend/.env`; полный список и безопас
 Production URL не должен быть зашит в код: задайте
 `EXPO_PUBLIC_API_BASE_URL`. Для Android emulator локальный API обычно доступен
 как `http://10.0.2.2:8000/api`.
+
+Для сборки AAB для RuStore используйте существующий release-keystore приложения
+и передайте его реквизиты только через окружение:
+
+```bash
+RUSTORE_KEYSTORE=/secure/path/foodler-upload.keystore \
+RUSTORE_STORE_PASSWORD='...' RUSTORE_KEY_ALIAS='foodler' \
+RUSTORE_KEY_PASSWORD='...' make build-aab-rustore
+```
+
+Команда создаёт `mobile/dist/Foodler-RuStore-release.aab` и публичный
+`mobile/dist/Foodler-RuStore-release.cer.pem`. Keystore и пароли не хранятся в
+репозитории; новый ключ нельзя создавать для обновления уже опубликованного
+приложения без проверки совместимости подписи.
 
 ## Перед pull request
 
