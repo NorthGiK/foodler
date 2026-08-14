@@ -160,12 +160,12 @@ export function ProfileScreen({
           <SubscriptionButton />
         </Animated.View>
 
-        <Animated.View style={cardStyles[3]}>
-          <AnalyticsPreferenceCard />
-        </Animated.View>
-
         <Animated.View style={cardStyles[4]}>
           <FeedbackSection onSendFeedback={handleSendFeedback} />
+        </Animated.View>
+
+        <Animated.View style={cardStyles[3]}>
+          <AnalyticsPreferenceCard />
         </Animated.View>
       </Animated.ScrollView>
     );
@@ -204,13 +204,6 @@ export function ProfileScreen({
           <AiCreditsCard />
         </Animated.View>
 
-        <Animated.View style={cardStyles[4]}>
-          <AnalyticsPreferenceCard
-            accountEnabled={user.analyticsEnabled}
-            onSynced={refreshUser}
-          />
-        </Animated.View>
-
         <Animated.View style={cardStyles[5]}>
           <ProfileInfoCard
             profile={profile}
@@ -236,6 +229,13 @@ export function ProfileScreen({
             aliases={storeAliases}
             onSave={onSaveStoreAlias}
             onRestore={onRestoreStoreAlias}
+          />
+        </Animated.View>
+
+        <Animated.View style={cardStyles[4]}>
+          <AnalyticsPreferenceCard
+            accountEnabled={user.analyticsEnabled}
+            onSynced={refreshUser}
           />
         </Animated.View>
 

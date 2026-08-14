@@ -79,7 +79,7 @@ export function AnalyticsPreferenceCard({ accountEnabled, onSynced }: Props) {
         : status === "error"
           ? "Не удалось прочитать или сохранить настройку"
           : enabled
-            ? "Помогает улучшать Foodler без содержимого чеков и AI-запросов"
+            ? "Помогает улучшать Foodler"
             : "Новые события не собираются";
 
   return (

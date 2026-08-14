@@ -8,6 +8,8 @@ import {
   Text,
   TextInput,
   View,
+  KeyboardAvoidingView,
+  Platform,
   type StyleProp,
   type TextStyle,
   type ViewStyle,
@@ -97,19 +99,24 @@ export function ShakeInput({
           { transform: [{ translateX: shakeAnim }] },
         ]}
       >
-        <TextInput
-          style={[styles.input, inputStyle]}
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          placeholderTextColor={placeholderTextColor}
-          secureTextEntry={secureTextEntry && !isPasswordVisible}
-          keyboardType={keyboardType}
-          autoCapitalize={autoCapitalize}
-          autoCorrect={autoCorrect}
-          maxLength={maxLength}
-          autoFocus={autoFocus}
-        />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <TextInput
+            style={[styles.input, inputStyle]}
+            value={value}
+            onChangeText={onChangeText}
+            placeholder={placeholder}
+            placeholderTextColor={placeholderTextColor}
+            secureTextEntry={secureTextEntry && !isPasswordVisible}
+            keyboardType={keyboardType}
+            autoCapitalize={autoCapitalize}
+            autoCorrect={autoCorrect}
+            maxLength={maxLength}
+            autoFocus={autoFocus}
+          />
+        </KeyboardAvoidingView>
+
         {secureTextEntry ? (
           <Pressable
             accessibilityRole="button"

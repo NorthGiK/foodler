@@ -8,6 +8,8 @@ import {
   Text,
   TextInput,
   View,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { getStoreDisplayName, StoreAliases } from "../../storeAliases";
 import { useTheme } from "../ThemeContext";
@@ -32,6 +34,7 @@ export function StoreNamesSection({
   const [alias, setAlias] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [inputActive, setInputActive] = useState<boolean>(false);
   const uniqueStores = useMemo(
     () =>
       [
@@ -89,6 +92,8 @@ export function StoreNamesSection({
       setSaving(false);
     }
   };
+
+  const toggleInputHeight = () => setInputActive((current) => !current);
 
   const hasAlias = selectedStore
     ? getStoreDisplayName(selectedStore, aliases) !== selectedStore
@@ -170,24 +175,33 @@ export function StoreNamesSection({
               <Text style={[styles.label, { color: theme.text }]}>
                 Показывать как
               </Text>
-              <TextInput
-                accessibilityLabel="Новое название магазина"
-                autoFocus
-                editable={!saving}
-                maxLength={120}
-                onChangeText={setAlias}
-                placeholder="Например, Delivery Foods"
-                placeholderTextColor={theme.muted}
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: theme.surfaceElevated,
-                    borderColor: error ? theme.error : theme.outline,
-                    color: theme.text,
-                  },
-                ]}
-                value={alias}
-              />
+
+              <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                style={{ backgroundColor: "rgba(0, 0, 0, 0)" }}
+              >
+                <TextInput
+                  accessibilityLabel="Новое название магазина"
+                  autoFocus
+                  editable={!saving}
+                  maxLength={120}
+                  onChangeText={setAlias}
+                  onPressIn={toggleInputHeight}
+                  placeholder="Например, Delivery Foods"
+                  placeholderTextColor={theme.muted}
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: theme.surfaceElevated,
+                      borderColor: error ? theme.error : theme.outline,
+                      color: theme.text,
+                      bottom: inputActive ? 20 : 0,
+                    },
+                  ]}
+                  value={alias}
+                />
+              </KeyboardAvoidingView>
+
               {error ? (
                 <Text style={[styles.error, { color: theme.error }]}>
                   {error}
