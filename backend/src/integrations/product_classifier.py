@@ -8,7 +8,7 @@ from typing import Any
 
 from aiohttp import ClientError, ClientTimeout, ContentTypeError
 
-from src.config import AI_API_KEY, AI_BASE_URL, AI_LIGHT_MODEL, AI_TIMEOUT_SECONDS
+from src.config import AI_API_KEY, AI_BASE_URL, AI_STRONG_MODEL, AI_TIMEOUT_SECONDS
 from src.integrations.http import get_http_session
 from src.product_categories import CANONICAL_CATEGORIES, normalize_category
 
@@ -47,7 +47,7 @@ async def classify_product_category(raw_name: str, gtin: str | None = None) -> d
     timeout = ClientTimeout(total=AI_TIMEOUT_SECONDS)
     try:
         async with session.post(
-            AI_BASE_URL + AI_LIGHT_MODEL,
+            AI_BASE_URL + AI_STRONG_MODEL,
             json=body,
             headers=headers,
             timeout=timeout,

@@ -11,6 +11,8 @@
   исключают корма для животных из категории мяса. API возвращает рассчитанную
   сумму позиции для весовых товаров (`quantity × price`), включая fallback в
   mobile при отсутствии поля `sum`.
+- AI-классификация неоднозначных товаров теперь выполняется через
+  `AI_STRONG_MODEL`.
 
 - Added privacy-preserving product analytics storage, consent controls and
   read-only aggregate reporting examples.

@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from src.config import AI_BASE_URL, AI_STRONG_MODEL
 from src.integrations.product_classifier import (
     ProductClassifierError,
     classify_product_category,
@@ -12,13 +13,15 @@ from src.integrations.product_classifier import (
 
 @pytest.mark.asyncio
 async def test_classifier_accepts_valid_canonical_category():
+    session = _Session('{"category":"бакалея","confidence":0.91}')
     with patch(
         "src.integrations.product_classifier.get_http_session",
-        new=AsyncMock(return_value=_Session('{"category":"бакалея","confidence":0.91}')),
+        new=AsyncMock(return_value=session),
     ):
         result = await classify_product_category("Фирменный продукт 500г")
 
     assert result == {"category": "бакалея", "confidence": 0.91}
+    assert session.url == AI_BASE_URL + AI_STRONG_MODEL
 
 
 @pytest.mark.asyncio
@@ -38,6 +41,7 @@ class _Response:
 
     def __init__(self, content: str):
         self.content = content
+        self.url = None
 
     async def __aenter__(self):
         return self
@@ -53,5 +57,6 @@ class _Session:
     def __init__(self, content: str):
         self.content = content
 
-    def post(self, *_args, **_kwargs):
+    def post(self, url, **_kwargs):
+        self.url = url
         return _Response(self.content)
