@@ -289,12 +289,13 @@ async def _complete_match(
 ) -> dict[str, Any]:
     await _ensure_product_relations(db, product)
     product.category = normalize_category(product.category)
-    if product.category == "прочее":
-        tags = [member.tag.name for member in product.tags if member.tag]
-        inferred = category_from_tags(tags)
-        if inferred == "прочее":
-            inferred = infer_category_from_name(product.name) or "прочее"
+    inferred = infer_category_from_name(product.name)
+    if inferred is not None:
+        # Local rules correct stale catalog/AI categories for unambiguous names.
         product.category = inferred
+    elif product.category == "прочее":
+        tags = [member.tag.name for member in product.tags if member.tag]
+        product.category = category_from_tags(tags)
     if gtin and await db.get(ProductBarcode, gtin) is None:
         db.add(ProductBarcode(gtin=gtin, product_id=product.id))
     return _build_result(product, confidence, matched_by, alternatives)
@@ -329,17 +330,18 @@ async def match_product(
     if product:
         return await _complete_match(db, product, 1.0, "exact", [], gtin)
 
-    # Шаг 3: Нечеткий поиск
-    fuzzy_results = await find_products_fuzzy(db, normalized)
-    if fuzzy_results:
-        best = fuzzy_results[0]
-        alternatives = fuzzy_results[1:]
-        for p in alternatives:
-            await _ensure_product_relations(db, p)
-        return await _complete_match(db, best, 0.85, "fuzzy", alternatives, gtin)
-
-    # Шаг 4: high-confidence local category, then AI for ambiguous names.
+    # Шаг 3: high-confidence local category takes precedence over fuzzy matches.
     category = infer_category_from_name(normalized)
+    if category is None:
+        fuzzy_results = await find_products_fuzzy(db, normalized)
+        if fuzzy_results:
+            best = fuzzy_results[0]
+            alternatives = fuzzy_results[1:]
+            for p in alternatives:
+                await _ensure_product_relations(db, p)
+            return await _complete_match(db, best, 0.85, "fuzzy", alternatives, gtin)
+
+    # Шаг 4: AI fallback for ambiguous names.
     ai_data: dict[str, Any] = {}
     confidence = 1.0
     matched_by = "category-rule"

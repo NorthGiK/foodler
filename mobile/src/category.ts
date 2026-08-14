@@ -8,12 +8,14 @@ import { rule as ruleFruits } from "./categories/fruits";
 import { rule as ruleGrocery } from "./categories/grocery";
 import { rule as ruleHousehold } from "./categories/household";
 import { rule as ruleMeat } from "./categories/meat";
+import { rule as rulePet } from "./categories/pet";
 import { rule as ruleSausages } from "./categories/sausages";
 import { rule as ruleSweets } from "./categories/sweets";
 import { rule as ruleVegetables } from "./categories/vegetables";
 import type { CategoryRule } from "./categories/types";
 
 const RULES: CategoryRule[] = [
+  rulePet,
   ruleSausages,
   ruleMeat,
   ruleFish,

@@ -34,6 +34,10 @@ class TestListReceipts:
         assert receipts[0]["total"] == 850.50
         assert receipts[0]["createdAt"].endswith("Z")
         assert len(receipts[0]["items"]) == 3
+        assert receipts[0]["items"][0]["sum"] == round(
+            receipts[0]["items"][0]["quantity"] * receipts[0]["items"][0]["price"],
+            2,
+        )
 
     @pytest.mark.asyncio
     async def test_list_receipts_is_paginated(

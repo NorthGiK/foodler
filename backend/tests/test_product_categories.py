@@ -1,4 +1,4 @@
-from src.product_categories import normalize_category
+from src.product_categories import infer_category_from_name, normalize_category
 
 
 def test_category_normalization_is_case_insensitive_and_accepts_legacy_aliases():
@@ -14,3 +14,8 @@ def test_category_normalization_is_case_insensitive_and_accepts_legacy_aliases()
 
 def test_unknown_category_does_not_leak_as_a_second_category():
     assert normalize_category("  UNKNOWN  ") == "прочее"
+
+
+def test_local_rules_cover_fruit_and_pet_food_names():
+    assert infer_category_from_name("Нектарин 1кг") == "фрукты"
+    assert infer_category_from_name("KITEKAT Корм д/кош желе курица 85г") == "прочее"

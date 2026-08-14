@@ -131,15 +131,19 @@ export function normalizeReceiptResponse(
   };
 
   const items: ReceiptItem[] = (data.items ?? []).map((item) => {
-    const itemSumRub = sign * rublesFromKopeks(item.sum);
+    const quantity = item.quantity ?? 1;
+    const priceRub = rublesFromKopeks(item.price);
+    const itemSumRub = sign * rublesFromKopeks(
+      item.sum ?? (item.price ?? 0) * quantity,
+    );
     return {
       receiptId: receipt.id,
       name: item.name?.trim() || "Без названия",
       category:
         normalizeServerCategory(item.category) ??
         detectCategory(item.name || ""),
-      priceRub: sign * rublesFromKopeks(item.price),
-      quantity: item.quantity ?? 1,
+      priceRub: sign * priceRub,
+      quantity,
       sumRub: itemSumRub,
     };
   });

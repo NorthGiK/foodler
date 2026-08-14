@@ -114,7 +114,9 @@ export async function pullServerReceipts(
           category: normalizeCategory(item.category ?? FALLBACK_CATEGORY),
           priceRub: Math.abs(item.price ?? 0),
           quantity: item.quantity ?? 1,
-          sumRub: Math.abs(item.sum ?? item.price ?? 0),
+          sumRub: Math.abs(
+            item.sum ?? (item.price ?? 0) * (item.quantity ?? 1),
+          ),
         }),
       );
       result.items.push(...receiptItems);

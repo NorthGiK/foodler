@@ -60,11 +60,13 @@ def _source_fingerprint(source_key: str | None) -> str | None:
 
 
 def _item_schema(item: ReceiptItem) -> ReceiptItemSchema:
+    item_sum = round(float(item.price) * item.quantity, 2)
     return ReceiptItemSchema(
         name=item.name,
         quantity=item.quantity,
         unit=item.unit,
         price=item.price,
+        sum=item_sum,
         product_id=item.product_id,
         gtin=item.gtin,
         category=normalize_category(item.product.category if item.product else "прочее"),
@@ -527,7 +529,7 @@ async def update_receipt(
         total=r.total,
         createdAt=r.created_at,
         items=[
-            ReceiptItemSchema(name=i.name, quantity=i.quantity, unit=i.unit, price=i.price)
+            _item_schema(i)
             for i in (r.items or [])
         ],
     )
