@@ -9,6 +9,8 @@
   handling; disabled analytics clears local pending events.
 - Store name aliases now keep the "Показывать как" editor above the keyboard
   inside the profile modal on mobile.
+- Login email and password fields now remain visible above the keyboard on
+  mobile.
 - Product category aliases are compared case-insensitively and rendered with a
   single display label, preventing duplicate groups such as `фрукты`/`Фрукты`.
 - Receipt details combine repeated product lines with the same normalized name

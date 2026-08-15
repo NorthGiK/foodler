@@ -8,7 +8,9 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Linking,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -243,235 +245,254 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
         <View style={{ width: skipable ? 0 : 24 }} />
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.keyboardAvoiding}
       >
-        {step === "credentials" ? (
-          <>
-            <Text style={[styles.subtitle, { color: theme.muted }]}>
-              {skipable
-                ? "Примите политики, чтобы продолжить"
-                : "Введите email и пароль. Мы отправим код подтверждения на почту."}
-            </Text>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {step === "credentials" ? (
+            <>
+              <Text style={[styles.subtitle, { color: theme.muted }]}>
+                {skipable
+                  ? "Примите политики, чтобы продолжить"
+                  : "Введите email и пароль. Мы отправим код подтверждения на почту."}
+              </Text>
 
-            {!skipable && (
-              <View
-                style={[
-                  styles.card,
-                  { backgroundColor: theme.surface, borderColor: theme.border },
-                ]}
-              >
-                <ShakeInput
-                  label="Email"
-                  value={email}
-                  onChangeText={(value) => updateCredential("email", value)}
-                  placeholder="example@mail.com"
-                  placeholderTextColor={theme.muted}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  error={
-                    credentialError?.field === "email"
-                      ? credentialError.message
-                      : undefined
-                  }
-                  style={{ marginBottom: 12 }}
-                />
+              {!skipable && (
+                <View
+                  style={[
+                    styles.card,
+                    {
+                      backgroundColor: theme.surface,
+                      borderColor: theme.border,
+                    },
+                  ]}
+                >
+                  <ShakeInput
+                    label="Email"
+                    value={email}
+                    onChangeText={(value) => updateCredential("email", value)}
+                    placeholder="example@mail.com"
+                    placeholderTextColor={theme.muted}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    error={
+                      credentialError?.field === "email"
+                        ? credentialError.message
+                        : undefined
+                    }
+                    style={{ marginBottom: 12 }}
+                  />
 
-                <ShakeInput
-                  label="Пароль"
-                  value={password}
-                  onChangeText={(value) => updateCredential("password", value)}
-                  placeholder="••••••••"
-                  placeholderTextColor={theme.muted}
-                  secureTextEntry
-                  error={
-                    credentialError?.field === "password"
-                      ? credentialError.message
-                      : undefined
-                  }
-                  style={{ marginBottom: 12 }}
-                />
-                {error ? <Text style={styles.formError}>{error}</Text> : null}
-              </View>
-            )}
-
-            {/* Policy checkboxes */}
-            {skipable && (
-              <View
-                style={[
-                  styles.card,
-                  { backgroundColor: theme.surface, borderColor: theme.border },
-                ]}
-              >
-                <Text style={[styles.policyTitle, { color: theme.text }]}>
-                  Я принимаю следующие документы:
-                </Text>
-                <View style={styles.policySection}>
-                  {POLICY_ENTRIES.map((entry) => (
-                    <View key={entry.key} style={styles.policyRow}>
-                      <Pressable
-                        onPress={() => togglePolicy(entry.key)}
-                        style={[
-                          styles.checkbox,
-                          {
-                            borderColor: theme.border,
-                            backgroundColor: acceptedPolicies[entry.key]
-                              ? theme.primary
-                              : "transparent",
-                          },
-                        ]}
-                      >
-                        {acceptedPolicies[entry.key] && (
-                          <MaterialIcons
-                            name="check"
-                            size={14}
-                            color={theme.white}
-                          />
-                        )}
-                      </Pressable>
-                      <Pressable
-                        onPress={() => openPolicyUrl(policy[entry.key])}
-                        style={styles.policyLabel}
-                      >
-                        <Text
-                          style={[styles.policyText, { color: theme.primary }]}
-                        >
-                          {entry.label}
-                        </Text>
-                      </Pressable>
-                    </View>
-                  ))}
+                  <ShakeInput
+                    label="Пароль"
+                    value={password}
+                    onChangeText={(value) =>
+                      updateCredential("password", value)
+                    }
+                    placeholder="••••••••"
+                    placeholderTextColor={theme.muted}
+                    secureTextEntry
+                    error={
+                      credentialError?.field === "password"
+                        ? credentialError.message
+                        : undefined
+                    }
+                    style={{ marginBottom: 12 }}
+                  />
+                  {error ? <Text style={styles.formError}>{error}</Text> : null}
                 </View>
-              </View>
-            )}
+              )}
 
-            {skipable && (
-              <Pressable
-                style={[
-                  styles.submitBtn,
-                  {
-                    backgroundColor: theme.primary,
-                    opacity: loading || !allPoliciesAccepted ? 0.6 : 1,
-                  },
-                ]}
-                onPress={async () => {
-                  await handleSkipLogin();
-                  navigation.navigate("Login");
-                }}
-                disabled={loading || !allPoliciesAccepted}
-              >
-                {loading ? (
-                  <ActivityIndicator color={theme.white} />
-                ) : (
-                  <Text style={[styles.submitText, { color: theme.white }]}>
-                    Войти
+              {/* Policy checkboxes */}
+              {skipable && (
+                <View
+                  style={[
+                    styles.card,
+                    {
+                      backgroundColor: theme.surface,
+                      borderColor: theme.border,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.policyTitle, { color: theme.text }]}>
+                    Я принимаю следующие документы:
                   </Text>
-                )}
-              </Pressable>
-            )}
+                  <View style={styles.policySection}>
+                    {POLICY_ENTRIES.map((entry) => (
+                      <View key={entry.key} style={styles.policyRow}>
+                        <Pressable
+                          onPress={() => togglePolicy(entry.key)}
+                          style={[
+                            styles.checkbox,
+                            {
+                              borderColor: theme.border,
+                              backgroundColor: acceptedPolicies[entry.key]
+                                ? theme.primary
+                                : "transparent",
+                            },
+                          ]}
+                        >
+                          {acceptedPolicies[entry.key] && (
+                            <MaterialIcons
+                              name="check"
+                              size={14}
+                              color={theme.white}
+                            />
+                          )}
+                        </Pressable>
+                        <Pressable
+                          onPress={() => openPolicyUrl(policy[entry.key])}
+                          style={styles.policyLabel}
+                        >
+                          <Text
+                            style={[
+                              styles.policyText,
+                              { color: theme.primary },
+                            ]}
+                          >
+                            {entry.label}
+                          </Text>
+                        </Pressable>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
 
-            {!skipable && (
-              <>
+              {skipable && (
                 <Pressable
                   style={[
                     styles.submitBtn,
                     {
                       backgroundColor: theme.primary,
+                      opacity: loading || !allPoliciesAccepted ? 0.6 : 1,
                     },
                   ]}
-                  onPress={handleSendCode}
+                  onPress={async () => {
+                    await handleSkipLogin();
+                    navigation.navigate("Login");
+                  }}
+                  disabled={loading || !allPoliciesAccepted}
                 >
                   {loading ? (
                     <ActivityIndicator color={theme.white} />
                   ) : (
                     <Text style={[styles.submitText, { color: theme.white }]}>
-                      Получить код
+                      Войти
+                    </Text>
+                  )}
+                </Pressable>
+              )}
+
+              {!skipable && (
+                <>
+                  <Pressable
+                    style={[
+                      styles.submitBtn,
+                      {
+                        backgroundColor: theme.primary,
+                      },
+                    ]}
+                    onPress={handleSendCode}
+                  >
+                    {loading ? (
+                      <ActivityIndicator color={theme.white} />
+                    ) : (
+                      <Text style={[styles.submitText, { color: theme.white }]}>
+                        Получить код
+                      </Text>
+                    )}
+                  </Pressable>
+
+                  <MutedButton
+                    text="Забыли пароль?"
+                    onPress={() => navigation.navigate("ForgotPassword")}
+                    textColor={theme.primary}
+                    active
+                  />
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              <Text style={[styles.subtitle, { color: theme.muted }]}>
+                Мы отправили код на {email}. Введите его ниже.
+              </Text>
+
+              <View
+                style={[
+                  styles.card,
+                  { backgroundColor: theme.surface, borderColor: theme.border },
+                ]}
+              >
+                <ShakeInput
+                  label="Код подтверждения"
+                  value={code}
+                  onChangeText={setCode}
+                  placeholder="abcd1234"
+                  placeholderTextColor={theme.muted}
+                  maxLength={8}
+                  autoFocus
+                  autoCapitalize="none"
+                  error={error}
+                />
+
+                <Pressable
+                  style={[
+                    styles.submitBtn,
+                    {
+                      backgroundColor: theme.primary,
+                      opacity: loading ? 0.6 : 1,
+                    },
+                  ]}
+                  onPress={handleVerifyCode}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color={theme.white} />
+                  ) : (
+                    <Text style={[styles.submitText, { color: theme.white }]}>
+                      Подтвердить
                     </Text>
                   )}
                 </Pressable>
 
-                <MutedButton
-                  text="Забыли пароль?"
-                  onPress={() => navigation.navigate("ForgotPassword")}
-                  textColor={theme.primary}
-                  active
-                />
-              </>
-            )}
-          </>
-        ) : (
-          <>
-            <Text style={[styles.subtitle, { color: theme.muted }]}>
-              Мы отправили код на {email}. Введите его ниже.
-            </Text>
-
-            <View
-              style={[
-                styles.card,
-                { backgroundColor: theme.surface, borderColor: theme.border },
-              ]}
-            >
-              <ShakeInput
-                label="Код подтверждения"
-                value={code}
-                onChangeText={setCode}
-                placeholder="abcd1234"
-                placeholderTextColor={theme.muted}
-                maxLength={8}
-                autoFocus
-                autoCapitalize="none"
-                error={error}
-              />
-
-              <Pressable
-                style={[
-                  styles.submitBtn,
-                  {
-                    backgroundColor: theme.primary,
-                    opacity: loading ? 0.6 : 1,
-                  },
-                ]}
-                onPress={handleVerifyCode}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color={theme.white} />
-                ) : (
-                  <Text style={[styles.submitText, { color: theme.white }]}>
-                    Подтвердить
+                <Pressable
+                  onPress={handleBackToCredentials}
+                  style={styles.backBtn}
+                >
+                  <Text style={[styles.backText, { color: theme.muted }]}>
+                    Назад
                   </Text>
-                )}
-              </Pressable>
+                </Pressable>
+              </View>
+            </>
+          )}
 
-              <Pressable
-                onPress={handleBackToCredentials}
-                style={styles.backBtn}
-              >
-                <Text style={[styles.backText, { color: theme.muted }]}>
-                  Назад
-                </Text>
-              </Pressable>
-            </View>
-          </>
-        )}
-
-        {step === "credentials" && skipable && (
-          <MutedButton
-            text="Продолжить без авторизации"
-            onPress={handleSkipLogin}
-            textColor={theme.muted + (allPoliciesAccepted ? "" : "88")}
-            active={allPoliciesAccepted}
-          />
-        )}
-      </ScrollView>
+          {step === "credentials" && skipable && (
+            <MutedButton
+              text="Продолжить без авторизации"
+              onPress={handleSkipLogin}
+              textColor={theme.muted + (allPoliciesAccepted ? "" : "88")}
+              active={allPoliciesAccepted}
+            />
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardAvoiding: {
+    flex: 1,
+  },
   container: {
     flex: 1,
   },
