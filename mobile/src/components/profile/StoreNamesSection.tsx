@@ -3,13 +3,14 @@ import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
 import { getStoreDisplayName, StoreAliases } from "../../storeAliases";
 import { useTheme } from "../ThemeContext";
@@ -34,7 +35,6 @@ export function StoreNamesSection({
   const [alias, setAlias] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [inputActive, setInputActive] = useState<boolean>(false);
   const uniqueStores = useMemo(
     () =>
       [
@@ -93,8 +93,6 @@ export function StoreNamesSection({
     }
   };
 
-  const toggleInputHeight = () => setInputActive((current) => !current);
-
   const hasAlias = selectedStore
     ? getStoreDisplayName(selectedStore, aliases) !== selectedStore
     : false;
@@ -133,118 +131,126 @@ export function StoreNamesSection({
       <FullModalWindow visible={visible} setVisible={close}>
         <View style={[styles.modal, { backgroundColor: theme.surface }]}>
           {selectedStore ? (
-            <View>
-              <View style={styles.modalHeader}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="К списку магазинов"
-                  disabled={saving}
-                  onPress={() => {
-                    setSelectedStore(null);
-                    setError(null);
-                  }}
-                  hitSlop={10}
-                >
-                  <MaterialIcons
-                    name="arrow-back"
-                    size={24}
-                    color={theme.text}
-                  />
-                </Pressable>
-                <Text style={[styles.modalTitle, { color: theme.text }]}>
-                  Название магазина
-                </Text>
-                <View style={styles.headerSpacer} />
-              </View>
-              <Text style={[styles.label, { color: theme.text }]}>В чеке</Text>
-              <TextInput
-                accessibilityLabel="Исходное название магазина"
-                editable={false}
-                selectTextOnFocus
-                style={[
-                  styles.input,
-                  styles.sourceInput,
-                  {
-                    backgroundColor: theme.surfaceElevated,
-                    borderColor: theme.outline,
-                    color: theme.muted,
-                  },
-                ]}
-                value={selectedStore}
-              />
-              <Text style={[styles.label, { color: theme.text }]}>
-                Показывать как
-              </Text>
-
               <KeyboardAvoidingView
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
-                style={{ backgroundColor: "rgba(0, 0, 0, 0)" }}
+                style={styles.keyboardAvoiding}
               >
-                <TextInput
-                  accessibilityLabel="Новое название магазина"
-                  autoFocus
-                  editable={!saving}
-                  maxLength={120}
-                  onChangeText={setAlias}
-                  onPressIn={toggleInputHeight}
-                  placeholder="Например, Delivery Foods"
-                  placeholderTextColor={theme.muted}
-                  style={[
-                    styles.input,
-                    {
-                      backgroundColor: theme.surfaceElevated,
-                      borderColor: error ? theme.error : theme.outline,
-                      color: theme.text,
-                      bottom: inputActive ? 20 : 0,
-                    },
-                  ]}
-                  value={alias}
-                />
-              </KeyboardAvoidingView>
-
-              {error ? (
-                <Text style={[styles.error, { color: theme.error }]}>
-                  {error}
-                </Text>
-              ) : null}
-              <Pressable
-                accessibilityRole="button"
-                disabled={saving}
-                onPress={() => void save()}
-                style={({ pressed }) => [
-                  styles.primaryButton,
-                  {
-                    backgroundColor: theme.primary,
-                    opacity: saving || pressed ? 0.7 : 1,
-                  },
-                ]}
-              >
-                {saving ? (
-                  <ActivityIndicator color={theme.white} />
-                ) : (
-                  <Text
-                    style={[styles.primaryButtonText, { color: theme.white }]}
-                  >
-                    Сохранить
-                  </Text>
-                )}
-              </Pressable>
-              {hasAlias ? (
-                <Pressable
-                  accessibilityRole="button"
-                  disabled={saving}
-                  onPress={() => void restore()}
-                  style={({ pressed }) => [
-                    styles.restoreButton,
-                    { opacity: saving || pressed ? 0.65 : 1 },
-                  ]}
+                <ScrollView
+                  contentContainerStyle={styles.editorContent}
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}
                 >
-                  <Text style={[styles.restoreText, { color: theme.primary }]}>
-                    Восстановить исходное название
+                  <View style={styles.modalHeader}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="К списку магазинов"
+                      disabled={saving}
+                      onPress={() => {
+                        setSelectedStore(null);
+                        setError(null);
+                      }}
+                      hitSlop={10}
+                    >
+                      <MaterialIcons
+                        name="arrow-back"
+                        size={24}
+                        color={theme.text}
+                      />
+                    </Pressable>
+                    <Text style={[styles.modalTitle, { color: theme.text }]}>
+                      Название магазина
+                    </Text>
+                    <View style={styles.headerSpacer} />
+                  </View>
+                  <Text style={[styles.label, { color: theme.text }]}>
+                    В чеке
                   </Text>
-                </Pressable>
-              ) : null}
-            </View>
+                  <TextInput
+                    accessibilityLabel="Исходное название магазина"
+                    editable={false}
+                    selectTextOnFocus
+                    style={[
+                      styles.input,
+                      styles.sourceInput,
+                      {
+                        backgroundColor: theme.surfaceElevated,
+                        borderColor: theme.outline,
+                        color: theme.muted,
+                      },
+                    ]}
+                    value={selectedStore}
+                  />
+                  <Text style={[styles.label, { color: theme.text }]}>
+                    Показывать как
+                  </Text>
+                  <TextInput
+                    accessibilityLabel="Новое название магазина"
+                    autoFocus
+                    editable={!saving}
+                    maxLength={120}
+                    onChangeText={setAlias}
+                    placeholder="Например, Delivery Foods"
+                    placeholderTextColor={theme.muted}
+                    style={[
+                      styles.input,
+                      {
+                        backgroundColor: theme.surfaceElevated,
+                        borderColor: error ? theme.error : theme.outline,
+                        color: theme.text,
+                      },
+                    ]}
+                    value={alias}
+                  />
+
+                  {error ? (
+                    <Text style={[styles.error, { color: theme.error }]}>
+                      {error}
+                    </Text>
+                  ) : null}
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={saving}
+                    onPress={() => void save()}
+                    style={({ pressed }) => [
+                      styles.primaryButton,
+                      {
+                        backgroundColor: theme.primary,
+                        opacity: saving || pressed ? 0.7 : 1,
+                      },
+                    ]}
+                  >
+                    {saving ? (
+                      <ActivityIndicator color={theme.white} />
+                    ) : (
+                      <Text
+                        style={[
+                          styles.primaryButtonText,
+                          { color: theme.white },
+                        ]}
+                      >
+                        Сохранить
+                      </Text>
+                    )}
+                  </Pressable>
+                  {hasAlias ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      disabled={saving}
+                      onPress={() => void restore()}
+                      style={({ pressed }) => [
+                        styles.restoreButton,
+                        { opacity: saving || pressed ? 0.65 : 1 },
+                      ]}
+                    >
+                      <Text
+                        style={[styles.restoreText, { color: theme.primary }]}
+                      >
+                        Восстановить исходное название
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </ScrollView>
+              </KeyboardAvoidingView>
           ) : (
             <>
               <Text style={[styles.modalTitle, { color: theme.text }]}>
@@ -332,6 +338,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 16, fontWeight: "700" },
   description: { fontSize: 13, lineHeight: 18, marginTop: 3 },
   modal: { borderRadius: 24, maxHeight: "82%", minHeight: 280, padding: 24 },
+  keyboardAvoiding: { flex: 1 },
+  editorContent: { flexGrow: 1, paddingBottom: 8 },
   modalHeader: { alignItems: "center", flexDirection: "row", marginBottom: 16 },
   headerSpacer: { width: 24 },
   modalTitle: { flex: 1, fontSize: 20, fontWeight: "700", textAlign: "center" },

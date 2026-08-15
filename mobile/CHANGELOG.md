@@ -7,6 +7,8 @@
   signing secrets in the repository.
 - Added consent-gated product analytics queue and account-wide preference
   handling; disabled analytics clears local pending events.
+- Store name aliases now keep the "Показывать как" editor above the keyboard
+  inside the profile modal on mobile.
 - Product category aliases are compared case-insensitively and rendered with a
   single display label, preventing duplicate groups such as `фрукты`/`Фрукты`.
 - Receipt details combine repeated product lines with the same normalized name
