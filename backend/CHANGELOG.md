@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Receipt AI batches now use short opaque item keys and retry missing rows or
+  transient `429/5xx` responses once within the configured timeout. Structured
+  application logging is enabled again and reports missing AI configuration
+  without logging secrets or receipt contents.
+
 - Receipt categorization now uses a resilient cascade of confirmed cache,
   exact GTIN, one exact normalized product/alias, unambiguous local rule, one
   AI batch and `прочее`. Local decisions are persisted as `local`; conflicting

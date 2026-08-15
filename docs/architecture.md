@@ -70,7 +70,9 @@ UI -> transaction SQLite -> observable state -> sync queue -> typed client -> Fa
   cache → точный GTIN → единственный точный нормализованный alias/имя →
   однозначное локальное правило → один AI batch → `прочее`. Локальные решения
   сохраняются с источником `local`; конфликтующие совпадения каталога передаются
-  в AI batch. Fuzzy используется отдельно для поиска каталога и не влияет на
+  в AI batch. Batch использует короткие непрозрачные ключи и один bounded retry
+  только для отсутствующих строк или transient `429/5xx`; общий timeout не
+  расширяется. Fuzzy используется отдельно для поиска каталога и не влияет на
   категоризацию. Receipt categorization is server-canonical, а исторические
   snapshot не пересчитываются; mobile reconciles snapshots by the stable receipt
   ID.

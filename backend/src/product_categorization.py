@@ -31,6 +31,8 @@ from src.product_names import normalize_name
 
 TAXONOMY_VERSION = "v1"
 CONFIRMED_CONFIDENCE = 0.8
+AI_BATCH_MAX_ATTEMPTS = 2
+AI_BATCH_RETRY_DELAY_SECONDS = 0.25
 logger = logging.getLogger(__name__)
 
 
@@ -99,47 +101,107 @@ def assignment_key(name: str, gtin: str | None, merchant: str | None) -> tuple[s
 
 
 async def _classify_batch(items: list[dict[str, Any]]) -> dict[str, CategoryDecision]:
-    if not items or not AI_API_KEY or not AI_STRONG_MODEL:
+    if not items:
+        return {}
+    if not AI_API_KEY or not AI_BASE_URL or not AI_STRONG_MODEL:
+        logger.warning(
+            "Receipt category AI is not configured",
+            extra={
+                "event": "receipt_category_ai_not_configured",
+                "missing_count": sum(
+                    not value for value in (AI_API_KEY, AI_BASE_URL, AI_STRONG_MODEL)
+                ),
+            },
+        )
         return {}
     categories = sorted(CANONICAL_CATEGORIES)
-    body = {
-        "is_sync": True,
-        "temperature": 0,
-        "messages": [
-            {
-                "role": "system",
-                "content": "Classify receipt items. Return only JSON {items:[{key,category,confidence}]}. category must be one of: "
-                + ", ".join(categories),
-            },
-            {"role": "user", "content": json.dumps(items, ensure_ascii=False)},
-        ],
-        "max_tokens": max(160, len(items) * 45),
-    }
+    pending = items
+    decisions: dict[str, CategoryDecision] = {}
     try:
         async with asyncio.timeout(AI_TIMEOUT_SECONDS):
             session = await get_http_session()
-            async with session.post(
-                AI_BASE_URL + AI_STRONG_MODEL,
-                json=body,
-                headers={
-                    "Authorization": f"Bearer {AI_API_KEY}",
-                    "Content-Type": "application/json",
-                },
-                timeout=ClientTimeout(total=AI_TIMEOUT_SECONDS),
-            ) as response:
-                if not response.ok:
-                    logger.warning(
-                        "Receipt category AI request failed",
-                        extra={"event": "receipt_category_ai_failed", "status_code": response.status},
-                    )
-                    return {}
-                payload = await response.json()
-        raw = payload["response"][0]["message"]["content"]
-        if not isinstance(raw, str):
-            return {}
-        match = re.search(r"```(?:json)?\s*(.*?)\s*```", raw, re.S)
-        data = json.loads(match.group(1) if match else raw)
-        rows = data.get("items", []) if isinstance(data, dict) else []
+            for attempt in range(1, AI_BATCH_MAX_ATTEMPTS + 1):
+                body = {
+                    "is_sync": True,
+                    "temperature": 0,
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": "Classify every receipt item. Return only JSON {items:[{key,category,confidence}]}. Preserve each short key exactly and return one row per input. category must be one of: "
+                            + ", ".join(categories),
+                        },
+                        {"role": "user", "content": json.dumps(pending, ensure_ascii=False)},
+                    ],
+                    # Keys are deliberately short, but leave enough headroom
+                    # for pretty-printed JSON and Cyrillic category tokens.
+                    "max_tokens": min(8192, max(512, len(pending) * 64)),
+                }
+                async with session.post(
+                    AI_BASE_URL + AI_STRONG_MODEL,
+                    json=body,
+                    headers={
+                        "Authorization": f"Bearer {AI_API_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                    timeout=ClientTimeout(total=AI_TIMEOUT_SECONDS),
+                ) as response:
+                    if not response.ok:
+                        retryable = response.status == 429 or response.status >= 500
+                        logger.warning(
+                            "Receipt category AI request failed",
+                            extra={
+                                "event": "receipt_category_ai_failed",
+                                "status_code": response.status,
+                                "attempt": attempt,
+                            },
+                        )
+                        if retryable and attempt < AI_BATCH_MAX_ATTEMPTS:
+                            await asyncio.sleep(AI_BATCH_RETRY_DELAY_SECONDS)
+                            continue
+                        return decisions
+                    payload = await response.json()
+                raw = payload["response"][0]["message"]["content"]
+                if not isinstance(raw, str):
+                    raise TypeError("AI response content is not text")
+                match = re.search(r"```(?:json)?\s*(.*?)\s*```", raw, re.S)
+                data = json.loads(match.group(1) if match else raw)
+                rows = data.get("items", []) if isinstance(data, dict) else []
+                requested_keys = {item["key"] for item in pending}
+                for row in rows:
+                    if not isinstance(row, dict) or row.get("key") not in requested_keys:
+                        continue
+                    confidence = row.get("confidence")
+                    category = row.get("category")
+                    if (
+                        isinstance(confidence, bool)
+                        or not isinstance(confidence, (int, float))
+                        or not 0 <= confidence <= 1
+                        or not isinstance(category, str)
+                    ):
+                        continue
+                    normalized = normalize_category(category)
+                    if normalized in CANONICAL_CATEGORIES and (
+                        normalized != "прочее" or category.strip().lower() == "прочее"
+                    ):
+                        decisions[row["key"]] = CategoryDecision(
+                            normalized,
+                            "ai",
+                            float(confidence),
+                            model_version=AI_STRONG_MODEL,
+                        )
+                pending = [item for item in pending if item["key"] not in decisions]
+                if not pending:
+                    return decisions
+                logger.warning(
+                    "Receipt category AI response was incomplete",
+                    extra={
+                        "event": "receipt_category_ai_incomplete",
+                        "attempt": attempt,
+                        "missing_count": len(pending),
+                    },
+                )
+                if attempt < AI_BATCH_MAX_ATTEMPTS:
+                    await asyncio.sleep(AI_BATCH_RETRY_DELAY_SECONDS)
     except (
         ClientError,
         ContentTypeError,
@@ -155,27 +217,6 @@ async def _classify_batch(items: list[dict[str, Any]]) -> dict[str, CategoryDeci
             "Receipt category AI request failed",
             extra={"event": "receipt_category_ai_failed", "error_type": type(exc).__name__},
         )
-        return {}
-    decisions: dict[str, CategoryDecision] = {}
-    for row in rows:
-        if not isinstance(row, dict) or not isinstance(row.get("key"), str):
-            continue
-        confidence = row.get("confidence")
-        category = row.get("category")
-        if (
-            isinstance(confidence, bool)
-            or not isinstance(confidence, (int, float))
-            or not 0 <= confidence <= 1
-            or not isinstance(category, str)
-        ):
-            continue
-        normalized = normalize_category(category)
-        if normalized in CANONICAL_CATEGORIES and (
-            normalized != "прочее" or category.strip().lower() == "прочее"
-        ):
-            decisions[row["key"]] = CategoryDecision(
-                normalized, "ai", float(confidence), model_version=AI_STRONG_MODEL
-            )
     return decisions
 
 
@@ -235,7 +276,8 @@ async def categorize_items(
         name = str(item.get("name") or "")
         gtin = item.get("gtin") if isinstance(item.get("gtin"), str) else None
         key = assignment_key(name, gtin, merchant)
-        unique.setdefault(key, {"name": name, "gtin": gtin, "key": "|".join(key)})
+        if key not in unique:
+            unique[key] = {"name": name, "gtin": gtin, "key": str(len(unique))}
     decisions: dict[tuple[str, str, str], CategoryDecision] = {}
     unknown: list[dict[str, Any]] = []
     for identity, item in unique.items():

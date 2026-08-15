@@ -20,6 +20,9 @@ def test_json_formatter_includes_request_id_and_drops_sensitive_extras():
             exc_info=None,
         )
         record.status_code = 200
+        record.attempt = 2
+        record.error_type = "TimeoutError"
+        record.missing_count = 3
         record.email = "private@example.com"
         record.token = "secret-token"
         record.body = {"qrraw": "sensitive"}
@@ -30,6 +33,9 @@ def test_json_formatter_includes_request_id_and_drops_sensitive_extras():
 
     assert document["request_id"] == "request-123"
     assert document["status_code"] == 200
+    assert document["attempt"] == 2
+    assert document["error_type"] == "TimeoutError"
+    assert document["missing_count"] == 3
     serialized = json.dumps(document)
     assert "private@example.com" not in serialized
     assert "secret-token" not in serialized

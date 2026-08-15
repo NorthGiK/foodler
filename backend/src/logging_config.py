@@ -9,10 +9,13 @@ request_id_context: contextvars.ContextVar[str] = contextvars.ContextVar("reques
 
 _SAFE_EXTRA_FIELDS = {
     "action",
+    "attempt",
     "deleted_count",
     "duration_ms",
+    "error_type",
     "event",
     "method",
+    "missing_count",
     "path",
     "provider",
     "receipt_count",

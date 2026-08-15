@@ -94,6 +94,14 @@ prompt'ом и допускает fenced JSON; timeout берётся из `AI_T
 assignment cache. Fuzzy-поиск используется только отдельным `GET /products/search`
 для поиска каталога и не участвует в категоризации.
 
+Batch использует короткие внутренние ключи, чтобы длинные строки чека не
+расходовали лимит ответа повторно. Если модель вернула только часть позиций,
+сервер один раз дозапрашивает только отсутствующие; transient `429/5xx` также
+повторяется один раз внутри общего `AI_TIMEOUT_SECONDS`. При пустом
+`AI_API_KEY`, `AI_BASE_URL` или `AI_STRONG_MODEL` в структурированный лог
+попадает событие `receipt_category_ai_not_configured` и число отсутствующих
+настроек, но не их значения и не содержимое чека.
+
 Для YooKassa зарегистрируйте уведомления `payment.succeeded` и
 `payment.canceled` на `/api/subscription/yookassa/webhook`. Входящий payload не
 считается доверенным: backend повторно получает платеж через YooKassa API и

@@ -53,6 +53,33 @@ class _Session:
         return response
 
 
+class _SequenceSession(_Session):
+    def __init__(self, payloads):
+        super().__init__(None)
+        self.payloads = iter(payloads)
+
+    def post(self, url, **kwargs):
+        self.calls.append((url, kwargs))
+        response = _Response()
+        response.payload = next(self.payloads)
+        return response
+
+
+class _HttpSequenceSession(_Session):
+    def __init__(self, responses):
+        super().__init__(None)
+        self.responses = iter(responses)
+
+    def post(self, url, **kwargs):
+        self.calls.append((url, kwargs))
+        status, payload = next(self.responses)
+        response = _Response()
+        response.status = status
+        response.ok = status < 400
+        response.payload = payload
+        return response
+
+
 def test_extracts_valid_ean13_and_nested_gs1m_without_losing_zeroes():
     assert is_valid_gtin("4006381333931")
     assert extract_gtin({"ean13": {"gtin": "4006381333931"}}) == "4006381333931"
@@ -113,6 +140,79 @@ async def test_ai_batch_accepts_fenced_json_and_uses_configured_timeout():
     request = session.calls[0][1]
     assert request["timeout"].total == 17.0
     assert "response_format" not in request["json"]
+
+
+async def test_ai_batch_retries_only_missing_rows_from_partial_response():
+    first = {
+        "response": [
+            {
+                "message": {
+                    "content": '{"items":[{"key":"0","category":"бакалея","confidence":0.9}]}'
+                }
+            }
+        ]
+    }
+    second = {
+        "response": [
+            {
+                "message": {
+                    "content": '{"items":[{"key":"1","category":"фрукты","confidence":0.92}]}'
+                }
+            }
+        ]
+    }
+    session = _SequenceSession([first, second])
+    items = [
+        {"key": "0", "name": "очень длинное название бакалейного товара"},
+        {"key": "1", "name": "очень длинное название фруктового товара"},
+    ]
+    with (
+        patch("src.product_categorization.get_http_session", new=AsyncMock(return_value=session)),
+        patch("src.product_categorization.asyncio.sleep", new=AsyncMock()),
+    ):
+        result = await _classify_batch(items)
+    assert {key: decision.category for key, decision in result.items()} == {
+        "0": "бакалея",
+        "1": "фрукты",
+    }
+    assert len(session.calls) == 2
+    retried_items = json.loads(session.calls[1][1]["json"]["messages"][1]["content"])
+    assert retried_items == [items[1]]
+
+
+async def test_ai_batch_retries_transient_http_failure_once():
+    success = {
+        "response": [
+            {
+                "message": {
+                    "content": '{"items":[{"key":"0","category":"бакалея","confidence":0.9}]}'
+                }
+            }
+        ]
+    }
+    session = _HttpSequenceSession([(429, {}), (200, success)])
+    with (
+        patch("src.product_categorization.get_http_session", new=AsyncMock(return_value=session)),
+        patch("src.product_categorization.asyncio.sleep", new=AsyncMock()) as sleep,
+    ):
+        result = await _classify_batch([{"key": "0", "name": "неизвестный товар"}])
+    assert result["0"].category == "бакалея"
+    assert len(session.calls) == 2
+    sleep.assert_awaited_once()
+
+
+async def test_ai_batch_logs_disabled_configuration_without_item_data():
+    item_name = "Позиция чека не должна попасть в лог"
+    with (
+        patch("src.product_categorization.AI_API_KEY", new=""),
+        patch("src.product_categorization.logger.warning") as warning,
+    ):
+        assert await _classify_batch([{"key": "0", "name": item_name}]) == {}
+    warning.assert_called_once_with(
+        "Receipt category AI is not configured",
+        extra={"event": "receipt_category_ai_not_configured", "missing_count": 1},
+    )
+    assert item_name not in str(warning.call_args)
 
 
 async def test_ai_batch_degrades_for_malformed_or_missing_response():
@@ -187,6 +287,7 @@ async def test_unique_unknown_items_use_one_ai_batch_and_confirmed_cache(async_s
     assert [decision.category for decision in decisions] == ["бакалея"] * 3
     classify_mock.assert_awaited_once()
     assert len(classify_mock.await_args.args[0]) == 2
+    assert [row["key"] for row in classify_mock.await_args.args[0]] == ["0", "1"]
     await async_session.commit()
 
     cached_mock = AsyncMock()
@@ -223,11 +324,7 @@ async def test_pet_food_is_local_other_without_ai(async_session):
 
 async def test_low_confidence_is_not_reused(async_session):
     item = {"name": "неуверенная позиция"}
-    low = AsyncMock(
-        return_value={
-            "name|неуверенная позиция|": CategoryDecision("снеки", "ai", 0.79)
-        }
-    )
+    low = AsyncMock(return_value={"0": CategoryDecision("снеки", "ai", 0.79)})
     with patch("src.product_categorization._classify_batch", new=low):
         assert (await categorize_items(async_session, [item]))[0].category == "снеки"
     await async_session.commit()
@@ -259,12 +356,7 @@ async def test_conflicting_aliases_are_sent_to_classifier(async_session):
 
 async def test_restricted_code_is_merchant_isolated(async_session):
     item = {"name": "Весовой товар", "gtin": "2010003941512"}
-    classifier = AsyncMock(
-        return_value={
-            "merchant_code|2010003941512|"
-            + merchant_fingerprint("Магнит"): CategoryDecision("молочные", "ai", 0.95)
-        }
-    )
+    classifier = AsyncMock(return_value={"0": CategoryDecision("молочные", "ai", 0.95)})
     with patch("src.product_categorization._classify_batch", new=classifier):
         result = await categorize_items(async_session, [item], "Магнит")
     assert result[0].category == "молочные"

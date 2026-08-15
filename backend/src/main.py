@@ -19,14 +19,14 @@ from .config import (
 )
 from .database import async_session, check_database, get_db
 from .integrations.http import close_http_session
-from .logging_config import request_id_context
+from .logging_config import configure_logging, request_id_context
 from .metrics import record_http_request, render_prometheus
 from .receipt_retention import cleanup_expired_receipts
 from .routers import ROUTERS, legacy_router
 from .schemas import StatusResponse
 from .utils import cleanup_rate_limit_buckets
 
-# configure_logging()
+configure_logging()
 logger = logging.getLogger(__name__)
 _REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 
