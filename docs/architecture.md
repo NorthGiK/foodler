@@ -66,14 +66,14 @@ UI -> transaction SQLite -> observable state -> sync queue -> typed client -> Fa
 - Длинные mobile-списки виртуализированы; render строки не создаёт анимацию, а
   кадровые анимации выполняются native driver.
 - AI credits проверяются и списываются только сервером.
-- Категория новой позиции чека определяется строгим каскадом GTIN → точный
-  нормализованный alias/имя → структурированный AI fallback для авторизованного
-  запроса; только уверенный AI-результат сохраняется как канонический продукт
-  вместе с alias. Fuzzy используется отдельно для поиска каталога и не влияет
-  на категоризацию. Receipt categorization is server-canonical: a batch first
-  checks durable assignments, then local/OFF hints and one structured model
-  call. Mobile treats local categories as provisional and reconciles snapshots
-  by the stable receipt ID.
+- Категория новой позиции чека определяется строгим каскадом: подтверждённый
+  cache → точный GTIN → единственный точный нормализованный alias/имя →
+  однозначное локальное правило → один AI batch → `прочее`. Локальные решения
+  сохраняются с источником `local`; конфликтующие совпадения каталога передаются
+  в AI batch. Fuzzy используется отдельно для поиска каталога и не влияет на
+  категоризацию. Receipt categorization is server-canonical, а исторические
+  snapshot не пересчитываются; mobile reconciles snapshots by the stable receipt
+  ID.
 - Credit balance обновляется атомарно внутри периодического bucket; ledger
   хранит отдельные операции использования.
 - `Subscription` — источник правды о premium-доступе; поля пользователя

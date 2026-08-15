@@ -242,9 +242,11 @@ class TestGetReceiptByRawQr:
 
         assert response.status_code == 200
         recognized_item = response.json()["data"]["json"]["items"][0]
-        # With the external classifier unavailable, local hints are not
-        # promoted to a final server category and persistence still succeeds.
-        assert recognized_item["category"] == "прочее"
+        # Local rules finalize unambiguous items without requiring the AI provider.
+        assert recognized_item["category"] == "молочные"
+        assert recognized_item["category_source"] == "local"
+        assert recognized_item["category_confidence"] == 1.0
+        assert recognized_item["category_taxonomy_version"] == "v1"
         assert recognized_item["gtin"] == "4601234567893"
         receipts = await client.get("/api/receipts", headers=auth_headers)
         assert receipts.status_code == 200
@@ -258,8 +260,8 @@ class TestGetReceiptByRawQr:
         # A generic label must not be linked to an arbitrary milk variant.
         assert saved_item["product_id"] is None
         assert saved_item["gtin"] == "4601234567893"
-        assert saved_item["category"] == "прочее"
-        assert saved_item["category_source"] == "fallback"
+        assert saved_item["category"] == "молочные"
+        assert saved_item["category_source"] == "local"
 
         app.dependency_overrides[get_receipt_gateway] = Gateway
         try:
@@ -273,8 +275,8 @@ class TestGetReceiptByRawQr:
         assert duplicate.status_code == 200
         assert duplicate.json()["receiptId"] == response.json()["receiptId"]
         duplicate_item = duplicate.json()["data"]["json"]["items"][0]
-        assert duplicate_item["category"] == "прочее"
-        assert duplicate_item["category_source"] == "fallback"
+        assert duplicate_item["category"] == "молочные"
+        assert duplicate_item["category_source"] == "local"
         receipts = await client.get("/api/receipts", headers=auth_headers)
         assert len(receipts.json()) == 1
 

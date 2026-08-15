@@ -2,14 +2,13 @@
 
 ## Unreleased
 
-- Receipt categorization is now a single resilient batch pipeline with durable
-  category assignments and immutable receipt-item category snapshots. Open Food
-  Facts is used only as rate-limited metadata hints for unknown global GTINs.
-
-- Категоризация чеков использует GTIN, точный нормализованный alias или имя;
-  локальные правила и каталог дают только candidates, а один structured batch
-  через `AI_STRONG_MODEL` выбирает финал. Nutrition LLM удалён из scan path,
-  fuzzy-поиск оставлен только для отдельного поиска каталога.
+- Receipt categorization now uses a resilient cascade of confirmed cache,
+  exact GTIN, one exact normalized product/alias, unambiguous local rule, one
+  AI batch and `прочее`. Local decisions are persisted as `local`; conflicting
+  catalogue matches are delegated to the batch rather than selected arbitrarily.
+  AI uses the provider's JSON prompt format, accepts fenced JSON and honours
+  `AI_TIMEOUT_SECONDS`; provider timeout, HTTP and malformed-response failures
+  preserve the receipt with a fallback snapshot.
 
 - Действие `save-money` теперь передаёт AI проверенные локальные факты о тратах,
   а ответы кэшируются и обновляют срок жизни существующей записи при повторном

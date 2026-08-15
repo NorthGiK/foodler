@@ -9,8 +9,8 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import logging
 import re
-import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -19,7 +19,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.config import AI_API_KEY, AI_BASE_URL, AI_STRONG_MODEL, OPEN_FOOD_FACTS_USER_AGENT
+from src.config import AI_API_KEY, AI_BASE_URL, AI_STRONG_MODEL, AI_TIMEOUT_SECONDS
 from src.integrations.http import get_http_session
 from src.models import Product, ProductAlias, ProductBarcode, ProductCategoryAssignment
 from src.product_categories import (
@@ -31,8 +31,7 @@ from src.product_names import normalize_name
 
 TAXONOMY_VERSION = "v1"
 CONFIRMED_CONFIDENCE = 0.8
-_off_lock = asyncio.Lock()
-_off_last_request = 0.0
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -99,63 +98,6 @@ def assignment_key(name: str, gtin: str | None, merchant: str | None) -> tuple[s
     return "name", normalize_name(name), ""
 
 
-async def _off_candidates(gtin: str) -> list[str]:
-    """Return a few OFF category hints; never persist the raw provider payload."""
-    global _off_last_request
-    try:
-        async with asyncio.timeout(3):
-            async with _off_lock:
-                delay = 1.0 - (time.monotonic() - _off_last_request)
-                if delay > 0:
-                    await asyncio.sleep(delay)
-                _off_last_request = time.monotonic()
-            session = await get_http_session()
-            async with session.get(
-                f"https://world.openfoodfacts.org/api/v3/product/{gtin}",
-                params={"product_type": "all", "fields": "categories_tags,categories"},
-                headers={"User-Agent": OPEN_FOOD_FACTS_USER_AGENT},
-                timeout=ClientTimeout(total=3),
-            ) as response:
-                if response.status != 200:
-                    return []
-                payload = await response.json()
-    except (ClientError, ContentTypeError, OSError, RuntimeError, TimeoutError, ValueError):
-        return []
-    product = payload.get("product") if isinstance(payload, dict) else None
-    values = (
-        product.get("categories_tags", product.get("categories", []))
-        if isinstance(product, dict)
-        else []
-    )
-    if isinstance(values, str):
-        values = values.split(",")
-    if not isinstance(values, list):
-        return []
-    # OFF's multilingual tags are hints, not Foodler taxonomy values. Mapping
-    # them locally keeps the structured AI enum bounded.
-    english = {
-        "dairy": "молочные",
-        "cheese": "молочные",
-        "fruit": "фрукты",
-        "vegetable": "овощи",
-        "rice": "бакалея",
-        "cereal": "бакалея",
-        "snack": "снеки",
-        "alcohol": "алкоголь",
-        "beer": "алкоголь",
-        "egg": "яйца",
-        "ready meal": "готовая еда",
-    }
-    mapped = []
-    for value in values:
-        text = str(value).lower().replace("en:", "").replace("-", " ")
-        mapped.append(
-            next((category for token, category in english.items() if token in text), None)
-            or infer_category_from_name(text)
-        )
-    return list(dict.fromkeys(value for value in mapped if value))[:5]
-
-
 async def _classify_batch(items: list[dict[str, Any]]) -> dict[str, CategoryDecision]:
     if not items or not AI_API_KEY or not AI_STRONG_MODEL:
         return {}
@@ -172,36 +114,9 @@ async def _classify_batch(items: list[dict[str, Any]]) -> dict[str, CategoryDeci
             {"role": "user", "content": json.dumps(items, ensure_ascii=False)},
         ],
         "max_tokens": max(160, len(items) * 45),
-        "response_format": {
-            "type": "json_schema",
-            "json_schema": {
-                "name": "receipt_categories",
-                "strict": True,
-                "schema": {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "required": ["items"],
-                    "properties": {
-                        "items": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "additionalProperties": False,
-                                "required": ["key", "category", "confidence"],
-                                "properties": {
-                                    "key": {"type": "string"},
-                                    "category": {"type": "string", "enum": categories},
-                                    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
-                                },
-                            },
-                        }
-                    },
-                },
-            },
-        },
     }
     try:
-        async with asyncio.timeout(3):
+        async with asyncio.timeout(AI_TIMEOUT_SECONDS):
             session = await get_http_session()
             async with session.post(
                 AI_BASE_URL + AI_STRONG_MODEL,
@@ -210,11 +125,13 @@ async def _classify_batch(items: list[dict[str, Any]]) -> dict[str, CategoryDeci
                     "Authorization": f"Bearer {AI_API_KEY}",
                     "Content-Type": "application/json",
                 },
-                # Categorization is best-effort during receipt persistence; it
-                # must not make the receipt scan wait behind an unavailable model.
-                timeout=ClientTimeout(total=3),
+                timeout=ClientTimeout(total=AI_TIMEOUT_SECONDS),
             ) as response:
                 if not response.ok:
+                    logger.warning(
+                        "Receipt category AI request failed",
+                        extra={"event": "receipt_category_ai_failed", "status_code": response.status},
+                    )
                     return {}
                 payload = await response.json()
         raw = payload["response"][0]["message"]["content"]
@@ -230,9 +147,14 @@ async def _classify_batch(items: list[dict[str, Any]]) -> dict[str, CategoryDeci
         ValueError,
         KeyError,
         IndexError,
+        OSError,
         RuntimeError,
         TypeError,
-    ):
+    ) as exc:
+        logger.warning(
+            "Receipt category AI request failed",
+            extra={"event": "receipt_category_ai_failed", "error_type": type(exc).__name__},
+        )
         return {}
     decisions: dict[str, CategoryDecision] = {}
     for row in rows:
@@ -329,9 +251,7 @@ async def categorize_items(
                 if product:
                     # A global barcode is an explicit product identity and
                     # takes precedence over disagreeing legacy aliases.
-                    decision = CategoryDecision(
-                        normalize_category(product.category), "gtin", 1.0
-                    )
+                    decision = CategoryDecision(normalize_category(product.category), "local", 1.0)
                     decisions[identity] = decision
                     await _upsert(db, *identity, decision)
                     continue
@@ -352,13 +272,16 @@ async def categorize_items(
         # Conflicting legacy aliases/names go to the classifier; first-row
         # selection would make results nondeterministic.
         if len(products) == 1:
-            decision = CategoryDecision(
-                normalize_category(products[0].category), "product", 1.0
-            )
+            decision = CategoryDecision(normalize_category(products[0].category), "local", 1.0)
             decisions[identity] = decision
             await _upsert(db, *identity, decision)
             continue
         local = infer_category_from_name(item["name"])
+        if not products and local is not None:
+            decision = CategoryDecision(local, "local", 1.0)
+            decisions[identity] = decision
+            await _upsert(db, *identity, decision)
+            continue
         conflict_categories = [normalize_category(product.category) for product in products]
         likely = list(
             dict.fromkeys(
@@ -369,22 +292,6 @@ async def categorize_items(
         )[:5]
         item["candidates"] = [*likely, "прочее"]
         unknown.append(item)
-    off_items = [
-        item
-        for item in unknown
-        if item["gtin"] and is_valid_gtin(item["gtin"]) and not is_restricted_gtin(item["gtin"])
-    ]
-    off_hints = await asyncio.gather(
-        *(_off_candidates(item["gtin"]) for item in off_items), return_exceptions=True
-    )
-    for item, hints in zip(off_items, off_hints, strict=True):
-        if isinstance(hints, list):
-            likely = [
-                candidate
-                for candidate in [*item["candidates"][:-1], *hints]
-                if candidate != "прочее"
-            ]
-            item["candidates"] = [*list(dict.fromkeys(likely))[:5], "прочее"]
     ai = await _classify_batch(unknown) if unknown else {}
     for identity, item in unique.items():
         if identity in decisions:

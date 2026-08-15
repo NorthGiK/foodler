@@ -2,7 +2,6 @@ import asyncio
 import json
 from unittest.mock import AsyncMock, patch
 
-import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -10,7 +9,6 @@ from src.models import Product, ProductAlias, ProductCategoryAssignment
 from src.product_categorization import (
     CategoryDecision,
     _classify_batch,
-    _off_candidates,
     _upsert,
     assignment_key,
     categorize_items,
@@ -74,17 +72,7 @@ def test_restricted_gtin_is_merchant_scoped_and_never_global_without_merchant():
     assert merchant_fingerprint("Магнит") != "магнит"
 
 
-async def test_off_uses_v3_minimal_request_and_maps_english_hint():
-    session = _Session({"product": {"categories_tags": ["en:cheeses"]}})
-    with patch("src.product_categorization.get_http_session", new=AsyncMock(return_value=session)):
-        assert await _off_candidates("4006381333931") == ["молочные"]
-    url, kwargs = session.calls[0]
-    assert url.endswith("/api/v3/product/4006381333931")
-    assert kwargs["params"] == {"product_type": "all", "fields": "categories_tags,categories"}
-    assert kwargs["timeout"].total == 3
-
-
-async def test_ai_batch_sends_strict_schema_and_rejects_invalid_rows():
+async def test_ai_batch_uses_prompt_json_and_rejects_invalid_rows():
     session = _Session(
         {
             "response": [
@@ -99,39 +87,32 @@ async def test_ai_batch_sends_strict_schema_and_rejects_invalid_rows():
     with patch("src.product_categorization.get_http_session", new=AsyncMock(return_value=session)):
         result = await _classify_batch([{"key": "a", "name": "рис"}])
     assert result["a"].category == "бакалея"
-    schema = session.calls[0][1]["json"]["response_format"]["json_schema"]["schema"]
-    assert schema["properties"]["items"]["items"]["properties"]["category"]["enum"]
+    request = session.calls[0][1]["json"]
+    assert "response_format" not in request
+    assert "Return only JSON" in request["messages"][0]["content"]
 
 
-async def test_off_degrades_for_miss_malformed_or_session_failure():
-    for payload in ({}, {"product": None}):
-        session = _Session(payload)
-        with patch("src.product_categorization.get_http_session", new=AsyncMock(return_value=session)):
-            assert await _off_candidates("4006381333931") == []
-    with patch("src.product_categorization.get_http_session", new=AsyncMock(side_effect=OSError())):
-        assert await _off_candidates("4006381333931") == []
-
-
-@pytest.mark.parametrize("status", [404, 429])
-async def test_off_degrades_for_miss_and_rate_limit(status):
-    session = _Session({"product": {"categories_tags": ["en:cheeses"]}})
-    response = _Response()
-    response.status = status
-    response.payload = session.payload
-    session.get = lambda *_args, **_kwargs: response
-    with patch("src.product_categorization.get_http_session", new=AsyncMock(return_value=session)):
-        assert await _off_candidates("4006381333931") == []
-
-
-async def test_off_degrades_for_malformed_json_and_timeout():
-    session = _Session(ValueError("malformed"))
-    with patch("src.product_categorization.get_http_session", new=AsyncMock(return_value=session)):
-        assert await _off_candidates("4006381333931") == []
-    with patch(
-        "src.product_categorization.get_http_session",
-        new=AsyncMock(side_effect=TimeoutError()),
+async def test_ai_batch_accepts_fenced_json_and_uses_configured_timeout():
+    session = _Session(
+        {
+            "response": [
+                {
+                    "message": {
+                        "content": "```json\n{\"items\":[{\"key\":\"a\",\"category\":\"бакалея\",\"confidence\":0.9}]}\n```"
+                    }
+                }
+            ]
+        }
+    )
+    with (
+        patch("src.product_categorization.AI_TIMEOUT_SECONDS", new=17.0),
+        patch("src.product_categorization.get_http_session", new=AsyncMock(return_value=session)),
     ):
-        assert await _off_candidates("4006381333931") == []
+        result = await _classify_batch([{"key": "a", "name": "неизвестный товар"}])
+    assert result["a"].category == "бакалея"
+    request = session.calls[0][1]
+    assert request["timeout"].total == 17.0
+    assert "response_format" not in request["json"]
 
 
 async def test_ai_batch_degrades_for_malformed_or_missing_response():
@@ -139,6 +120,40 @@ async def test_ai_batch_degrades_for_malformed_or_missing_response():
         session = _Session(payload)
         with patch("src.product_categorization.get_http_session", new=AsyncMock(return_value=session)):
             assert await _classify_batch([{"key": "a", "name": "x"}]) == {}
+
+
+async def test_ai_batch_degrades_for_timeout_and_http_failure():
+    with patch(
+        "src.product_categorization.get_http_session",
+        new=AsyncMock(side_effect=TimeoutError()),
+    ):
+        assert await _classify_batch([{"key": "a", "name": "x"}]) == {}
+
+    session = _Session({})
+    response = _Response()
+    response.status = 503
+    response.ok = False
+    response.payload = {}
+    session.post = lambda *_args, **_kwargs: response
+    with patch("src.product_categorization.get_http_session", new=AsyncMock(return_value=session)):
+        assert await _classify_batch([{"key": "a", "name": "x"}]) == {}
+
+
+async def test_ai_batch_logs_only_safe_error_fields_for_os_error():
+    item_name = "Уникальная позиция из чека"
+    with (
+        patch(
+            "src.product_categorization.get_http_session",
+            new=AsyncMock(side_effect=OSError("provider unavailable")),
+        ),
+        patch("src.product_categorization.logger.warning") as warning,
+    ):
+        assert await _classify_batch([{"key": "a", "name": item_name}]) == {}
+    warning.assert_called_once_with(
+        "Receipt category AI request failed",
+        extra={"event": "receipt_category_ai_failed", "error_type": "OSError"},
+    )
+    assert item_name not in str(warning.call_args)
 
 
 async def test_ai_batch_rejects_invalid_confidence_values():
@@ -167,15 +182,11 @@ async def test_unique_unknown_items_use_one_ai_batch_and_confirmed_cache(async_s
         }
 
     classify_mock = AsyncMock(side_effect=classify)
-    with (
-        patch("src.product_categorization._classify_batch", new=classify_mock),
-        patch("src.product_categorization._off_candidates", new=AsyncMock()) as off_mock,
-    ):
+    with patch("src.product_categorization._classify_batch", new=classify_mock):
         decisions = await categorize_items(async_session, items)
     assert [decision.category for decision in decisions] == ["бакалея"] * 3
     classify_mock.assert_awaited_once()
     assert len(classify_mock.await_args.args[0]) == 2
-    off_mock.assert_not_awaited()
     await async_session.commit()
 
     cached_mock = AsyncMock()
@@ -186,33 +197,28 @@ async def test_unique_unknown_items_use_one_ai_batch_and_confirmed_cache(async_s
     assert await async_session.scalar(select(func.count()).select_from(ProductCategoryAssignment)) == 2
 
 
-async def test_provided_receipt_is_finalized_by_one_structured_batch(async_session):
+async def test_local_rules_classify_unambiguous_items_without_ai(async_session):
     expected = {
-        "черешня": "фрукты",
-        "салфетки бумажные": "бытовые товары",
-        "сыр российский": "молочные",
-        "гречка ядрица": "бакалея",
-        "фасоль белая": "бакалея",
+        "молоко 3.2%": "молочные",
         "рис пропаренный": "бакалея",
+        "банан": "фрукты",
     }
-
-    async def classify(rows):
-        by_name = {row["name"]: row for row in rows}
-        assert set(by_name) == set(expected)
-        assert all(row["candidates"][-1] == "прочее" for row in rows)
-        assert all(len(row["candidates"]) <= 6 for row in rows)
-        return {
-            row["key"]: CategoryDecision(expected[row["name"]], "ai", 0.9)
-            for row in rows
-        }
-
-    classifier = AsyncMock(side_effect=classify)
+    classifier = AsyncMock()
     with patch("src.product_categorization._classify_batch", new=classifier):
         result = await categorize_items(
             async_session, [{"name": name} for name in expected]
         )
     assert [decision.category for decision in result] == list(expected.values())
-    classifier.assert_awaited_once()
+    assert all(decision.source == "local" for decision in result)
+    classifier.assert_not_awaited()
+
+
+async def test_pet_food_is_local_other_without_ai(async_session):
+    classifier = AsyncMock()
+    with patch("src.product_categorization._classify_batch", new=classifier):
+        result = await categorize_items(async_session, [{"name": "KITEKAT корм для кошек"}])
+    assert (result[0].category, result[0].source) == ("прочее", "local")
+    classifier.assert_not_awaited()
 
 
 async def test_low_confidence_is_not_reused(async_session):
@@ -251,21 +257,17 @@ async def test_conflicting_aliases_are_sent_to_classifier(async_session):
     assert candidates == ["молочные", "бакалея", "прочее"]
 
 
-async def test_restricted_code_is_merchant_isolated_and_never_sent_to_off(async_session):
-    item = {"name": "Весовой сыр", "gtin": "2010003941512"}
+async def test_restricted_code_is_merchant_isolated(async_session):
+    item = {"name": "Весовой товар", "gtin": "2010003941512"}
     classifier = AsyncMock(
         return_value={
             "merchant_code|2010003941512|"
             + merchant_fingerprint("Магнит"): CategoryDecision("молочные", "ai", 0.95)
         }
     )
-    with (
-        patch("src.product_categorization._classify_batch", new=classifier),
-        patch("src.product_categorization._off_candidates", new=AsyncMock()) as off_mock,
-    ):
+    with patch("src.product_categorization._classify_batch", new=classifier):
         result = await categorize_items(async_session, [item], "Магнит")
     assert result[0].category == "молочные"
-    off_mock.assert_not_awaited()
     await async_session.commit()
 
     other_merchant = AsyncMock(return_value={})
