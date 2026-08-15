@@ -11,8 +11,9 @@
   signing secrets in the repository.
 - Added consent-gated product analytics queue and account-wide preference
   handling; disabled analytics clears local pending events.
-- Store name aliases now keep the "Показывать как" editor above the keyboard
-  inside the profile modal on mobile.
+- Store name aliases now keep the "Показывать как" editor clearly above the
+  keyboard: Android uses resize mode and the editor scrolls to the focused
+  input inside the profile modal.
 - Login email and password fields now remain visible above the keyboard on
   mobile.
 - Product category aliases are compared case-insensitively and rendered with a
