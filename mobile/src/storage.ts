@@ -43,6 +43,7 @@ export async function openDb() {
   await db.execAsync(RECEIPT_DATABASE_SETUP.enableWal);
   await db.execAsync(RECEIPT_DATABASE_SETUP.createReceipts);
   await db.execAsync(RECEIPT_DATABASE_SETUP.createReceiptItems);
+  await ensureReceiptItemCategoryColumns(db);
   await db.execAsync(RECEIPT_DATABASE_SETUP.createReceiptsDateIndex);
   await db.execAsync(RECEIPT_DATABASE_SETUP.createReceiptItemsReceiptIndex);
   await normalizePersistedCategories(db);
@@ -50,7 +51,22 @@ export async function openDb() {
   return db;
 }
 
+async function ensureReceiptItemCategoryColumns(db: SQLite.SQLiteDatabase) {
+  const columns = await db.getAllAsync<{ name: string }>("PRAGMA table_info(receipt_items)");
+  const existing = new Set(columns.map((column) => column.name));
+  const additions: [string, string][] = [
+    ["categorySource", "TEXT"], ["categoryConfidence", "REAL"],
+    ["categoryTaxonomyVersion", "TEXT"], ["categoryModelVersion", "TEXT"],
+  ];
+  for (const [name, type] of additions) {
+    if (!existing.has(name)) await db.execAsync(`ALTER TABLE receipt_items ADD COLUMN ${name} ${type}`);
+  }
+}
+
 function toIsoDate(value?: string) {
+  // Date-only values are fiscal calendar dates, not instants in an arbitrary
+  // timezone. Preserve them verbatim for rendering and server sync.
+  if (value && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
   if (!value) return new Date().toISOString();
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return new Date().toISOString();
@@ -69,6 +85,15 @@ function normalizeQrraw(qrraw: string): string {
     .filter(Boolean)
     .sort()
     .join("&");
+}
+
+function stableReceiptId(qrraw: string): string {
+  let hash = 2166136261;
+  for (let index = 0; index < qrraw.length; index += 1) {
+    hash ^= qrraw.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `qr:${(hash >>> 0).toString(16)}`;
 }
 
 export type ReceiptResponse = {
@@ -121,7 +146,7 @@ export function normalizeReceiptResponse(
   const organization: string = data.user?.trim() || "Неизвестно";
 
   const receipt: Receipt = {
-    id: `${ticketDate}-${Math.random().toString(36).slice(2, 10)}`,
+    id: response.receiptId || stableReceiptId(normalizeQrraw(qrraw)),
     qrraw,
     organization: organization?.trim(),
     ticketDate,
@@ -142,6 +167,10 @@ export function normalizeReceiptResponse(
       category:
         normalizeServerCategory(item.category) ??
         detectCategory(item.name || ""),
+      categorySource: item.category_source,
+      categoryConfidence: item.category_confidence,
+      categoryTaxonomyVersion: item.category_taxonomy_version,
+      categoryModelVersion: item.category_model_version,
       priceRub: sign * priceRub,
       quantity,
       sumRub: itemSumRub,
@@ -187,6 +216,10 @@ export async function saveReceipt(
           $priceRub: item.priceRub,
           $quantity: item.quantity,
           $sumRub: item.sumRub,
+          $categorySource: item.categorySource ?? null,
+          $categoryConfidence: item.categoryConfidence ?? null,
+          $categoryTaxonomyVersion: item.categoryTaxonomyVersion ?? null,
+          $categoryModelVersion: item.categoryModelVersion ?? null,
         });
       }
     } finally {
@@ -207,6 +240,24 @@ export async function loadReceiptItems(
   return db.getAllAsync<ReceiptItem>(RECEIPT_QUERIES.selectReceiptItems, [
     receiptId,
   ]);
+}
+
+export async function applyServerItemCategories(
+  db: SQLite.SQLiteDatabase,
+  receiptId: string,
+  items: ReceiptItem[],
+) {
+  await db.withExclusiveTransactionAsync(async (transaction) => {
+    for (const item of items) {
+      await transaction.runAsync(RECEIPT_QUERIES.updateReceiptItemServerCategory, [
+        normalizeCategory(item.category), item.categorySource ?? null,
+        item.categoryConfidence ?? null, item.categoryTaxonomyVersion ?? null,
+        item.categoryModelVersion ?? null, receiptId, item.name,
+        item.priceRub, item.quantity,
+      ]);
+    }
+  });
+  notifyReceiptChange();
 }
 
 export async function loadJoinedItems(db: SQLite.SQLiteDatabase) {

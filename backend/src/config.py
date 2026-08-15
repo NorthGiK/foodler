@@ -55,6 +55,9 @@ AI_LIGHT_MODEL = os.getenv("AI_LIGHT_MODEL")
 AI_STRONG_MODEL = os.getenv("AI_STRONG_MODEL")
 AI_TIMEOUT_SECONDS = float(os.getenv("AI_TIMEOUT_SECONDS", "90"))
 PRODUCT_FUZZY_CANDIDATE_LIMIT = int(os.getenv("PRODUCT_FUZZY_CANDIDATE_LIMIT", "300"))
+OPEN_FOOD_FACTS_USER_AGENT = os.getenv(
+    "OPEN_FOOD_FACTS_USER_AGENT", "Foodler/1.0 (product categorization; contact@foodler.app)"
+)
 
 # PAYMENT
 PAYMENT_ACCOUNT_ID = _get_env("PAYMENT_ACCOUNT_ID")

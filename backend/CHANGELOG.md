@@ -2,11 +2,14 @@
 
 ## Unreleased
 
-- Категоризация чеков теперь использует только GTIN, точный нормализованный
-  alias или точное имя; неизвестные позиции авторизованных запросов сразу
-  классифицируются через `AI_STRONG_MODEL`. Fuzzy-поиск оставлен только для
-  отдельного поиска каталога, а локальные name/tag-эвристики удалены из
-  pipeline категоризации.
+- Receipt categorization is now a single resilient batch pipeline with durable
+  category assignments and immutable receipt-item category snapshots. Open Food
+  Facts is used only as rate-limited metadata hints for unknown global GTINs.
+
+- Категоризация чеков использует GTIN, точный нормализованный alias или имя;
+  локальные правила и каталог дают только candidates, а один structured batch
+  через `AI_STRONG_MODEL` выбирает финал. Nutrition LLM удалён из scan path,
+  fuzzy-поиск оставлен только для отдельного поиска каталога.
 
 - Действие `save-money` теперь передаёт AI проверенные локальные факты о тратах,
   а ответы кэшируются и обновляют срок жизни существующей записи при повторном

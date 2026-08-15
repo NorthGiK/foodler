@@ -2,7 +2,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api, getAccessToken } from "./client";
 import { FALLBACK_CATEGORY, normalizeCategory } from "../category";
 import type { Receipt, ReceiptItem } from "../types";
-import { openDb, loadReceipts, loadReceiptItems } from "../storage";
+import {
+  applyServerItemCategories,
+  openDb,
+  loadReceipts,
+  loadReceiptItems,
+} from "../storage";
 import type {
   ReceiptCreateSchema,
   ReceiptItemSchema,
@@ -46,6 +51,7 @@ function toServerReceipt(
     id: receipt.id,
     date: receipt.ticketDate.slice(0, 10),
     store: receipt.organization,
+    merchant_identity: receipt.organization || null,
     total: Math.abs(receipt.totalSumRub),
     source_key:
       receipt.qrraw.startsWith("manual:") || receipt.qrraw.startsWith("synced:")
@@ -94,7 +100,7 @@ export async function pullServerReceipts(
       // A successful server listing is confirmation that this ID is already
       // persisted remotely, including receipts downloaded from another device.
       syncedIds.add(sr.id);
-      if (localIds.has(sr.id) || pendingDeletedIds.has(sr.id)) continue;
+      if (pendingDeletedIds.has(sr.id)) continue;
 
       const receipt: Receipt = {
         id: sr.id,
@@ -105,8 +111,6 @@ export async function pullServerReceipts(
         totalSumRub: sr.total ?? 0,
         sourceCode: 1,
       };
-      result.receipts.push(receipt);
-
       const receiptItems: ReceiptItem[] = (sr.items || []).map(
         (item: ReceiptItemSchema, i: number) => ({
           receiptId: sr.id,
@@ -117,8 +121,17 @@ export async function pullServerReceipts(
           sumRub: Math.abs(
             item.sum ?? (item.price ?? 0) * (item.quantity ?? 1),
           ),
+          categorySource: item.category_source ?? undefined,
+          categoryConfidence: item.category_confidence ?? undefined,
+          categoryTaxonomyVersion: item.category_taxonomy_version ?? undefined,
+          categoryModelVersion: item.category_model_version ?? undefined,
         }),
       );
+      if (localIds.has(sr.id)) {
+        await applyServerItemCategories(db, sr.id, receiptItems);
+        continue;
+      }
+      result.receipts.push(receipt);
       result.items.push(...receiptItems);
     }
     await saveSyncedIds(syncedIds);

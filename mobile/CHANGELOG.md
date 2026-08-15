@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Receipt sync now converges provisional local categories to server-confirmed
+  metadata without creating a second receipt; date-only fiscal dates render as
+  calendar dates rather than a fabricated local time.
+
 - Added a `make build-aab-rustore` release command that requires an explicit
   production keystore and exports its public certificate without storing
   signing secrets in the repository.

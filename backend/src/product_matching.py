@@ -25,6 +25,7 @@ from src.config import PRODUCT_FUZZY_CANDIDATE_LIMIT
 from src.integrations.product_classifier import ProductClassifierError, classify_product_category
 from src.models import Product, ProductAlias, ProductBarcode, ProductTag, ProductTagMember
 from src.product_categories import CANONICAL_CATEGORIES, normalize_category
+from src.product_names import normalize_name
 
 CATEGORIES = CANONICAL_CATEGORIES
 
@@ -33,16 +34,6 @@ CATEGORIES = CANONICAL_CATEGORIES
 FUZZY_THRESHOLD_EXACT = 90  # точное совпадение (thefuzz ratio)
 FUZZY_THRESHOLD_PARTIAL = 80  # частичное совпадение
 FUZZY_THRESHOLD_TOKEN = 75  # токенное совпадение (для "молоко 2.5%" vs "молоко 3.2%")
-
-
-def normalize_name(name: str) -> str:
-    """Нормализация названия продукта."""
-    name = name.lower().strip()
-    # Удаление лишних пробелов
-    name = re.sub(r"\s+", " ", name)
-    # Удаление спецсимволов (оставляем буквы, цифры, пробелы, %, ., -, /)
-    name = re.sub(r"[^\w\s%.\\/\-]", "", name)
-    return name.strip()
 
 
 def compute_context_hash(user_id: str, action: str, data: dict[str, Any]) -> str:
@@ -105,12 +96,12 @@ async def find_product_by_gtin(db: AsyncSession, gtin: str) -> Product | None:
 async def find_product_by_name(db: AsyncSession, normalized: str) -> Product | None:
     """Поиск по точному имени продукта."""
     result = await db.execute(
-        select(Product)
-        .options(
+        select(Product).options(
             selectinload(Product.aliases),
             selectinload(Product.tags).selectinload(ProductTagMember.tag),
         )
     )
+    normalized = normalize_name(normalized)
     return next(
         (product for product in result.scalars() if normalize_name(product.name) == normalized),
         None,
@@ -225,10 +216,24 @@ async def _ai_match_product(
         result["nutrition_data"] = {
             key: details.get(key)
             for key in (
-                "calories", "proteins", "fats", "carbs", "fiber", "sugar",
-                "saturated_fats", "sodium", "cholesterol", "vitamin_a", "vitamin_c",
-                "vitamin_d", "calcium", "iron", "potassium", "magnesium",
-                "serving_size", "serving_unit",
+                "calories",
+                "proteins",
+                "fats",
+                "carbs",
+                "fiber",
+                "sugar",
+                "saturated_fats",
+                "sodium",
+                "cholesterol",
+                "vitamin_a",
+                "vitamin_c",
+                "vitamin_d",
+                "calcium",
+                "iron",
+                "potassium",
+                "magnesium",
+                "serving_size",
+                "serving_unit",
             )
         }
         result["tags"] = [str(tag) for tag in details.get("tags", []) or []]
@@ -359,6 +364,7 @@ async def save_new_product(
 
     product = Product(
         name=normalized_name,
+        normalized_name=normalized_name,
         category=normalize_category(category),
         calories=nutrition_data.get("calories", 0),
         proteins=nutrition_data.get("proteins", 0),
@@ -410,7 +416,6 @@ async def save_new_product(
             )
             db.add(member)
 
-    await db.commit()
     await db.refresh(product)
     return product
 

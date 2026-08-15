@@ -1,4 +1,4 @@
-import { buildAllTimeSeries, groupReceiptItems } from "../utils";
+import { buildAllTimeSeries, fmtDate, groupReceiptItems } from "../utils";
 import type { Receipt, ReceiptItem } from "../types";
 
 function receipt(id: string, ticketDate: string, totalSumRub: number): Receipt {
@@ -14,6 +14,10 @@ function receipt(id: string, ticketDate: string, totalSumRub: number): Receipt {
 }
 
 describe("buildAllTimeSeries", () => {
+  it("renders a date-only fiscal value without inventing a time", () => {
+    expect(fmtDate("2026-08-15")).toBe("15.08.2026");
+  });
+
   it("aggregates each receipt once and keeps empty periods", () => {
     const points = buildAllTimeSeries(
       [

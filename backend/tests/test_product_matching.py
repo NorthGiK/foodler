@@ -225,7 +225,7 @@ class TestMatchProduct:
                 async_session,
                 "ЧЕРЕШНЯ 1кг",
                 user_id="user-1",
-                gtin="4601234567890",
+                gtin="4601234567893",
             )
 
         assert result["matched_by"] == "ai"
@@ -236,7 +236,7 @@ class TestMatchProduct:
             async_session,
             "Совершенно другое название",
             user_id="user-1",
-            gtin="4601234567890",
+            gtin="4601234567893",
         )
         assert repeated["matched_by"] == "gtin"
         assert repeated["product"].id == result["product"].id

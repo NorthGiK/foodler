@@ -23,9 +23,10 @@ from ..integrations.receipts import (
     ReceiptProviderError,
     get_receipt_gateway,
 )
-from ..models import Receipt, ReceiptItem, User
+from ..models import Product, ProductAlias, ProductBarcode, Receipt, ReceiptItem, User
 from ..product_categories import normalize_category
-from ..product_matching import match_product
+from ..product_categorization import categorize_items, extract_gtin
+from ..product_matching import normalize_name
 from ..receipt_retention import compute_receipt_expiry
 from ..schemas import (
     GetReceiptFromQRSchema,
@@ -69,24 +70,99 @@ def _item_schema(item: ReceiptItem) -> ReceiptItemSchema:
         sum=item_sum,
         product_id=item.product_id,
         gtin=item.gtin,
-        category=normalize_category(item.product.category if item.product else "прочее"),
+        category=normalize_category(item.category),
+        category_source=item.category_source,
+        category_confidence=item.category_confidence,
+        category_taxonomy_version=item.category_taxonomy_version,
+        category_model_version=item.category_model_version,
     )
 
 
-async def _receipt_item(
-    body: ReceiptItemSchema, receipt_id: str, db: AsyncSession, user_id: str
-) -> ReceiptItem:
-    match = await match_product(db, body.name, body.quantity, body.unit, user_id, body.gtin)
-    product = match["product"]
+def _add_category_snapshot(raw_item: dict[str, Any], item: ReceiptItem) -> None:
+    raw_item["gtin"] = item.gtin
+    raw_item["category"] = item.category
+    raw_item["category_source"] = item.category_source
+    raw_item["category_confidence"] = item.category_confidence
+    raw_item["category_taxonomy_version"] = item.category_taxonomy_version
+    raw_item["category_model_version"] = item.category_model_version
+
+
+def _item_identity(item: ReceiptItemSchema | ReceiptItem) -> tuple[str, int, float]:
+    return (
+        normalize_name(item.name),
+        round(float(item.price) * 100),
+        round(float(item.quantity), 6),
+    )
+
+
+def _enrich_raw_items(raw_data: dict[str, Any], stored_items: list[ReceiptItem]) -> None:
+    raw_items = raw_data.get("items")
+    if not isinstance(raw_items, list):
+        return
+    stored_by_identity: dict[tuple[str, int, float], list[ReceiptItem]] = {}
+    for item in stored_items:
+        stored_by_identity.setdefault(_item_identity(item), []).append(item)
+    for raw_item in raw_items:
+        body = _provider_item_schema(raw_item)
+        if body is None:
+            continue
+        matches = stored_by_identity.get(_item_identity(body))
+        if matches:
+            _add_category_snapshot(raw_item, matches.pop())
+
+
+async def _receipt_item(body: ReceiptItemSchema, receipt_id: str, decision: Any) -> ReceiptItem:
     return ReceiptItem(
         receipt_id=receipt_id,
         name=body.name,
         quantity=body.quantity,
         unit=body.unit,
         price=body.price,
-        product_id=product.id if product else body.product_id,
+        product_id=body.product_id,
         gtin=body.gtin,
+        category=decision.category,
+        category_source=decision.source,
+        category_confidence=decision.confidence,
+        category_taxonomy_version=decision.taxonomy_version,
+        category_model_version=decision.model_version,
     )
+
+
+async def _receipt_items(
+    bodies: list[ReceiptItemSchema], receipt_id: str, db: AsyncSession, merchant: str | None
+) -> list[ReceiptItem]:
+    decisions = await categorize_items(
+        db, [{"name": body.name, "gtin": body.gtin} for body in bodies], merchant
+    )
+    # Preserve a known product relation for analytics, but only when the exact
+    # key is unambiguous; categorization itself never makes this arbitrary.
+    for body in bodies:
+        if body.product_id:
+            continue
+        if body.gtin:
+            barcode = await db.get(ProductBarcode, body.gtin)
+            if barcode:
+                body.product_id = barcode.product_id
+                continue
+        products = (
+            await db.scalars(
+                select(Product).where(Product.normalized_name == normalize_name(body.name))
+            )
+        ).all()
+        aliases = (
+            await db.scalars(select(ProductAlias).where(ProductAlias.alias == normalize_name(body.name)))
+        ).all()
+        for alias in aliases:
+            product = await db.get(Product, alias.product_id)
+            if product:
+                products.append(product)
+        products = list({product.id: product for product in products}.values())
+        if len(products) == 1:
+            body.product_id = products[0].id
+    return [
+        await _receipt_item(body, receipt_id, decision)
+        for body, decision in zip(bodies, decisions, strict=True)
+    ]
 
 
 @post("/receipts/get_receipt_by_qr", response_model=ReceiptRawResponseSchema)
@@ -98,7 +174,7 @@ async def get_receipt_by_qr(
 ):
     try:
         result = ReceiptRawResponseSchema.model_validate(await gateway.recognize_raw(body.qrraw))
-        await _save_recognized_receipt(result, user, db)
+        result.receiptId = await _save_recognized_receipt(result, user, db)
         return result
     except ReceiptProviderError as exc:
         logger.warning("Receipt provider request failed", extra={"provider": "receipt_api"})
@@ -112,28 +188,28 @@ async def _save_recognized_receipt(
     result: ReceiptRawResponseSchema,
     user: User,
     db: AsyncSession,
-) -> None:
+) -> str | None:
     if result.code != 1 or result.data is None:
-        return
+        return None
 
     raw_data = result.data.get("json")
     if not isinstance(raw_data, dict):
-        return
+        return None
 
     ticket_date = raw_data.get("ticketDate")
     if not isinstance(ticket_date, str):
         ticket_date = raw_data.get("dateTime")
     total_sum = raw_data.get("totalSum")
     if not isinstance(ticket_date, str) or isinstance(total_sum, bool):
-        return
+        return None
     try:
         receipt_date = date.fromisoformat(ticket_date[:10])
         total = Decimal(str(total_sum)) / 100
     except (ValueError, ArithmeticError):
         logger.warning("Recognized receipt had an invalid date")
-        return
+        return None
     if total < 0:
-        return
+        return None
 
     source_key = result.request.get("qrraw") if isinstance(result.request, dict) else None
     source_fingerprint = _source_fingerprint(source_key if isinstance(source_key, str) else None)
@@ -142,13 +218,11 @@ async def _save_recognized_receipt(
         filters.append(Receipt.source_fingerprint == source_fingerprint)
     else:
         filters.extend((Receipt.date == receipt_date, Receipt.total == total))
-    stmt = (
-        select(Receipt.id)
-        .where(*filters)
-    )
-    receipt = (await db.execute(stmt)).scalar_one_or_none()
-    if receipt is not None:
-        return
+    stmt = select(Receipt).where(*filters).options(selectinload(Receipt.items))
+    existing_receipt = (await db.execute(stmt)).scalar_one_or_none()
+    if existing_receipt is not None:
+        _enrich_raw_items(raw_data, list(existing_receipt.items))
+        return existing_receipt.id
 
     entitlement = await get_entitlement(db, user)
     receipt = Receipt(
@@ -162,12 +236,20 @@ async def _save_recognized_receipt(
     )
     db.add(receipt)
     raw_items = raw_data.get("items")
-    for item in raw_items if isinstance(raw_items, list) else []:
-        receipt_item = await _receipt_item_from_provider(item, receipt.id, db, user.id)
-        if receipt_item is None:
-            continue
+    pairs = (
+        [(item, _provider_item_schema(item)) for item in raw_items if isinstance(item, dict)]
+        if isinstance(raw_items, list)
+        else []
+    )
+    valid_pairs = [(item, body) for item, body in pairs if body is not None]
+    stored_items = await _receipt_items(
+        [body for _, body in valid_pairs], receipt.id, db, receipt.store
+    )
+    for (raw_item, _), receipt_item in zip(valid_pairs, stored_items, strict=True):
+        _add_category_snapshot(raw_item, receipt_item)
         db.add(receipt_item)
     await db.commit()
+    return receipt.id
 
 
 def _optional_text(value: Any) -> str | None:
@@ -175,20 +257,10 @@ def _optional_text(value: Any) -> str | None:
 
 
 def _gtin_from_provider(item: dict[str, Any]) -> str | None:
-    product_code = item.get("productCodeNew")
-    if not isinstance(product_code, dict):
-        return None
-    for value in product_code.values():
-        if isinstance(value, dict):
-            gtin = value.get("gtin")
-            if isinstance(gtin, str) and gtin.isdigit():
-                return gtin
-    return None
+    return extract_gtin(item.get("productCodeNew") or item.get("productCode") or item)
 
 
-async def _receipt_item_from_provider(
-    item: Any, receipt_id: str, db: AsyncSession, user_id: str
-) -> ReceiptItem | None:
+def _provider_item_schema(item: Any) -> ReceiptItemSchema | None:
     if not isinstance(item, dict):
         return None
     name = item.get("name")
@@ -208,19 +280,12 @@ async def _receipt_item_from_provider(
         return None
     if normalized_price < 0 or normalized_quantity <= 0:
         return None
-    gtin = _gtin_from_provider(item)
-    match = await match_product(db, name.strip(), normalized_quantity, "kg", user_id, gtin)
-    product = match["product"]
-    item["gtin"] = gtin
-    item["category"] = normalize_category(product.category if product else "прочее")
-    return ReceiptItem(
-        receipt_id=receipt_id,
+    return ReceiptItemSchema(
         name=name.strip(),
         quantity=normalized_quantity,
         unit="kg",
         price=normalized_price,
-        product_id=product.id if product else None,
-        gtin=gtin,
+        gtin=_gtin_from_provider(item),
     )
 
 
@@ -261,7 +326,7 @@ async def get_receipt_by_raw_qr(
 
     result = await _recognize_receipt_image(contents, qrfile, gateway)
     if user is not None:
-        await _save_recognized_receipt(result, user, db)
+        result.receiptId = await _save_recognized_receipt(result, user, db)
     return result
 
 
@@ -277,7 +342,7 @@ async def get_receipt_by_raw_qr_legacy(
         raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, detail="QR image is too large")
     result = await _recognize_receipt_image(contents, qrfile, gateway)
     if user is not None:
-        await _save_recognized_receipt(result, user, db)
+        result.receiptId = await _save_recognized_receipt(result, user, db)
     return result
 
 
@@ -319,10 +384,7 @@ async def get_receipts(
             store=r.store,
             total=r.total,
             createdAt=r.created_at,
-            items=[
-                _item_schema(i)
-                for i in (r.items or [])
-            ],
+            items=[_item_schema(i) for i in (r.items or [])],
         )
         for r in receipts
     ]
@@ -369,8 +431,10 @@ async def upload_receipt(
     )
     db.add(receipt)
 
-    for item in body.items:
-        db.add(await _receipt_item(item, receipt.id, db, user.id))
+    for item in await _receipt_items(
+        body.items, receipt.id, db, body.merchant_identity or body.store
+    ):
+        db.add(item)
     await db.commit()
     return {"status": "ok"}
 
@@ -450,8 +514,10 @@ async def upload_receipts(
         db.add(receipt)
 
     for receipt in new_receipt_bodies:
-        for item in receipt.items:
-            db.add(await _receipt_item(item, receipt.id, db, user.id))
+        for item in await _receipt_items(
+            receipt.items, receipt.id, db, receipt.merchant_identity or receipt.store
+        ):
+            db.add(item)
     await db.commit()
     return {"status": "ok"}
 
@@ -476,10 +542,7 @@ async def get_receipt(
         store=r.store,
         total=r.total,
         createdAt=r.created_at,
-        items=[
-            _item_schema(i)
-            for i in (r.items or [])
-        ],
+        items=[_item_schema(i) for i in (r.items or [])],
     )
 
 
@@ -508,14 +571,7 @@ async def update_receipt(
         await db.delete(old_item)
     r.items.clear()
 
-    for item in body.items:
-        ri = ReceiptItem(
-            receipt_id=r.id,
-            name=item.name,
-            quantity=item.quantity,
-            unit=item.unit,
-            price=item.price,
-        )
+    for ri in await _receipt_items(body.items, r.id, db, body.merchant_identity or body.store):
         db.add(ri)
 
     await db.commit()
@@ -528,10 +584,7 @@ async def update_receipt(
         store=r.store,
         total=r.total,
         createdAt=r.created_at,
-        items=[
-            _item_schema(i)
-            for i in (r.items or [])
-        ],
+        items=[_item_schema(i) for i in (r.items or [])],
     )
 
 

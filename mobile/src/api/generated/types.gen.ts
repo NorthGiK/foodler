@@ -938,6 +938,10 @@ export type ReceiptCreateSchema = {
    */
   items?: Array<ReceiptItemSchema>;
   /**
+   * Merchant Identity
+   */
+  merchant_identity?: string | null;
+  /**
    * Source Key
    */
   source_key?: string | null;
@@ -959,6 +963,22 @@ export type ReceiptItemSchema = {
    * Category
    */
   category?: string | null;
+  /**
+   * Category Confidence
+   */
+  category_confidence?: number | null;
+  /**
+   * Category Model Version
+   */
+  category_model_version?: string | null;
+  /**
+   * Category Source
+   */
+  category_source?: string | null;
+  /**
+   * Category Taxonomy Version
+   */
+  category_taxonomy_version?: string | null;
   /**
    * Gtin
    */
@@ -1003,6 +1023,10 @@ export type ReceiptRawResponseSchema = {
   data: {
     [key: string]: unknown;
   } | null;
+  /**
+   * Receiptid
+   */
+  receiptId?: string | null;
   /**
    * Request
    */
@@ -1061,6 +1085,10 @@ export type ReceiptUpdateSchema = {
    * Items
    */
   items?: Array<ReceiptItemSchema>;
+  /**
+   * Merchant Identity
+   */
+  merchant_identity?: string | null;
   /**
    * Source Key
    */

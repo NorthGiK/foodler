@@ -108,7 +108,7 @@ class TestProductKnowledgeFlow:
         # 3. Match product by raw name
         response = await client.post(
             "/api/products/match",
-            json={"raw_name": "молоко", "quantity": 1},
+            json={"raw_name": "молоко 2.5", "quantity": 1},
         )
         assert response.status_code == 200
         assert response.json()["product"] is not None

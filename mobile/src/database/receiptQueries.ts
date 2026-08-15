@@ -20,6 +20,10 @@ export const RECEIPT_DATABASE_SETUP = {
       priceRub REAL NOT NULL,
       quantity REAL NOT NULL,
       sumRub REAL NOT NULL,
+      categorySource TEXT,
+      categoryConfidence REAL,
+      categoryTaxonomyVersion TEXT,
+      categoryModelVersion TEXT,
       FOREIGN KEY (receiptId) REFERENCES receipts(id) ON DELETE CASCADE
     );
   `,
@@ -36,8 +40,8 @@ export const RECEIPT_QUERIES = {
   `,
   deleteReceiptItems: "DELETE FROM receipt_items WHERE receiptId = ?",
   insertReceiptItem: `
-    INSERT OR IGNORE INTO receipt_items (receiptId, name, category, priceRub, quantity, sumRub)
-    VALUES ($receiptId, $name, $category, $priceRub, $quantity, $sumRub)
+    INSERT OR IGNORE INTO receipt_items (receiptId, name, category, priceRub, quantity, sumRub, categorySource, categoryConfidence, categoryTaxonomyVersion, categoryModelVersion)
+    VALUES ($receiptId, $name, $category, $priceRub, $quantity, $sumRub, $categorySource, $categoryConfidence, $categoryTaxonomyVersion, $categoryModelVersion)
   `,
   selectReceipts: `
     SELECT id, qrraw, organization, ticketDate, operationType, totalSumRub, sourceCode
@@ -45,13 +49,13 @@ export const RECEIPT_QUERIES = {
     ORDER BY datetime(ticketDate) DESC, id DESC
   `,
   selectReceiptItems: `
-    SELECT id, receiptId, name, category, priceRub, quantity, sumRub
+    SELECT id, receiptId, name, category, priceRub, quantity, sumRub, categorySource, categoryConfidence, categoryTaxonomyVersion, categoryModelVersion
     FROM receipt_items
     WHERE receiptId = ?
     ORDER BY sumRub DESC, name ASC
   `,
   selectJoinedItems: `
-    SELECT ri.id, ri.receiptId, ri.name, ri.category, ri.priceRub, ri.quantity, ri.sumRub, r.ticketDate
+    SELECT ri.id, ri.receiptId, ri.name, ri.category, ri.priceRub, ri.quantity, ri.sumRub, ri.categorySource, ri.categoryConfidence, ri.categoryTaxonomyVersion, ri.categoryModelVersion, r.ticketDate
     FROM receipt_items ri
     JOIN receipts r ON r.id = ri.receiptId
     ORDER BY datetime(r.ticketDate) DESC, ri.sumRub DESC
@@ -61,4 +65,9 @@ export const RECEIPT_QUERIES = {
     "SELECT DISTINCT category FROM receipt_items WHERE category IS NOT NULL",
   updateReceiptItemCategory:
     "UPDATE receipt_items SET category = ? WHERE category = ?",
+  updateReceiptItemServerCategory: `
+    UPDATE receipt_items
+    SET category = ?, categorySource = ?, categoryConfidence = ?, categoryTaxonomyVersion = ?, categoryModelVersion = ?
+    WHERE receiptId = ? AND name = ? AND priceRub = ? AND quantity = ?
+  `,
 } as const;

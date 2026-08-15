@@ -12,9 +12,17 @@ import { rule as rulePet } from "./categories/pet";
 import { rule as ruleSausages } from "./categories/sausages";
 import { rule as ruleSweets } from "./categories/sweets";
 import { rule as ruleVegetables } from "./categories/vegetables";
+import { rule as ruleAlcohol } from "./categories/alcohol";
+import { eggRule, readyRule, snackRule } from "./categories/receipt";
+import { rule as ruleSauces } from "./categories/sauces";
 import type { CategoryRule } from "./categories/types";
 
 const RULES: CategoryRule[] = [
+  ruleAlcohol,
+  eggRule,
+  readyRule,
+  snackRule,
+  ruleSauces,
   rulePet,
   ruleSausages,
   ruleMeat,
@@ -37,7 +45,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   алкоголь: "Алкоголь",
   бакалея: "Бакалея",
   "бытовые товары": "Бытовые товары",
-  "бытовая химия": "Бытовая химия",
+  "бытовая химия": "Бытовые товары",
   "готовая еда": "Готовая еда",
   заморозка: "Замороженные продукты",
   "замороженные продукты": "Замороженные продукты",

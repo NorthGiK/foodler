@@ -159,7 +159,12 @@ class TestGetReceiptByRawQr:
             app.dependency_overrides.pop(get_receipt_gateway, None)
 
         assert response.status_code == 200
-        assert response.json() == {"code": 0, "data": None, "request": None}
+        assert response.json() == {
+            "code": 0,
+            "receiptId": None,
+            "data": None,
+            "request": None,
+        }
 
     @pytest.mark.asyncio
     async def test_provider_specific_item_fields_do_not_fail_guest_recognition(
@@ -179,7 +184,7 @@ class TestGetReceiptByRawQr:
                                     "quantity": 1,
                                     "price": 8990,
                                     "unit": "шт",
-                                    "productCodeNew": {"ean13": {"gtin": "4601234567890"}},
+                                    "productCodeNew": {"ean13": {"gtin": "4601234567893"}},
                                 }
                             ],
                         }
@@ -218,7 +223,7 @@ class TestGetReceiptByRawQr:
                                     "quantity": 1,
                                     "price": 8990,
                                     "unit": "шт",
-                                    "productCodeNew": {"ean13": {"gtin": "4601234567890"}},
+                                    "productCodeNew": {"ean13": {"gtin": "4601234567893"}},
                                 }
                             ],
                         }
@@ -237,8 +242,10 @@ class TestGetReceiptByRawQr:
 
         assert response.status_code == 200
         recognized_item = response.json()["data"]["json"]["items"][0]
-        assert recognized_item["category"] == "молочные"
-        assert recognized_item["gtin"] == "4601234567890"
+        # With the external classifier unavailable, local hints are not
+        # promoted to a final server category and persistence still succeeds.
+        assert recognized_item["category"] == "прочее"
+        assert recognized_item["gtin"] == "4601234567893"
         receipts = await client.get("/api/receipts", headers=auth_headers)
         assert receipts.status_code == 200
         saved_receipts = receipts.json()
@@ -248,9 +255,28 @@ class TestGetReceiptByRawQr:
         assert saved_receipts[0]["total"] == 159.9
         saved_item = saved_receipts[0]["items"][0]
         assert saved_item["name"] == "Молоко"
-        assert saved_item["product_id"] is not None
-        assert saved_item["gtin"] == "4601234567890"
-        assert saved_item["category"] == "молочные"
+        # A generic label must not be linked to an arbitrary milk variant.
+        assert saved_item["product_id"] is None
+        assert saved_item["gtin"] == "4601234567893"
+        assert saved_item["category"] == "прочее"
+        assert saved_item["category_source"] == "fallback"
+
+        app.dependency_overrides[get_receipt_gateway] = Gateway
+        try:
+            duplicate = await client.post(
+                "/api/receipts/get_receipt_by_raw_qr",
+                headers=auth_headers,
+                files={"qrfile": ("receipt.jpg", b"image", "image/jpeg")},
+            )
+        finally:
+            app.dependency_overrides.pop(get_receipt_gateway, None)
+        assert duplicate.status_code == 200
+        assert duplicate.json()["receiptId"] == response.json()["receiptId"]
+        duplicate_item = duplicate.json()["data"]["json"]["items"][0]
+        assert duplicate_item["category"] == "прочее"
+        assert duplicate_item["category_source"] == "fallback"
+        receipts = await client.get("/api/receipts", headers=auth_headers)
+        assert len(receipts.json()) == 1
 
 
 class TestGetReceipt:

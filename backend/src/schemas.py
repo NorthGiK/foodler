@@ -107,6 +107,7 @@ class DeviceResponse(RegisterDeviceRequest):
 
 class ReceiptRawResponseSchema(BaseModel):
     code: int
+    receiptId: str | None = None
     # The receipt provider owns the nested payload and may add or change fields.
     # Keep it transparent to the client; only persistence validates fields it uses.
     data: dict[str, Any] | None
@@ -132,6 +133,10 @@ class ReceiptItemSchema(BaseModel):
     product_id: str | None = None  # связь с Product после распознавания
     gtin: str | None = Field(default=None, min_length=8, max_length=32)
     category: str | None = Field(default=None, max_length=100)
+    category_source: str | None = Field(default=None, max_length=32)
+    category_confidence: float | None = Field(default=None, ge=0, le=1)
+    category_taxonomy_version: str | None = Field(default=None, max_length=64)
+    category_model_version: str | None = Field(default=None, max_length=128)
 
 
 class ReceiptCreateSchema(BaseModel):
@@ -142,6 +147,7 @@ class ReceiptCreateSchema(BaseModel):
     id: str = Field(min_length=1, max_length=128)
     date: date
     store: str | None = Field(default=None, max_length=500)
+    merchant_identity: str | None = Field(default=None, max_length=500)
     total: float = Field(ge=0, multiple_of=0.01)
     # Raw QR may be supplied by trusted first-party clients; the server stores
     # only its hash and uses it as a per-user idempotency key.
@@ -159,6 +165,7 @@ class ReceiptUpdateSchema(BaseModel):
     id: str | None = Field(default=None, min_length=1, max_length=128)
     date: date
     store: str | None = Field(default=None, max_length=500)
+    merchant_identity: str | None = Field(default=None, max_length=500)
     total: float = Field(ge=0, multiple_of=0.01)
     # Retained for payload compatibility; updating a receipt must not alter
     # its server-side source fingerprint.

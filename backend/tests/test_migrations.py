@@ -201,7 +201,7 @@ def test_migrations_create_schema_for_empty_database(tmp_path):
     } <= set(inspector.get_table_names())
     with engine.connect() as connection:
         assert connection.execute(sa.text("SELECT version_num FROM alembic_version")).scalar_one() == (
-            "b6e7f8a9c012"  # pragma: allowlist secret
+            "e7f8a9b0c123"  # pragma: allowlist secret
         )
     assert {"action", "snapshot", "response"} <= {
         column["name"] for column in inspector.get_columns("ai_reports")
@@ -305,4 +305,38 @@ def test_removed_subscription_provider_is_revoked_during_upgrade(tmp_path):
 
     assert unsupported_user == (False, None)
     assert remaining_subscriptions == [("supported-user", "yookassa")]
+    engine.dispose()
+
+
+def test_category_migration_creates_cache_snapshots_and_normalized_index(tmp_path):
+    database = tmp_path / "categories.sqlite"
+    url = f"sqlite:///{database}"
+    config = Config("alembic.ini")
+    config.attributes["database_url"] = url
+    command.upgrade(config, "head")
+
+    engine = create_engine(url)
+    inspector = inspect(engine)
+    assert "product_category_assignments" in inspector.get_table_names()
+    product_columns = {column["name"]: column for column in inspector.get_columns("products")}
+    assert product_columns["normalized_name"]["nullable"] is False
+    assert "ix_products_normalized_name" in {
+        index["name"] for index in inspector.get_indexes("products")
+    }
+    item_columns = {column["name"] for column in inspector.get_columns("receipt_items")}
+    assert {
+        "gtin",
+        "category",
+        "category_source",
+        "category_confidence",
+        "category_taxonomy_version",
+        "category_model_version",
+    } <= item_columns
+    assert "ix_category_assignment_lookup" in {
+        index["name"] for index in inspector.get_indexes("product_category_assignments")
+    }
+    assert any(
+        constraint["column_names"] == ["key_type", "lookup_key", "merchant_scope"]
+        for constraint in inspector.get_unique_constraints("product_category_assignments")
+    )
     engine.dispose()

@@ -16,6 +16,7 @@ from sqlalchemy import (
     Integer,
     Text,
     UniqueConstraint,
+    event,
 )
 from sqlalchemy.dialects.sqlite import JSON
 from sqlalchemy.engine import Dialect
@@ -23,6 +24,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from sqlalchemy.types import TypeDecorator
 
 from .database import Base
+from .product_names import normalize_name
 
 
 def _uuid() -> str:
@@ -213,7 +215,9 @@ class Receipt(Base):
     __tablename__ = "receipts"
     __table_args__ = (
         Index("ix_receipts_user_date", "user_id", "date"),
-        UniqueConstraint("user_id", "source_fingerprint", name="uq_receipts_user_source_fingerprint"),
+        UniqueConstraint(
+            "user_id", "source_fingerprint", name="uq_receipts_user_source_fingerprint"
+        ),
         CheckConstraint("total_cents >= 0", name="ck_receipts_total_nonnegative"),
     )
 
@@ -254,6 +258,13 @@ class ReceiptItem(Base):
     # Связь с продуктом (если распознан)
     product_id: Mapped[str] = mapped_column(ForeignKey("products.id"), nullable=True, index=True)
     gtin: Mapped[str] = mapped_column(nullable=True, index=True)
+    # Immutable result shown to the user.  Product taxonomy can evolve without
+    # silently rewriting the history of already saved receipts.
+    category: Mapped[str] = mapped_column(nullable=False, insert_default="прочее")
+    category_source: Mapped[str] = mapped_column(nullable=False, insert_default="fallback")
+    category_confidence: Mapped[float] = mapped_column(Float, nullable=False, insert_default=0.0)
+    category_taxonomy_version: Mapped[str] = mapped_column(nullable=False, insert_default="v1")
+    category_model_version: Mapped[str | None] = mapped_column(nullable=True)
 
     receipt: Mapped[Receipt] = relationship("Receipt", back_populates="items")
     product: Mapped["Product"] = relationship("Product", back_populates="receipt_items")
@@ -355,6 +366,7 @@ class Product(Base):
 
     id: Mapped[str] = mapped_column(primary_key=True, default=_uuid)
     name: Mapped[str] = mapped_column(unique=True, nullable=False, index=True)
+    normalized_name: Mapped[str] = mapped_column(nullable=False, index=True)
     category: Mapped[str] = mapped_column(nullable=False, insert_default="прочее")
     parent_id: Mapped[str] = mapped_column(ForeignKey("products.id"), nullable=True, index=True)
 
@@ -421,6 +433,12 @@ class Product(Base):
     )
 
 
+@event.listens_for(Product, "before_insert")
+@event.listens_for(Product, "before_update")
+def _ensure_normalized_product_name(_mapper, _connection, target: Product) -> None:
+    target.normalized_name = normalize_name(target.name)
+
+
 class ProductAlias(Base):
     """
     Синонимы/альтернативные названия продукта.
@@ -446,6 +464,36 @@ class ProductBarcode(Base):
     product_id: Mapped[str] = mapped_column(ForeignKey("products.id"), nullable=False, index=True)
 
     product: Mapped["Product"] = relationship("Product", back_populates="barcodes")
+
+
+class ProductCategoryAssignment(Base):
+    """Reusable, auditable category decision keyed by a safe product identity.
+
+    ``merchant_scope`` is an empty string for globally reusable keys. Restricted
+    GS1 prefixes must always have a non-empty merchant scope and are never
+    written under a global GTIN key.
+    """
+
+    __tablename__ = "product_category_assignments"
+    __table_args__ = (
+        UniqueConstraint(
+            "key_type", "lookup_key", "merchant_scope", name="uq_category_assignment_key"
+        ),
+        Index("ix_category_assignment_lookup", "key_type", "lookup_key", "merchant_scope"),
+    )
+
+    id: Mapped[str] = mapped_column(primary_key=True, default=_uuid)
+    key_type: Mapped[str] = mapped_column(nullable=False)
+    lookup_key: Mapped[str] = mapped_column(nullable=False)
+    merchant_scope: Mapped[str] = mapped_column(nullable=False, insert_default="")
+    category: Mapped[str] = mapped_column(nullable=False)
+    source: Mapped[str] = mapped_column(nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    taxonomy_version: Mapped[str] = mapped_column(nullable=False, insert_default="v1")
+    model_version: Mapped[str | None] = mapped_column(nullable=True)
+    status: Mapped[str] = mapped_column(nullable=False, insert_default="confirmed")
+    created_at: Mapped[datetime] = mapped_column(default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(default=_utcnow, onupdate=_utcnow)
 
 
 class ProductTag(Base):

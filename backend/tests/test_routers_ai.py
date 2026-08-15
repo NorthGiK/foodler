@@ -234,6 +234,7 @@ class TestRunAi:
             "receipts": [],
             "receipt_count": 0,
             "total_spent": 0,
+            "receipt_ids": [],
         }
         expected_hash = compute_context_hash(test_user.id, "diet", context)
 

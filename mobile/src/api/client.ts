@@ -51,6 +51,10 @@ function receiptItem(value: unknown): ReceiptJsonItem | null {
     sum: numberValue(value.sum),
     gtin: stringValue(value.gtin),
     category: stringValue(value.category),
+    category_source: stringValue(value.category_source),
+    category_confidence: numberValue(value.category_confidence),
+    category_taxonomy_version: stringValue(value.category_taxonomy_version),
+    category_model_version: stringValue(value.category_model_version),
   };
 }
 
@@ -92,12 +96,13 @@ function normalizeReceiptProviderResponse(
       })()
     : undefined;
   const rawRequest = response.request;
+  const receiptId = stringValue(response.receiptId);
   const request =
     isRecord(rawRequest) && typeof rawRequest.qrraw === "string"
       ? { qrraw: rawRequest.qrraw }
       : undefined;
 
-  return { code: response.code, data, request };
+  return { code: response.code, data, request, receiptId };
 }
 
 export async function getReceiptFromQR(

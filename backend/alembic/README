@@ -1,1 +1,5 @@
 Generic single-database configuration.
+
+`e7f8a9b0c123` adds product category assignments, indexed normalized product
+names, and immutable receipt-item category snapshots. It backfills historical
+normalized names but intentionally does not recategorize old receipt rows.

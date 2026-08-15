@@ -169,6 +169,7 @@ async def create_product(
     """Создание нового продукта (вручную)."""
     product = Product(
         name=normalize_name(body.name),
+        normalized_name=normalize_name(body.name),
         parent_id=body.parent_id,
         calories=body.calories,
         proteins=body.proteins,

@@ -1,6 +1,10 @@
 import { api, getAccessToken } from "../client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { loadReceiptItems, loadReceipts } from "../../storage";
+import {
+  applyServerItemCategories,
+  loadReceiptItems,
+  loadReceipts,
+} from "../../storage";
 import {
   pullServerReceipts,
   queueReceiptDeletion,
@@ -24,6 +28,7 @@ jest.mock("../../storage", () => ({
   openDb: jest.fn(),
   loadReceiptItems: jest.fn(),
   loadReceipts: jest.fn(),
+  applyServerItemCategories: jest.fn(),
 }));
 
 const receipt: Receipt = {
@@ -62,6 +67,7 @@ describe("receipt synchronization", () => {
       id: receipt.id,
       date: "2026-08-01",
       store: receipt.organization,
+      merchant_identity: receipt.organization,
       total: 100,
       source_key: receipt.qrraw,
       items: [
@@ -128,5 +134,37 @@ describe("receipt synchronization", () => {
     await syncAllLocalReceiptsBulk({} as never);
 
     expect(api.createReceiptsArray).not.toHaveBeenCalled();
+  });
+
+  it("reconciles categories for an existing local receipt without adding a duplicate", async () => {
+    jest.mocked(loadReceipts).mockResolvedValue([receipt]);
+    jest.mocked(api.getReceipts).mockResolvedValue([
+      {
+        id: receipt.id,
+        date: "2026-08-01",
+        store: "Магазин",
+        total: 100,
+        createdAt: "2026-08-01T00:00:00Z",
+        items: [
+          {
+            name: "Молоко",
+            quantity: 2,
+            price: 50,
+            sum: 100,
+            category: "молочные",
+            category_source: "ai",
+            category_confidence: 0.9,
+            category_taxonomy_version: "v1",
+          },
+        ],
+      },
+    ]);
+    const result = await pullServerReceipts({} as never);
+    expect(result.receipts).toEqual([]);
+    expect(applyServerItemCategories).toHaveBeenCalledWith(
+      expect.anything(),
+      receipt.id,
+      expect.any(Array),
+    );
   });
 });

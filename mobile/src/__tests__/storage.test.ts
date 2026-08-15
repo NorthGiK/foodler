@@ -4,6 +4,16 @@ import {
 } from "../storage";
 
 describe("receipt date normalization", () => {
+  it("keeps the stable receipt ID returned by the server", () => {
+    const result = normalizeReceiptResponse({
+      code: 1,
+      receiptId: "server-receipt-1",
+      request: { qrraw: "t=20260101T1200&s=10&fn=1&i=2&fp=3" },
+      data: { json: { ticketDate: "2026-01-01", totalSum: 1000, items: [] } },
+    });
+    expect(result?.receipt.id).toBe("server-receipt-1");
+  });
+
   it("uses the fiscal dateTime when ticketDate is absent", () => {
     const result = normalizeReceiptResponse({
       code: 1,
@@ -34,7 +44,7 @@ describe("receipt date normalization", () => {
               price: 10000,
               sum: 10000,
               quantity: 1,
-              gtin: "4601234567890",
+              gtin: "4601234567893",
               category: "молочные",
             },
           ],

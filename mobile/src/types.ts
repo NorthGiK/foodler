@@ -1,5 +1,6 @@
 export interface ApiReceiptResponse {
   code: number;
+  receiptId?: string;
   data?: {
     json?: {
       ticketDate?: string;
@@ -17,6 +18,10 @@ export interface ApiReceiptResponse {
         quantity?: number;
         gtin?: string;
         category?: string;
+        category_source?: string;
+        category_confidence?: number;
+        category_taxonomy_version?: string;
+        category_model_version?: string;
       }[];
     };
   };
@@ -76,6 +81,10 @@ export interface ReceiptItem {
   priceRub: number;
   quantity: number;
   sumRub: number;
+  categorySource?: string;
+  categoryConfidence?: number;
+  categoryTaxonomyVersion?: string;
+  categoryModelVersion?: string;
 }
 
 export type Period = "day" | "week" | "month" | "year";
