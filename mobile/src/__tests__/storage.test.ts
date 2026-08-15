@@ -1,6 +1,13 @@
 import {
+  applyServerItemCategories,
+  hasLocalCategoryOverride,
+  loadJoinedItems,
+  loadReceiptItems,
   normalizePersistedCategories,
   normalizeReceiptResponse,
+  normalizeProductName,
+  removeLocalCategoryOverride,
+  saveLocalCategoryOverride,
 } from "../storage";
 
 describe("receipt date normalization", () => {
@@ -87,5 +94,86 @@ describe("persisted category normalization", () => {
       "молоченые",
     ]);
     expect(db.withExclusiveTransactionAsync).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("local receipt category overrides", () => {
+  const milkItem = {
+    id: 1,
+    receiptId: "receipt-1",
+    name: "  МОЛОКО  ",
+    category: "Молочные продукты",
+    priceRub: 100,
+    quantity: 1,
+    sumRub: 100,
+  };
+
+  it("uses one case-insensitive rule for receipt history and future items", async () => {
+    const db = {
+      getAllAsync: jest
+        .fn()
+        .mockResolvedValueOnce([milkItem])
+        .mockResolvedValueOnce([
+          { productNameKey: "молоко", category: "Напитки" },
+        ])
+        .mockResolvedValueOnce([
+          { ...milkItem, receiptId: "receipt-2", name: "молоко" },
+        ])
+        .mockResolvedValueOnce([
+          { productNameKey: "молоко", category: "Напитки" },
+        ]),
+    };
+
+    await expect(loadReceiptItems(db as never, "receipt-1")).resolves.toEqual([
+      expect.objectContaining({ category: "Напитки" }),
+    ]);
+    await expect(loadJoinedItems(db as never)).resolves.toEqual([
+      expect.objectContaining({ category: "Напитки", receiptId: "receipt-2" }),
+    ]);
+    expect(normalizeProductName("  МОЛОКО  ")).toBe("молоко");
+  });
+
+  it("stores trimmed custom text and reset exposes the saved automatic category", async () => {
+    const runAsync = jest.fn().mockResolvedValue(undefined);
+    const db = {
+      runAsync,
+      getFirstAsync: jest
+        .fn()
+        .mockResolvedValue({ category: "Детское питание" }),
+    };
+
+    await saveLocalCategoryOverride(
+      db as never,
+      " Молоко ",
+      " Детское питание ",
+    );
+    await expect(hasLocalCategoryOverride(db as never, "молоко")).resolves.toBe(
+      true,
+    );
+    await removeLocalCategoryOverride(db as never, "МОЛОКО");
+
+    expect(runAsync).toHaveBeenNthCalledWith(1, expect.any(String), [
+      "молоко",
+      "Детское питание",
+    ]);
+    expect(runAsync).toHaveBeenNthCalledWith(2, expect.any(String), ["молоко"]);
+  });
+
+  it("keeps the server category update in base storage while the local rule is read separately", async () => {
+    const runAsync = jest.fn().mockResolvedValue(undefined);
+    const db = {
+      withExclusiveTransactionAsync: jest.fn(async (callback) =>
+        callback({ runAsync }),
+      ),
+    };
+
+    await applyServerItemCategories(db as never, "receipt-1", [
+      { ...milkItem, category: "Напитки" },
+    ]);
+
+    expect(runAsync).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.arrayContaining(["Напитки", "receipt-1", "  МОЛОКО  "]),
+    );
   });
 });

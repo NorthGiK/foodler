@@ -70,6 +70,28 @@ const CATEGORY_LABELS: Record<string, string> = {
   яйца: "Яйца",
 };
 
+/** Categories offered by the local receipt-category editor. */
+export const BUILT_IN_CATEGORIES = [
+  "Алкоголь",
+  "Бакалея",
+  "Бытовые товары",
+  "Готовая еда",
+  "Замороженные продукты",
+  "Кондитерские изделия",
+  "Колбасы",
+  "Молочные продукты",
+  "Мясо",
+  "Напитки",
+  "Овощи",
+  "Рыба и морепродукты",
+  "Сладости",
+  "Соусы",
+  "Снеки",
+  "Фрукты",
+  "Хлеб и выпечка",
+  "Яйца",
+] as const;
+
 export function normalizeCategory(category: string | null | undefined): string {
   const normalized = category?.trim().toLocaleLowerCase("ru-RU");
   if (!normalized) return FALLBACK_CATEGORY;

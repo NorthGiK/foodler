@@ -27,6 +27,12 @@ export const RECEIPT_DATABASE_SETUP = {
       FOREIGN KEY (receiptId) REFERENCES receipts(id) ON DELETE CASCADE
     );
   `,
+  createReceiptCategoryOverrides: `
+    CREATE TABLE IF NOT EXISTS receipt_category_overrides (
+      productNameKey TEXT PRIMARY KEY NOT NULL,
+      category TEXT NOT NULL
+    );
+  `,
   createReceiptsDateIndex:
     "CREATE INDEX IF NOT EXISTS idx_receipts_ticketDate ON receipts(ticketDate);",
   createReceiptItemsReceiptIndex:
@@ -70,4 +76,15 @@ export const RECEIPT_QUERIES = {
     SET category = ?, categorySource = ?, categoryConfidence = ?, categoryTaxonomyVersion = ?, categoryModelVersion = ?
     WHERE receiptId = ? AND name = ? AND priceRub = ? AND quantity = ?
   `,
+  selectReceiptCategoryOverrides:
+    "SELECT productNameKey, category FROM receipt_category_overrides",
+  selectReceiptCategoryOverride:
+    "SELECT category FROM receipt_category_overrides WHERE productNameKey = ?",
+  upsertReceiptCategoryOverride: `
+    INSERT INTO receipt_category_overrides (productNameKey, category)
+    VALUES (?, ?)
+    ON CONFLICT(productNameKey) DO UPDATE SET category = excluded.category
+  `,
+  deleteReceiptCategoryOverride:
+    "DELETE FROM receipt_category_overrides WHERE productNameKey = ?",
 } as const;

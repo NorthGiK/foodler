@@ -20,6 +20,10 @@ const DB_NAME = "food_spend_tracker.db";
 let _db: SQLite.SQLiteDatabase | null = null;
 export { batchReceiptChanges, subscribeToReceiptChanges };
 
+export function normalizeProductName(name: string): string {
+  return name.trim().toLocaleLowerCase("ru-RU");
+}
+
 export async function normalizePersistedCategories(db: SQLite.SQLiteDatabase) {
   await db.withExclusiveTransactionAsync(async (transaction) => {
     const rows = await transaction.getAllAsync<{ category: string }>(
@@ -43,6 +47,7 @@ export async function openDb() {
   await db.execAsync(RECEIPT_DATABASE_SETUP.enableWal);
   await db.execAsync(RECEIPT_DATABASE_SETUP.createReceipts);
   await db.execAsync(RECEIPT_DATABASE_SETUP.createReceiptItems);
+  await db.execAsync(RECEIPT_DATABASE_SETUP.createReceiptCategoryOverrides);
   await ensureReceiptItemCategoryColumns(db);
   await db.execAsync(RECEIPT_DATABASE_SETUP.createReceiptsDateIndex);
   await db.execAsync(RECEIPT_DATABASE_SETUP.createReceiptItemsReceiptIndex);
@@ -52,14 +57,21 @@ export async function openDb() {
 }
 
 async function ensureReceiptItemCategoryColumns(db: SQLite.SQLiteDatabase) {
-  const columns = await db.getAllAsync<{ name: string }>("PRAGMA table_info(receipt_items)");
+  const columns = await db.getAllAsync<{ name: string }>(
+    "PRAGMA table_info(receipt_items)",
+  );
   const existing = new Set(columns.map((column) => column.name));
   const additions: [string, string][] = [
-    ["categorySource", "TEXT"], ["categoryConfidence", "REAL"],
-    ["categoryTaxonomyVersion", "TEXT"], ["categoryModelVersion", "TEXT"],
+    ["categorySource", "TEXT"],
+    ["categoryConfidence", "REAL"],
+    ["categoryTaxonomyVersion", "TEXT"],
+    ["categoryModelVersion", "TEXT"],
   ];
   for (const [name, type] of additions) {
-    if (!existing.has(name)) await db.execAsync(`ALTER TABLE receipt_items ADD COLUMN ${name} ${type}`);
+    if (!existing.has(name))
+      await db.execAsync(
+        `ALTER TABLE receipt_items ADD COLUMN ${name} ${type}`,
+      );
   }
 }
 
@@ -158,9 +170,8 @@ export function normalizeReceiptResponse(
   const items: ReceiptItem[] = (data.items ?? []).map((item) => {
     const quantity = item.quantity ?? 1;
     const priceRub = rublesFromKopeks(item.price);
-    const itemSumRub = sign * rublesFromKopeks(
-      item.sum ?? (item.price ?? 0) * quantity,
-    );
+    const itemSumRub =
+      sign * rublesFromKopeks(item.sum ?? (item.price ?? 0) * quantity);
     return {
       receiptId: receipt.id,
       name: item.name?.trim() || "Без названия",
@@ -237,9 +248,68 @@ export async function loadReceiptItems(
   db: SQLite.SQLiteDatabase,
   receiptId: string,
 ) {
-  return db.getAllAsync<ReceiptItem>(RECEIPT_QUERIES.selectReceiptItems, [
-    receiptId,
+  const items = await db.getAllAsync<ReceiptItem>(
+    RECEIPT_QUERIES.selectReceiptItems,
+    [receiptId],
+  );
+  return applyLocalCategoryOverrides(db, items);
+}
+
+type CategoryOverride = { productNameKey: string; category: string };
+
+async function applyLocalCategoryOverrides<T extends ReceiptItem>(
+  db: SQLite.SQLiteDatabase,
+  items: T[],
+): Promise<T[]> {
+  if (items.length === 0) return items;
+  const overrides = await db.getAllAsync<CategoryOverride>(
+    RECEIPT_QUERIES.selectReceiptCategoryOverrides,
+  );
+  const categoriesByName = new Map(
+    overrides.map(({ productNameKey, category }) => [productNameKey, category]),
+  );
+  return items.map((item) => {
+    const category = categoriesByName.get(normalizeProductName(item.name));
+    return category === undefined ? item : { ...item, category };
+  });
+}
+
+export async function saveLocalCategoryOverride(
+  db: SQLite.SQLiteDatabase,
+  productName: string,
+  category: string,
+) {
+  const productNameKey = normalizeProductName(productName);
+  const trimmedCategory = category.trim();
+  if (!productNameKey || !trimmedCategory) {
+    throw new Error("Product name and category are required");
+  }
+  await db.runAsync(RECEIPT_QUERIES.upsertReceiptCategoryOverride, [
+    productNameKey,
+    trimmedCategory,
   ]);
+  notifyReceiptChange();
+}
+
+export async function hasLocalCategoryOverride(
+  db: SQLite.SQLiteDatabase,
+  productName: string,
+) {
+  const result = await db.getFirstAsync<{ category: string }>(
+    RECEIPT_QUERIES.selectReceiptCategoryOverride,
+    [normalizeProductName(productName)],
+  );
+  return result !== null;
+}
+
+export async function removeLocalCategoryOverride(
+  db: SQLite.SQLiteDatabase,
+  productName: string,
+) {
+  await db.runAsync(RECEIPT_QUERIES.deleteReceiptCategoryOverride, [
+    normalizeProductName(productName),
+  ]);
+  notifyReceiptChange();
 }
 
 export async function applyServerItemCategories(
@@ -249,21 +319,30 @@ export async function applyServerItemCategories(
 ) {
   await db.withExclusiveTransactionAsync(async (transaction) => {
     for (const item of items) {
-      await transaction.runAsync(RECEIPT_QUERIES.updateReceiptItemServerCategory, [
-        normalizeCategory(item.category), item.categorySource ?? null,
-        item.categoryConfidence ?? null, item.categoryTaxonomyVersion ?? null,
-        item.categoryModelVersion ?? null, receiptId, item.name,
-        item.priceRub, item.quantity,
-      ]);
+      await transaction.runAsync(
+        RECEIPT_QUERIES.updateReceiptItemServerCategory,
+        [
+          normalizeCategory(item.category),
+          item.categorySource ?? null,
+          item.categoryConfidence ?? null,
+          item.categoryTaxonomyVersion ?? null,
+          item.categoryModelVersion ?? null,
+          receiptId,
+          item.name,
+          item.priceRub,
+          item.quantity,
+        ],
+      );
     }
   });
   notifyReceiptChange();
 }
 
 export async function loadJoinedItems(db: SQLite.SQLiteDatabase) {
-  return db.getAllAsync<ReceiptItem & { ticketDate: string }>(
+  const items = await db.getAllAsync<ReceiptItem & { ticketDate: string }>(
     RECEIPT_QUERIES.selectJoinedItems,
   );
+  return applyLocalCategoryOverrides(db, items);
 }
 
 export async function deleteReceipt(

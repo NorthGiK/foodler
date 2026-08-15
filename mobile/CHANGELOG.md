@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Receipt details now allow a local category override for every item with the
+  same case-insensitive product name. Overrides update local history and
+  statistics immediately, remain device-only, and never change the sync
+  payload; users can restore the saved automatic/server category at any time.
+
 - Receipt sync now converges provisional local categories to server-confirmed
   metadata without creating a second receipt; date-only fiscal dates render as
   calendar dates rather than a fabricated local time.
