@@ -280,9 +280,10 @@ const styles = StyleSheet.create({
   },
   feedbackSendButton: {
     paddingVertical: 14,
+    paddingHorizontal: 18,
     borderColor: "#213B2D",
     borderRadius: 15,
-    borderWidth: 1,
+    // borderWidth: 1,
     alignItems: "center",
     width: "100%",
   },

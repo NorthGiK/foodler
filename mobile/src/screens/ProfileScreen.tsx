@@ -51,7 +51,7 @@ const accountMenu: MenuItem[] = [
     route: "account",
     label: "Аккаунт",
     caption: "Личные данные, подписка и AI",
-    icon: "person-outline",
+    icon: "person",
   },
   {
     route: "family",
@@ -63,7 +63,7 @@ const accountMenu: MenuItem[] = [
     route: "privacy",
     label: "Приватность и данные",
     caption: "Продуктовая аналитика",
-    icon: "security",
+    icon: "shield",
   },
 ];
 const commonMenu: MenuItem[] = [
@@ -71,13 +71,13 @@ const commonMenu: MenuItem[] = [
     route: "stores",
     label: "Настройки чеков",
     caption: "Названия магазинов на устройстве",
-    icon: "storefront",
+    icon: "receipt",
   },
   {
     route: "feedback",
     label: "Обратная связь",
     caption: "Написать команде Foodler",
-    icon: "chat-bubble-outline",
+    icon: "chat",
   },
 ];
 
