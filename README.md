@@ -42,6 +42,7 @@ make dev
 ```text
 backend/                 FastAPI, SQLAlchemy, Alembic, локальная аналитика и AI
 mobile/                  Expo/React Native, SQLite и пользовательский интерфейс
+landing/                 Отдельный Vite-лендинг Foodler для Android-приложения
 contracts/openapi.json   generated API-контракт; вручную не редактировать
 docs/                    архитектура, разработка и известные проблемы
 ```
@@ -66,6 +67,7 @@ SQLite, а авторизованный пользователь синхрон�
 - [Mobile](mobile/README.md)
 - [Подписка backend](backend/SUBSCRIPTION_GUIDE.md)
 - [Подписка mobile](mobile/SUBSCRIPTION_GUIDE.md)
+- [Лендинг](landing/README.md)
 
 ## Документация — часть изменения
 
