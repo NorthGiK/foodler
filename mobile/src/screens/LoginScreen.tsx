@@ -51,6 +51,7 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
   const [step, setStep] = useState<Step>("credentials");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isPasswordVisible, setPasswordVisible] = useState(false);
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -167,12 +168,30 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
             passwordField ? "Минимум 8 символов" : "name@example.com"
           }
           placeholderTextColor={theme.muted}
-          secureTextEntry={passwordField}
+          secureTextEntry={passwordField && !isPasswordVisible}
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType={passwordField ? "default" : "email-address"}
           style={[styles.input, { color: theme.text }]}
         />
+        {passwordField ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              isPasswordVisible ? "Скрыть пароль" : "Показать пароль"
+            }
+            accessibilityHint="Переключает видимость введённого пароля"
+            hitSlop={8}
+            onPress={() => setPasswordVisible((visible) => !visible)}
+            style={styles.passwordToggle}
+          >
+            <MaterialIcons
+              name={isPasswordVisible ? "visibility-off" : "visibility"}
+              size={21}
+              color={theme.muted}
+            />
+          </Pressable>
+        ) : null}
       </View>
       {credentialError?.field === (passwordField ? "password" : "email") ? (
         <Text style={[styles.error, { color: theme.error }]}>
@@ -452,7 +471,7 @@ const styles = StyleSheet.create({
     lineHeight: 43,
     marginTop: 8,
   },
-  lead: { fontFamily: 'serif', fontSize: 16, lineHeight: 23, marginTop: 12 },
+  lead: { fontFamily: "serif", fontSize: 16, lineHeight: 23, marginTop: 12 },
   form: { marginTop: 30 },
   field: { marginBottom: 18 },
   label: { fontSize: 14, fontWeight: "700", marginBottom: 8 },
@@ -465,6 +484,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   input: { flex: 1, fontSize: 16, paddingVertical: 15 },
+  passwordToggle: { padding: 8 },
   error: { fontSize: 13, lineHeight: 18, marginTop: 6 },
   cta: {
     alignItems: "center",
@@ -475,7 +495,7 @@ const styles = StyleSheet.create({
   },
   ctaText: { fontSize: 16, fontWeight: "800" },
   link: { alignSelf: "center", padding: 16 },
-  linkText: { fontSize: 15, fontWeight: "400",  },
+  linkText: { fontSize: 15, fontWeight: "400" },
   policyCard: { borderRadius: 22, borderWidth: 1, marginTop: 28, padding: 18 },
   policyRow: {
     alignItems: "center",
