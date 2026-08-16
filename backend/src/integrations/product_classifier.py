@@ -1,7 +1,5 @@
 """Structured AI adapter for ambiguous receipt-item categories."""
 
-from __future__ import annotations
-
 import json
 import re
 from typing import Any
