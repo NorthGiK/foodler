@@ -17,6 +17,10 @@
 **/.ruff_cache/
 **/.expo/
 **/coverage/
+landing/dist
+landing/.vite
+landing/.openai
+landing/
 mobile/dist/
 mobile/android/
 backend/*.db
