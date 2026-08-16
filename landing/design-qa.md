@@ -1,52 +1,32 @@
-**Source visual truth**
+**Comparison target**
 
-- Selected Foodler ideation image: `/home/vld/.codex/generated_images/01a009c8-513b-7811-8d9a-b3049db2c151/exec-99b76f1d-8904-44eb-9494-02dd03621f1b.png`
-- Intended viewport: desktop, 1440 px wide, scrollable landing page.
-- Intended state: default, top-of-page.
+- Source visual truth: `/home/vld/.codex/generated_images/01a009c8-513b-7811-8d9a-b3049db2c151/exec-99b76f1d-8904-44eb-9494-02dd03621f1b.png` — 864 × 1821 px.
+- Implementation: `/tmp/foodler-landing-desktop-full.png` — 1440 × 4922 px; Firefox, CSS viewport 1440 × 1024 px, default state.
+- Responsive implementation: `/tmp/foodler-landing-mobile.png` — 422 × 5789 px; Firefox, CSS viewport 390 × 844 px, default state.
+- Full-view comparison evidence: `/tmp/foodler-landing-comparison.png`. It places the source and a height-normalized desktop capture side by side. The implementation is deliberately taller because the approved content added a dedicated AI-advice section.
 
-**Implementation evidence**
+**Browser verification**
 
-- Vite production build: passed.
-- Sites worker test: passed.
-- Browser-rendered screenshot: unavailable. This environment exposes no browser
-  surface for opening and capturing the local Vite preview; HTTP availability
-  was confirmed at `127.0.0.1:4173` from the permitted preview environment.
-- Playwright browser installation: blocked by the execution environment. Chromium
-  and Firefox archives downloaded successfully, but neither unpacked into an
-  executable browser; both stalled installer processes were stopped. No source
-  files were changed during those attempts.
+- The Vite preview responded with HTTP 200 before capture.
+- Playwright Firefox captured the desktop and mobile views after the primary `.hero` element loaded.
+- Primary navigation uses same-page anchor links; Android CTAs use the configured Google Play package URL. No console errors were surfaced by the capture run.
+- The iPhone device preset could not run because the Firefox host libraries are unavailable; the identical 390 × 844 CSS viewport was captured instead.
 
 **Findings**
 
-- [P1] Visual comparison is blocked.
-  Location: full page and responsive breakpoints.
-  Evidence: the selected source image is available, but there is no
-  browser-rendered implementation screenshot at the matching viewport.
-  Impact: typography, layout rhythm, image crops, hover behaviour and copy
-  density cannot be compared against the source with the required visual
-  evidence.
-  Fix: open the local preview in a browser, capture a 1440 px-wide screenshot,
-  compare it alongside the source image, and resolve any P1/P2 differences.
+- No actionable P0/P1/P2 differences found.
+- Intentional deviation: the implementation replaces the source mock's three image-led process cards with the approved, more prominent Foodler AI advice screen. It retains the editorial hierarchy and warm grocery art direction.
 
 **Required fidelity surfaces**
 
-- Fonts and typography: implemented with Playfair Display and Manrope; blocked
-  pending browser rendering.
-- Spacing and layout rhythm: editorial grid and responsive breakpoints are in
-  code; blocked pending browser rendering.
-- Colors and visual tokens: warm paper, ink, tomato and green tokens are in
-  code; blocked pending browser rendering.
-- Image quality and asset fidelity: custom editorial images were generated and
-  placed in the hero, quote and CTA sections; blocked pending browser rendering.
-- Copy and content: includes the approved categories and non-medical Foodler AI
-  language; blocked pending browser rendering.
+- Fonts and typography: passed. Playfair Display provides the editorial contrast while Manrope preserves the strong grotesk hierarchy visible in the target.
+- Spacing and layout rhythm: passed. The layout maintains the wide asymmetric hero, dense tomato category band, generous quote spread, then a dark AI break; mobile collapses these into a clear vertical rhythm.
+- Colors and visual tokens: passed. Warm paper, ink, tomato, muted green and fine rules match the selected direction without gradients or glass effects.
+- Image quality and asset fidelity: passed. The three generated food images use a consistent natural-light, kraft-paper and linen treatment; the existing Foodler icon is used in the footer.
+- Copy and content: passed. The approved `19% / 8% / 21%` categories are present, and AI examples are clearly informational rather than medical advice.
 
-**Implementation checklist**
+**Follow-up polish**
 
-1. Capture the landing in a browser at 1440 px and a mobile width.
-2. Compare both captures with the selected source image, including the hero and
-   Foodler AI block.
-3. Update this report with the screenshots, comparison history, and `passed`
-   only after no P0/P1/P2 findings remain.
+- Before a public launch, confirm that `com.Foodler.chih_pih` resolves to the published Google Play listing.
 
-final result: blocked
+final result: passed
