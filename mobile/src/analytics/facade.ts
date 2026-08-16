@@ -8,18 +8,10 @@ export type AnalyticsFailureCode =
   "network" | "validation" | "unavailable" | "cancelled" | "unknown";
 export type ReceiptCaptureSource = "qr" | "image";
 export type AnalyticsPlan = "budget_monthly" | "premium_monthly";
-export type AnalyticsTab =
-  "scan" | "stats" | "types" | "receipts" | "profile" | "assistant";
+export type AnalyticsTab = "Receipts" | "Stats" | "Assistant" | "Profile";
 
 export class AnalyticsCancelledError extends Error {
   override name = "AnalyticsCancelledError";
-}
-
-export function isNewAnalyticsTab(
-  current: AnalyticsTab,
-  next: AnalyticsTab,
-): boolean {
-  return current !== next;
 }
 
 type AuthEvent = Extract<

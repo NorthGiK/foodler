@@ -4,7 +4,6 @@ import {
   AnalyticsCancelledError,
   analyticsEvents,
   analyticsFailureCode,
-  isNewAnalyticsTab,
 } from "../facade";
 import { analyticsTriggers } from "../triggers";
 
@@ -22,11 +21,6 @@ describe("analytics event facade", () => {
   });
 
   afterEach(() => jest.restoreAllMocks());
-
-  it("deduplicates the active tab comparison", () => {
-    expect(isNewAnalyticsTab("scan", "scan")).toBe(false);
-    expect(isNewAnalyticsTab("scan", "receipts")).toBe(true);
-  });
 
   it("emits the approved auth and receipt taxonomy with safe properties", async () => {
     const privateError = new ApiError("private server message", 422, {

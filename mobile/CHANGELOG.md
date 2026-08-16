@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Главная навигация упрощена до четырёх статичных вкладок: «Чеки»,
+  «Статистика», «AI» и «Профиль»; переключение сохраняет состояние вкладок.
+- Сканирование чеков и отдельная аналитика категорий больше не доступны через
+  интерфейс. Ручное добавление чека на вкладке «Чеки» сохранено.
+
 - Receipt details now allow a local category override for every item with the
   same case-insensitive product name. Overrides update local history and
   statistics immediately, remain device-only, and never change the sync
