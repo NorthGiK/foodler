@@ -189,7 +189,7 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
         styles.cta,
         {
           backgroundColor: theme.primary,
-          borderColor: theme.secondary,
+          // borderColor: theme.secondary,
           opacity: disabled || pressed ? 0.7 : 1,
         },
       ]}
@@ -231,6 +231,7 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* {image} */}
           <Image
             source={basket}
             style={styles.basket}
@@ -243,19 +244,19 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
                 ? "ПОЧТА ПОДТВЕРЖДЕНИЯ"
                 : "ВАШИ ПОКУПКИ — В ПОРЯДКЕ"}
           </Text>
-          <Text style={[styles.heading, { color: theme.secondary }]}>
+          {/* <Text style={[styles.heading, { color: theme.secondary }]}>
             {skipable
               ? "Начнём с важного"
               : step === "code"
                 ? "Проверьте почту"
                 : "Войдите в Foodler"}
-          </Text>
+          </Text> */}
           <Text style={[styles.lead, { color: theme.muted }]}>
             {skipable
               ? "Примите документы, чтобы продолжить пользоваться приложением."
               : step === "code"
                 ? `Мы отправили код на ${email}.`
-                : "Сохраняйте покупки на устройстве и синхронизируйте их между своими устройствами."}
+                : "Сохраняйте покупки на и синхронизируйте их между своими устройствами."}
           </Text>
           {step === "credentials" && !skipable ? (
             <View style={styles.form}>
@@ -279,7 +280,7 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
                 onPress={() => navigation.navigate("ForgotPassword")}
                 style={styles.link}
               >
-                <Text style={[styles.linkText, { color: theme.secondary }]}>
+                <Text style={[styles.linkText, { color: theme.muted }]}>
                   Забыли пароль?
                 </Text>
               </Pressable>
@@ -451,7 +452,7 @@ const styles = StyleSheet.create({
     lineHeight: 43,
     marginTop: 8,
   },
-  lead: { fontSize: 16, lineHeight: 23, marginTop: 12 },
+  lead: { fontFamily: 'serif', fontSize: 16, lineHeight: 23, marginTop: 12 },
   form: { marginTop: 30 },
   field: { marginBottom: 18 },
   label: { fontSize: 14, fontWeight: "700", marginBottom: 8 },
@@ -468,13 +469,13 @@ const styles = StyleSheet.create({
   cta: {
     alignItems: "center",
     borderRadius: 17,
-    borderWidth: 1.5,
+    // borderWidth: 1.5,
     marginTop: 6,
     paddingVertical: 16,
   },
   ctaText: { fontSize: 16, fontWeight: "800" },
   link: { alignSelf: "center", padding: 16 },
-  linkText: { fontSize: 15, fontWeight: "700" },
+  linkText: { fontSize: 15, fontWeight: "400",  },
   policyCard: { borderRadius: 22, borderWidth: 1, marginTop: 28, padding: 18 },
   policyRow: {
     alignItems: "center",
