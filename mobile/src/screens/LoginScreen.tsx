@@ -164,9 +164,7 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
         <TextInput
           value={value}
           onChangeText={onChangeText}
-          placeholder={
-            passwordField ? "Минимум 8 символов" : "name@example.com"
-          }
+          placeholder={passwordField ? "От 8 символов" : "name@example.com"}
           placeholderTextColor={theme.muted}
           secureTextEntry={passwordField && !isPasswordVisible}
           autoCapitalize="none"
@@ -483,7 +481,12 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 14,
   },
-  input: { flex: 1, fontSize: 16, paddingVertical: 15 },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    paddingVertical: 15,
+    textAlignVertical: "center",
+  },
   passwordToggle: { padding: 8 },
   error: { fontSize: 13, lineHeight: 18, marginTop: 6 },
   cta: {
