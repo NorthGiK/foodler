@@ -11,6 +11,10 @@
 - Browser-rendered screenshot: unavailable. This environment exposes no browser
   surface for opening and capturing the local Vite preview; HTTP availability
   was confirmed at `127.0.0.1:4173` from the permitted preview environment.
+- Playwright browser installation: blocked by the execution environment. Chromium
+  and Firefox archives downloaded successfully, but neither unpacked into an
+  executable browser; both stalled installer processes were stopped. No source
+  files were changed during those attempts.
 
 **Findings**
 
