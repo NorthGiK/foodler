@@ -1,11 +1,64 @@
-const googlePlayUrl = "https://play.google.com/store/apps/details?id=com.Foodler.chih_pih";
+import { useEffect, useState } from "react";
 
-function DownloadLink({ className = "", label = "Скачать для Android" }) {
+const rustoreUrl = "https://www.rustore.ru/catalog/app/com.Foodler.chih_pih";
+const directInstallUrl = "/downloads/Foodler.apk";
+
+function DownloadLink({ className = "", label = "Скачать для Android", onOpen }) {
+  function handleClick(event) {
+    event.preventDefault();
+    onOpen();
+  }
+
   return (
-    <a className={`download-link ${className}`.trim()} href={googlePlayUrl}>
+    <a className={`download-link ${className}`.trim()} href="#download-options" onClick={handleClick}>
       <span>{label}</span>
       <span aria-hidden="true">→</span>
     </a>
+  );
+}
+
+function DownloadModal({ onClose }) {
+  useEffect(() => {
+    function handleKeyDown(event) {
+      if (event.key === "Escape") onClose();
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [onClose]);
+
+  return (
+    <div className="download-modal-backdrop" onMouseDown={onClose}>
+      <div className="download-modal" id="download-options" role="dialog" aria-modal="true" aria-labelledby="download-title" onMouseDown={(event) => event.stopPropagation()}>
+        <button className="download-modal-close" type="button" aria-label="Закрыть выбор установки" onClick={onClose}>×</button>
+        <p className="eyebrow">Foodler для Android</p>
+        <h2 id="download-title">Как установить приложение?</h2>
+        <p className="download-modal-intro">Выберите удобный способ — оба варианта ведут к одной версии Foodler.</p>
+        <div className="download-options">
+          <a className="download-option" href={directInstallUrl} download="Foodler.apk">
+            <span className="download-option-index">01</span>
+            <span>
+              <strong>Прямая установка</strong>
+              <small>Скачать APK-файл Foodler</small>
+            </span>
+            <span aria-hidden="true">↓</span>
+          </a>
+          <a className="download-option" href={rustoreUrl} target="_blank" rel="noreferrer">
+            <span className="download-option-index">02</span>
+            <span>
+              <strong>Через RuStore</strong>
+              <small>Установить из магазина</small>
+            </span>
+            <span aria-hidden="true">↗</span>
+          </a>
+        </div>
+        <p className="download-modal-note">Для прямой установки разрешите установку приложений из этого источника в настройках Android.</p>
+      </div>
+    </div>
   );
 }
 
@@ -65,6 +118,8 @@ function AiPreview() {
 }
 
 export function App() {
+  const [isDownloadModalOpen, setDownloadModalOpen] = useState(false);
+
   return (
     <main>
       <header className="site-header">
@@ -75,7 +130,7 @@ export function App() {
           <a href="#about">О приложении</a>
           <a href="#privacy">Конфиденциальность</a>
         </nav>
-        <DownloadLink className="header-download" />
+        <DownloadLink className="header-download" onOpen={() => setDownloadModalOpen(true)} />
       </header>
 
       <section className="hero" id="top">
@@ -83,7 +138,7 @@ export function App() {
           <p className="eyebrow">Всё о покупках — в одном месте</p>
           <h1>Ваша<br />продуктовая<br />жизнь —<br /><em>в ясных</em><br />цифрах.</h1>
           <p className="hero-summary">Сканируйте чеки, получайте понятные картины расходов и рекомендации, которые действительно помогают вашей семье.</p>
-          <DownloadLink />
+          <DownloadLink onOpen={() => setDownloadModalOpen(true)} />
         </div>
         <div className="hero-media">
           <img src="/assets/hero-groceries.png" alt="Продукты и чек на крафтовой бумаге" />
@@ -152,7 +207,7 @@ export function App() {
           <p className="eyebrow">Foodler для Android</p>
           <h2>Больше осознанности.<br />Меньше рутины.<br /><em>Лучшее для своих.</em></h2>
           <p>Скачайте Foodler и начните видеть свои продуктовые привычки уже сегодня.</p>
-          <DownloadLink />
+          <DownloadLink onOpen={() => setDownloadModalOpen(true)} />
         </div>
       </section>
 
@@ -161,6 +216,7 @@ export function App() {
         <p>С заботой о ваших покупках<br />и вашем бюджете.</p>
         <div className="footer-links"><a href="#privacy">Конфиденциальность</a><a href="#privacy">Условия использования</a><span>Поддержка</span></div>
       </footer>
+      {isDownloadModalOpen && <DownloadModal onClose={() => setDownloadModalOpen(false)} />}
     </main>
   );
 }
