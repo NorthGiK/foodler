@@ -23,12 +23,14 @@ import FullModalWindow from "../FullModalWindow";
 interface FamilySectionProps {
   profile: UserProfile;
   onAddMember: (member: FamilyMember) => Promise<boolean>;
+  onUpdateMember: (index: number, member: FamilyMember) => Promise<boolean>;
   onRemoveMember: (index: number) => void;
 }
 
 export function FamilySection({
   profile,
   onAddMember,
+  onUpdateMember,
   onRemoveMember,
 }: FamilySectionProps) {
   const { theme } = useTheme();
@@ -43,13 +45,18 @@ export function FamilySection({
     healthGoals: [],
   });
   const [memberError, setMemberError] = React.useState("");
+  const [editingIndex, setEditingIndex] = React.useState<number | null>(null);
 
   const handleAdd = async () => {
     if (!newMember.name.trim()) {
       setMemberError("Введите имя члена семьи");
       return;
     }
-    if (!(await onAddMember(newMember))) return;
+    const saved =
+      editingIndex === null
+        ? await onAddMember(newMember)
+        : await onUpdateMember(editingIndex, newMember);
+    if (!saved) return;
     setNewMember({
       name: "",
       age: 0,
@@ -60,6 +67,7 @@ export function FamilySection({
       healthGoals: [],
     });
     setMemberError("");
+    setEditingIndex(null);
     setModalVisible(false);
   };
 
@@ -80,7 +88,19 @@ export function FamilySection({
           title=""
           icon="person-add"
           variant="secondary"
-          onPress={() => setModalVisible(true)}
+          onPress={() => {
+            setEditingIndex(null);
+            setNewMember({
+              name: "",
+              age: 0,
+              gender: "male",
+              heightCm: 0,
+              weightKg: 0,
+              dietaryPreferences: [],
+              healthGoals: [],
+            });
+            setModalVisible(true);
+          }}
           style={{ marginBottom: 16, padding: 4 }}
         />
 
@@ -94,6 +114,12 @@ export function FamilySection({
               <View key={index} style={{ marginBottom: 10 }}>
                 <FamilyMemberCard
                   member={member}
+                  onEdit={() => {
+                    setEditingIndex(index);
+                    setNewMember(member);
+                    setMemberError("");
+                    setModalVisible(true);
+                  }}
                   onDelete={() => onRemoveMember(index)}
                 />
               </View>
@@ -108,7 +134,13 @@ export function FamilySection({
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.keyboardAvoiding}
         >
-          <CashFormScreen title="Добавить члена семьи">
+          <CashFormScreen
+            title={
+              editingIndex === null
+                ? "Добавить члена семьи"
+                : "Изменить члена семьи"
+            }
+          >
             <CashFormSection title="Основное">
               <CashFormInput
                 label="Имя"
@@ -260,7 +292,7 @@ export function FamilySection({
                 style={[styles.saveButton, { backgroundColor: theme.primary }]}
               >
                 <Text style={[styles.saveButtonText, { color: theme.white }]}>
-                  Добавить
+                  {editingIndex === null ? "Добавить" : "Сохранить"}
                 </Text>
               </View>
             </AnimatedPressable>

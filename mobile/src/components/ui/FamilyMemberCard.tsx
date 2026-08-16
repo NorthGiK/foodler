@@ -8,12 +8,14 @@ import { FamilyMember } from "../../types";
 interface FamilyMemberCardProps {
   member: FamilyMember;
   onDelete: () => void;
+  onEdit?: () => void;
   style?: ViewStyle;
 }
 
 export function FamilyMemberCard({
   member,
   onDelete,
+  onEdit,
   style,
 }: FamilyMemberCardProps) {
   const { theme } = useTheme();
@@ -61,6 +63,18 @@ export function FamilyMemberCard({
           </Text>
         ) : null}
       </View>
+      {onEdit ? (
+        <AnimatedPressable scaleTo={0.85} onPress={onEdit}>
+          <View
+            style={[
+              styles.deleteBtn,
+              { backgroundColor: theme.primary + "15" },
+            ]}
+          >
+            <MaterialIcons name="edit" size={17} color={theme.primary} />
+          </View>
+        </AnimatedPressable>
+      ) : null}
       <AnimatedPressable scaleTo={0.85} onPress={onDelete}>
         <View
           style={[styles.deleteBtn, { backgroundColor: theme.error + "15" }]}

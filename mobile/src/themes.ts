@@ -43,33 +43,33 @@ export const availableThemes: ThemeName[] = [
 
 export const themes: Record<ThemeName, Theme> = {
   light: {
-    bg: "#F5F5F7",
-    surface: "#FFFFFF",
-    surfaceElevated: "#F2F2F5",
-    card: "#FFFFFF",
-    card2: "#FAFAFC",
-    border: "#E8E8ED",
-    text: "#1C1C1E",
-    muted: "#8E8E93",
+    bg: "#FFF8EC",
+    surface: "#FFFDF8",
+    surfaceElevated: "#F8EEDC",
+    card: "#FFFDF8",
+    card2: "#FFF5E5",
+    border: "#E8D8BF",
+    text: "#213B2D",
+    muted: "#74776B",
 
-    primary: "#007AFF",
-    primaryContainer: "#E8F2FF",
-    onPrimaryContainer: "#0040A0",
+    primary: "#D94A36",
+    primaryContainer: "#F9DDD4",
+    onPrimaryContainer: "#8D2B1E",
 
-    secondary: "#5856D6",
+    secondary: "#315E45",
 
-    error: "#FF3B30",
-    danger: "#FF3B30",
+    error: "#C8392B",
+    danger: "#C8392B",
 
-    outline: "#C7C7CC",
-    shadow: "#000000",
+    outline: "#CDBFA9",
+    shadow: "#473D31",
     white: "#FFFFFF",
 
-    accent: "#34C759",
-    accent2: "#FF9500",
+    accent: "#315E45",
+    accent2: "#E7A43A",
 
-    glassBg: "rgba(255, 255, 255, 0.7)",
-    glassBorder: "rgba(255, 255, 255, 0.3)",
+    glassBg: "rgba(255, 253, 248, 0.8)",
+    glassBorder: "rgba(255, 253, 248, 0.5)",
   },
 
   dark: {

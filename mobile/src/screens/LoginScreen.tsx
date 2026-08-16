@@ -1,6 +1,4 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { ShakeInput } from "@/components/ShakeInput";
-import { isValidEmail } from "@/utils";
 import MaterialIcons from "@react-native-vector-icons/material-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -8,6 +6,7 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Linking,
   Platform,
@@ -15,6 +14,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -22,25 +22,15 @@ import type { RootStackParamList } from "../../App";
 import { useAuth } from "../api/auth";
 import { useTheme } from "../components/ThemeContext";
 import { policy } from "../config";
-import { AnimatedPressable } from "@/components/animations";
+import { isValidEmail } from "../utils";
 
 type Step = "credentials" | "code";
 type CredentialField = "email" | "password";
-
 const POLICIES_ACCEPTED_KEY = "@policies_accepted";
-
-const POLICY_ENTRIES: {
-  key: keyof typeof policy;
-  label: string;
-}[] = [
-  {
-    key: "PRIVACY_POLICY",
-    label: "Политика конфиденциальности",
-  },
-  {
-    key: "TERMS_OF_SERVICE",
-    label: "Пользовательское соглашение",
-  },
+const basket = require("../assets/ProductBasket.png") as number;
+const POLICY_ENTRIES: { key: keyof typeof policy; label: string }[] = [
+  { key: "PRIVACY_POLICY", label: "Политика конфиденциальности" },
+  { key: "TERMS_OF_SERVICE", label: "Пользовательское соглашение" },
   {
     key: "CONSENT_TO_THE_PROCESSING_OF_PERSONAL_DATA",
     label: "Согласие на обработку персональных данных",
@@ -51,10 +41,7 @@ const POLICY_ENTRIES: {
   },
 ];
 
-type Props = {
-  skipable?: boolean;
-  onPoliciesAccepted?: () => void;
-};
+type Props = { skipable?: boolean; onPoliciesAccepted?: () => void };
 
 export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
   const { theme } = useTheme();
@@ -71,7 +58,7 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
     field: CredentialField;
     message: string;
   } | null>(null);
-  const [acceptedPolicies, setAcceptedPolicies] = useState<
+  const [accepted, setAccepted] = useState<
     Record<keyof typeof policy, boolean>
   >({
     PRIVACY_POLICY: false,
@@ -79,21 +66,7 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
     CONSENT_TO_THE_PROCESSING_OF_PERSONAL_DATA: false,
     CONSENT_TO_THE_PROCESSING_OF_SPECIAL_CATEGORIES_OF_PERSONAL_DATA: false,
   });
-
-  const allPoliciesAccepted = Object.values(acceptedPolicies).every(Boolean);
-
-  const togglePolicy = (key: keyof typeof policy) => {
-    setAcceptedPolicies((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  const openPolicyUrl = (url: string) => {
-    Linking.openURL(url).catch(() => {
-      Alert.alert("Ошибка", "Не удалось открыть ссылку");
-    });
-  };
-
-  const errorAlert = (err: string) =>
-    Alert.alert("Ошибка", err, [{ text: "OK", style: "cancel" }]);
+  const allAccepted = Object.values(accepted).every(Boolean);
 
   useEffect(() => {
     if (step === "code") {
@@ -101,38 +74,11 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
       setCredentialError(null);
     }
   }, [step]);
-
-  const reset = () => {
-    setStep("credentials");
-    setEmail("");
-    setPassword("");
-    setCode("");
-    setError("");
-    setCredentialError(null);
-    setAcceptedPolicies({
-      PRIVACY_POLICY: false,
-      TERMS_OF_SERVICE: false,
-      CONSENT_TO_THE_PROCESSING_OF_PERSONAL_DATA: false,
-      CONSENT_TO_THE_PROCESSING_OF_SPECIAL_CATEGORIES_OF_PERSONAL_DATA: false,
-    });
-  };
-
-  const handlePoliciesAccepted = async () => {
+  const acceptPolicies = async () => {
     await AsyncStorage.setItem(POLICIES_ACCEPTED_KEY, "true");
     onPoliciesAccepted?.();
   };
-
-  const handleSkipLogin = async () => {
-    await handlePoliciesAccepted();
-  };
-
-  const handleBackToCredentials = () => {
-    setStep("credentials");
-    setError("");
-    setCredentialError(null);
-  };
-
-  const updateCredential = (field: CredentialField, value: string) => {
+  const update = (field: CredentialField, value: string) => {
     if (field === "email") {
       setEmail(value);
     } else {
@@ -143,346 +89,323 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
       current?.field === field ? null : current,
     );
   };
-
-  const handleSendCode = async () => {
-    setError("");
-    if (!email.trim()) {
-      setCredentialError({ field: "email", message: "Введите email" });
-      return;
-    } else if (!isValidEmail(email.trim())) {
-      setCredentialError({
+  const send = async () => {
+    if (!email.trim())
+      return setCredentialError({ field: "email", message: "Введите email" });
+    if (!isValidEmail(email.trim()))
+      return setCredentialError({
         field: "email",
         message: "Введён некорректный email",
       });
-      return;
-    } else if (password.length < 8) {
-      setCredentialError({
+    if (password.length < 8)
+      return setCredentialError({
         field: "password",
         message: "Пароль должен быть не менее 8 символов",
       });
-      return;
-    } else if (!/[A-Z]/.test(password)) {
-      setCredentialError({
+    if (!/[A-Z]/.test(password))
+      return setCredentialError({
         field: "password",
         message: "Пароль должен содержать хотя бы одну заглавную букву",
       });
-      return;
-    }
-
     setLoading(true);
     setCredentialError(null);
     try {
       await sendCode(email.trim(), password.trim());
-      setError("");
       setStep("code");
     } catch {
-      const msg =
-        "Ошибка отправки. Проверьте подключение к интернету. Если включён VPN, выключите его.";
-      setError(msg);
-      errorAlert(msg);
+      const message = "Ошибка отправки. Проверьте подключение к интернету.";
+      setError(message);
+      Alert.alert("Ошибка", message);
     } finally {
       setLoading(false);
     }
   };
-
-  const handleVerifyCode = async () => {
+  const verify = async () => {
     if (!code.trim()) {
       setError("Введите код подтверждения");
       return;
     }
-
     setLoading(true);
     setError("");
     try {
       await verifyCode(email.trim(), code.trim(), password);
-      await handlePoliciesAccepted();
-
+      await acceptPolicies();
       navigation.goBack();
-      reset();
       Alert.alert("Успешно", "Вы вошли в аккаунт");
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "Неверный код");
+    } catch (reason: unknown) {
+      setError(reason instanceof Error ? reason.message : "Неверный код");
     } finally {
       setLoading(false);
     }
   };
-
-  const MutedButton = ({
-    text,
-    onPress,
-    textColor,
-    active,
-  }: {
-    text: string;
-    onPress: () => void | Promise<void>;
-    textColor?: string;
-    active?: boolean;
-  }) => {
-    return (
-      <AnimatedPressable
-        onPress={onPress}
-        style={styles.toggle}
-        disabled={!active}
+  const field = (
+    label: string,
+    icon: "email" | "lock-outline",
+    value: string,
+    onChangeText: (text: string) => void,
+    passwordField = false,
+  ) => (
+    <View style={styles.field}>
+      <Text style={[styles.label, { color: theme.secondary }]}>{label}</Text>
+      <View
+        style={[
+          styles.inputShell,
+          {
+            backgroundColor: theme.surface,
+            borderColor:
+              credentialError?.field === (passwordField ? "password" : "email")
+                ? theme.error
+                : theme.border,
+          },
+        ]}
       >
-        <Text style={[styles.toggleText, { color: textColor || theme.text }]}>
-          {text}
+        <MaterialIcons name={icon} size={20} color={theme.secondary} />
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={
+            passwordField ? "Минимум 8 символов" : "name@example.com"
+          }
+          placeholderTextColor={theme.muted}
+          secureTextEntry={passwordField}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType={passwordField ? "default" : "email-address"}
+          style={[styles.input, { color: theme.text }]}
+        />
+      </View>
+      {credentialError?.field === (passwordField ? "password" : "email") ? (
+        <Text style={[styles.error, { color: theme.error }]}>
+          {credentialError.message}
         </Text>
-      </AnimatedPressable>
-    );
-  };
+      ) : null}
+    </View>
+  );
+  const button = (title: string, onPress: () => void, disabled = false) => (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.cta,
+        {
+          backgroundColor: theme.primary,
+          borderColor: theme.secondary,
+          opacity: disabled || pressed ? 0.7 : 1,
+        },
+      ]}
+    >
+      {loading ? (
+        <ActivityIndicator color={theme.white} />
+      ) : (
+        <Text style={[styles.ctaText, { color: theme.white }]}>{title}</Text>
+      )}
+    </Pressable>
+  );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
-      <View style={styles.header}>
-        {!skipable && (
-          <Pressable onPress={() => navigation.goBack()}>
-            <MaterialIcons name="arrow-back" size={24} color={theme.text} />
+      <View style={styles.topbar}>
+        {!skipable ? (
+          <Pressable
+            accessibilityLabel="Назад"
+            onPress={() => navigation.goBack()}
+          >
+            <MaterialIcons
+              name="arrow-back"
+              size={25}
+              color={theme.secondary}
+            />
           </Pressable>
+        ) : (
+          <View />
         )}
-        <Text style={[styles.title, { color: theme.text }]}>
-          {step === "credentials" ? "Вход" : "Подтверждение email"}
-        </Text>
-        <View style={{ width: skipable ? 0 : 24 }} />
+        <Text style={[styles.brand, { color: theme.secondary }]}>foodler</Text>
+        <View style={styles.topSpacer} />
       </View>
-
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.keyboardAvoiding}
+        style={styles.keyboard}
       >
         <ScrollView
           contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          {step === "credentials" ? (
-            <>
-              <Text style={[styles.subtitle, { color: theme.muted }]}>
-                {skipable
-                  ? "Примите политики, чтобы продолжить"
-                  : "Введите email и пароль. Мы отправим код подтверждения на почту."}
-              </Text>
-
-              {!skipable && (
-                <View
-                  style={[
-                    styles.card,
-                    {
-                      backgroundColor: theme.surface,
-                      borderColor: theme.border,
-                    },
-                  ]}
-                >
-                  <ShakeInput
-                    label="Email"
-                    value={email}
-                    onChangeText={(value) => updateCredential("email", value)}
-                    placeholder="example@mail.com"
-                    placeholderTextColor={theme.muted}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    error={
-                      credentialError?.field === "email"
-                        ? credentialError.message
-                        : undefined
-                    }
-                    style={{ marginBottom: 12 }}
-                  />
-
-                  <ShakeInput
-                    label="Пароль"
-                    value={password}
-                    onChangeText={(value) =>
-                      updateCredential("password", value)
-                    }
-                    placeholder="••••••••"
-                    placeholderTextColor={theme.muted}
-                    secureTextEntry
-                    error={
-                      credentialError?.field === "password"
-                        ? credentialError.message
-                        : undefined
-                    }
-                    style={{ marginBottom: 12 }}
-                  />
-                  {error ? <Text style={styles.formError}>{error}</Text> : null}
-                </View>
+          <Image
+            source={basket}
+            style={styles.basket}
+            accessibilityLabel="Корзина Foodler"
+          />
+          <Text style={[styles.eyebrow, { color: theme.primary }]}>
+            {skipable
+              ? "ДОБРО ПОЖАЛОВАТЬ"
+              : step === "code"
+                ? "ПОЧТА ПОДТВЕРЖДЕНИЯ"
+                : "ВАШИ ПОКУПКИ — В ПОРЯДКЕ"}
+          </Text>
+          <Text style={[styles.heading, { color: theme.secondary }]}>
+            {skipable
+              ? "Начнём с важного"
+              : step === "code"
+                ? "Проверьте почту"
+                : "Войдите в Foodler"}
+          </Text>
+          <Text style={[styles.lead, { color: theme.muted }]}>
+            {skipable
+              ? "Примите документы, чтобы продолжить пользоваться приложением."
+              : step === "code"
+                ? `Мы отправили код на ${email}.`
+                : "Сохраняйте покупки на устройстве и синхронизируйте их между своими устройствами."}
+          </Text>
+          {step === "credentials" && !skipable ? (
+            <View style={styles.form}>
+              {field("Email", "email", email, (value) =>
+                update("email", value),
               )}
-
-              {/* Policy checkboxes */}
-              {skipable && (
-                <View
-                  style={[
-                    styles.card,
-                    {
-                      backgroundColor: theme.surface,
-                      borderColor: theme.border,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.policyTitle, { color: theme.text }]}>
-                    Я принимаю следующие документы:
-                  </Text>
-                  <View style={styles.policySection}>
-                    {POLICY_ENTRIES.map((entry) => (
-                      <View key={entry.key} style={styles.policyRow}>
-                        <Pressable
-                          onPress={() => togglePolicy(entry.key)}
-                          style={[
-                            styles.checkbox,
-                            {
-                              borderColor: theme.border,
-                              backgroundColor: acceptedPolicies[entry.key]
-                                ? theme.primary
-                                : "transparent",
-                            },
-                          ]}
-                        >
-                          {acceptedPolicies[entry.key] && (
-                            <MaterialIcons
-                              name="check"
-                              size={14}
-                              color={theme.white}
-                            />
-                          )}
-                        </Pressable>
-                        <Pressable
-                          onPress={() => openPolicyUrl(policy[entry.key])}
-                          style={styles.policyLabel}
-                        >
-                          <Text
-                            style={[
-                              styles.policyText,
-                              { color: theme.primary },
-                            ]}
-                          >
-                            {entry.label}
-                          </Text>
-                        </Pressable>
-                      </View>
-                    ))}
-                  </View>
-                </View>
+              {field(
+                "Пароль",
+                "lock-outline",
+                password,
+                (value) => update("password", value),
+                true,
               )}
-
-              {skipable && (
-                <Pressable
-                  style={[
-                    styles.submitBtn,
-                    {
-                      backgroundColor: theme.primary,
-                      opacity: loading || !allPoliciesAccepted ? 0.6 : 1,
-                    },
-                  ]}
-                  onPress={async () => {
-                    await handleSkipLogin();
-                    navigation.navigate("Login");
-                  }}
-                  disabled={loading || !allPoliciesAccepted}
-                >
-                  {loading ? (
-                    <ActivityIndicator color={theme.white} />
-                  ) : (
-                    <Text style={[styles.submitText, { color: theme.white }]}>
-                      Войти
-                    </Text>
-                  )}
-                </Pressable>
-              )}
-
-              {!skipable && (
-                <>
+              {error ? (
+                <Text style={[styles.error, { color: theme.error }]}>
+                  {error}
+                </Text>
+              ) : null}
+              {button("Получить код", () => void send(), loading)}
+              <Pressable
+                onPress={() => navigation.navigate("ForgotPassword")}
+                style={styles.link}
+              >
+                <Text style={[styles.linkText, { color: theme.secondary }]}>
+                  Забыли пароль?
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
+          {step === "credentials" && skipable ? (
+            <View
+              style={[
+                styles.policyCard,
+                { borderColor: theme.border, backgroundColor: theme.surface },
+              ]}
+            >
+              {POLICY_ENTRIES.map((entry) => (
+                <View key={entry.key} style={styles.policyRow}>
                   <Pressable
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: accepted[entry.key] }}
+                    onPress={() =>
+                      setAccepted((old) => ({
+                        ...old,
+                        [entry.key]: !old[entry.key],
+                      }))
+                    }
                     style={[
-                      styles.submitBtn,
+                      styles.checkbox,
                       {
-                        backgroundColor: theme.primary,
+                        borderColor: theme.secondary,
+                        backgroundColor: accepted[entry.key]
+                          ? theme.primary
+                          : "transparent",
                       },
                     ]}
-                    onPress={handleSendCode}
                   >
-                    {loading ? (
-                      <ActivityIndicator color={theme.white} />
-                    ) : (
-                      <Text style={[styles.submitText, { color: theme.white }]}>
-                        Получить код
-                      </Text>
-                    )}
+                    {accepted[entry.key] ? (
+                      <MaterialIcons
+                        name="check"
+                        size={15}
+                        color={theme.white}
+                      />
+                    ) : null}
                   </Pressable>
-
-                  <MutedButton
-                    text="Забыли пароль?"
-                    onPress={() => navigation.navigate("ForgotPassword")}
-                    textColor={theme.primary}
-                    active
-                  />
-                </>
+                  <Pressable
+                    onPress={() =>
+                      Linking.openURL(policy[entry.key]).catch(() =>
+                        Alert.alert("Ошибка", "Не удалось открыть ссылку"),
+                      )
+                    }
+                    style={styles.policyText}
+                  >
+                    <Text
+                      style={[styles.policyLink, { color: theme.secondary }]}
+                    >
+                      {entry.label}
+                    </Text>
+                  </Pressable>
+                </View>
+              ))}
+              {button(
+                "Продолжить",
+                () => void acceptPolicies(),
+                loading || !allAccepted,
               )}
-            </>
-          ) : (
-            <>
-              <Text style={[styles.subtitle, { color: theme.muted }]}>
-                Мы отправили код на {email}. Введите его ниже.
-              </Text>
-
-              <View
-                style={[
-                  styles.card,
-                  { backgroundColor: theme.surface, borderColor: theme.border },
-                ]}
+              <Pressable
+                disabled={!allAccepted}
+                onPress={() => void acceptPolicies()}
+                style={styles.guestLink}
               >
-                <ShakeInput
-                  label="Код подтверждения"
-                  value={code}
-                  onChangeText={setCode}
-                  placeholder="abcd1234"
-                  placeholderTextColor={theme.muted}
-                  maxLength={8}
-                  autoFocus
-                  autoCapitalize="none"
-                  error={error}
-                />
-
-                <Pressable
+                <Text
                   style={[
-                    styles.submitBtn,
+                    styles.linkText,
+                    { color: theme.muted, opacity: allAccepted ? 1 : 0.45 },
+                  ]}
+                >
+                  Продолжить без аккаунта
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
+          {step === "code" ? (
+            <View style={styles.form}>
+              <View style={styles.field}>
+                <Text style={[styles.label, { color: theme.secondary }]}>
+                  Код подтверждения
+                </Text>
+                <View
+                  style={[
+                    styles.inputShell,
                     {
-                      backgroundColor: theme.primary,
-                      opacity: loading ? 0.6 : 1,
+                      backgroundColor: theme.surface,
+                      borderColor: error ? theme.error : theme.border,
                     },
                   ]}
-                  onPress={handleVerifyCode}
-                  disabled={loading}
                 >
-                  {loading ? (
-                    <ActivityIndicator color={theme.white} />
-                  ) : (
-                    <Text style={[styles.submitText, { color: theme.white }]}>
-                      Подтвердить
-                    </Text>
-                  )}
-                </Pressable>
-
-                <Pressable
-                  onPress={handleBackToCredentials}
-                  style={styles.backBtn}
-                >
-                  <Text style={[styles.backText, { color: theme.muted }]}>
-                    Назад
+                  <MaterialIcons
+                    name="mark-email-read"
+                    size={20}
+                    color={theme.secondary}
+                  />
+                  <TextInput
+                    value={code}
+                    onChangeText={setCode}
+                    placeholder="abcd1234"
+                    placeholderTextColor={theme.muted}
+                    autoCapitalize="none"
+                    autoFocus
+                    maxLength={8}
+                    style={[styles.input, { color: theme.text }]}
+                  />
+                </View>
+                {error ? (
+                  <Text style={[styles.error, { color: theme.error }]}>
+                    {error}
                   </Text>
-                </Pressable>
+                ) : null}
               </View>
-            </>
-          )}
-
-          {step === "credentials" && skipable && (
-            <MutedButton
-              text="Продолжить без авторизации"
-              onPress={handleSkipLogin}
-              textColor={theme.muted + (allPoliciesAccepted ? "" : "88")}
-              active={allPoliciesAccepted}
-            />
-          )}
+              {button("Подтвердить", () => void verify(), loading)}
+              <Pressable
+                onPress={() => setStep("credentials")}
+                style={styles.link}
+              >
+                <Text style={[styles.linkText, { color: theme.secondary }]}>
+                  Изменить данные
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -490,96 +413,89 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
 }
 
 const styles = StyleSheet.create({
-  keyboardAvoiding: {
-    flex: 1,
-  },
-  container: {
-    flex: 1,
-  },
-  content: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  header: {
+  container: { flex: 1 },
+  keyboard: { flex: 1 },
+  topbar: {
+    alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingHorizontal: 22,
+    paddingTop: 12,
   },
-  title: {
-    fontSize: 20,
+  topSpacer: { width: 25 },
+  brand: {
+    fontFamily: "serif",
+    fontSize: 25,
     fontWeight: "700",
+    letterSpacing: -1,
   },
-  subtitle: {
-    fontSize: 15,
-    lineHeight: 22,
-    marginBottom: 24,
+  content: { padding: 24, paddingBottom: 48 },
+  basket: {
+    alignSelf: "center",
+    height: 112,
+    marginBottom: 8,
+    resizeMode: "contain",
+    width: 112,
   },
-  card: {
-    borderRadius: 24,
-    padding: 20,
-    borderWidth: 1,
-    gap: 14,
+  eyebrow: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1.2,
+    marginTop: 8,
   },
-  policyTitle: {
-    fontSize: 14,
-    fontWeight: "600",
+  heading: {
+    fontFamily: "serif",
+    fontSize: 39,
+    fontWeight: "700",
+    letterSpacing: -1.2,
+    lineHeight: 43,
+    marginTop: 8,
   },
-  policySection: {
-    gap: 10,
-  },
-  policyRow: {
-    flexDirection: "row",
+  lead: { fontSize: 16, lineHeight: 23, marginTop: 12 },
+  form: { marginTop: 30 },
+  field: { marginBottom: 18 },
+  label: { fontSize: 14, fontWeight: "700", marginBottom: 8 },
+  inputShell: {
     alignItems: "center",
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: "row",
     gap: 10,
+    paddingHorizontal: 14,
+  },
+  input: { flex: 1, fontSize: 16, paddingVertical: 15 },
+  error: { fontSize: 13, lineHeight: 18, marginTop: 6 },
+  cta: {
+    alignItems: "center",
+    borderRadius: 17,
+    borderWidth: 1.5,
+    marginTop: 6,
+    paddingVertical: 16,
+  },
+  ctaText: { fontSize: 16, fontWeight: "800" },
+  link: { alignSelf: "center", padding: 16 },
+  linkText: { fontSize: 15, fontWeight: "700" },
+  policyCard: { borderRadius: 22, borderWidth: 1, marginTop: 28, padding: 18 },
+  policyRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 14,
   },
   checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
+    alignItems: "center",
+    borderRadius: 5,
     borderWidth: 1.5,
-    alignItems: "center",
+    height: 22,
     justifyContent: "center",
+    width: 22,
   },
-  policyLabel: {
-    flex: 1,
-    paddingVertical: 2,
-  },
-  policyText: {
-    fontSize: 13,
-    fontWeight: "600",
-    textDecorationLine: "underline",
-  },
-  submitBtn: {
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: "center",
-    marginTop: 4,
-  },
-  submitText: {
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  backBtn: {
-    alignItems: "center",
-    marginTop: 12,
-  },
-  backText: {
+  policyText: { flex: 1 },
+  policyLink: {
     fontSize: 14,
     fontWeight: "600",
+    lineHeight: 19,
+    textDecorationLine: "underline",
   },
-  toggle: {
-    alignItems: "center",
-    marginTop: 20,
-  },
-  toggleText: {
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  formError: {
-    color: "#ef4444",
-    fontSize: 13,
-  },
+  guestLink: { alignSelf: "center", paddingTop: 18 },
 });
