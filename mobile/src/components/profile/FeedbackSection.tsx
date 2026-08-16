@@ -107,10 +107,30 @@ export function FeedbackSection({
       ]}
     >
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>
-          Обратная связь
-        </Text>
+        <View style={styles.headingCopy}>
+          <Text style={[styles.eyebrow, { color: theme.secondary }]}>
+            FOODLER
+          </Text>
+          <Text style={[styles.sectionTitle, { color: theme.secondary }]}>
+            Обратная связь
+          </Text>
+        </View>
+        <View
+          style={[
+            styles.headingIcon,
+            { backgroundColor: theme.primaryContainer },
+          ]}
+        >
+          <MaterialIcons
+            name="mail-outline"
+            size={21}
+            color={theme.onPrimaryContainer}
+          />
+        </View>
       </View>
+      <Text style={[styles.intro, { color: theme.muted }]}>
+        Расскажите, что стоит улучшить. Можно приложить скриншоты.
+      </Text>
       <TextInput
         style={[
           styles.feedbackInput,
@@ -185,8 +205,8 @@ export function FeedbackSection({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 24,
-    padding: 20,
+    borderRadius: 20,
+    padding: 18,
     borderWidth: 1,
     marginBottom: 16,
     alignItems: "center",
@@ -196,19 +216,30 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     width: "100%",
-    marginBottom: 16,
+    marginBottom: 7,
   },
+  headingCopy: { flex: 1 },
+  eyebrow: { fontSize: 10, fontWeight: "800", letterSpacing: 1 },
   sectionTitle: {
-    fontSize: 18,
+    fontFamily: "serif",
+    fontSize: 23,
     fontWeight: "700",
   },
+  headingIcon: {
+    alignItems: "center",
+    borderRadius: 14,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
+  },
+  intro: { fontSize: 14, lineHeight: 20, marginBottom: 16 },
   feedbackInput: {
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 15,
-    minHeight: 100,
+    minHeight: 118,
     width: "100%",
     marginBottom: 12,
   },
@@ -225,7 +256,7 @@ const styles = StyleSheet.create({
   feedbackImage: {
     width: 64,
     height: 64,
-    borderRadius: 12,
+    borderRadius: 14,
   },
   feedbackImageRemove: {
     position: "absolute",
@@ -241,7 +272,7 @@ const styles = StyleSheet.create({
   feedbackAddImage: {
     width: 64,
     height: 64,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderStyle: "dashed",
     justifyContent: "center",
@@ -249,7 +280,9 @@ const styles = StyleSheet.create({
   },
   feedbackSendButton: {
     paddingVertical: 14,
-    borderRadius: 14,
+    borderColor: "#213B2D",
+    borderRadius: 15,
+    borderWidth: 1,
     alignItems: "center",
     width: "100%",
   },

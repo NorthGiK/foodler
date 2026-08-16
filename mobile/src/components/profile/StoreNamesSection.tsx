@@ -116,6 +116,7 @@ export function StoreNamesSection({
           <MaterialIcons name="storefront" size={20} color={theme.primary} />
         </View>
         <View style={styles.cardContent}>
+          <Text style={[styles.eyebrow, { color: theme.secondary }]}>ЧЕКИ</Text>
           <Text style={[styles.title, { color: theme.text }]}>
             Названия магазинов
           </Text>
@@ -132,9 +133,13 @@ export function StoreNamesSection({
         style={styles.keyboardAvoiding}
       >
         <FullModalWindow visible={visible} setVisible={close}>
-          <View style={[styles.modal, { backgroundColor: theme.surface }]}>
+          <View
+            style={[
+              styles.modal,
+              { backgroundColor: theme.surface, borderColor: theme.border },
+            ]}
+          >
             {selectedStore ? (
-
               <ScrollView
                 contentContainerStyle={styles.editorContent}
                 keyboardShouldPersistTaps="handled"
@@ -157,7 +162,7 @@ export function StoreNamesSection({
                       color={theme.text}
                     />
                   </Pressable>
-                  <Text style={[styles.modalTitle, { color: theme.text }]}>
+                  <Text style={[styles.modalTitle, { color: theme.secondary }]}>
                     Название магазина
                   </Text>
                   <View style={styles.headerSpacer} />
@@ -223,10 +228,7 @@ export function StoreNamesSection({
                     <ActivityIndicator color={theme.white} />
                   ) : (
                     <Text
-                      style={[
-                        styles.primaryButtonText,
-                        { color: theme.white },
-                      ]}
+                      style={[styles.primaryButtonText, { color: theme.white }]}
                     >
                       Сохранить
                     </Text>
@@ -252,7 +254,19 @@ export function StoreNamesSection({
               </ScrollView>
             ) : (
               <>
-                <Text style={[styles.modalTitle, { color: theme.text }]}>
+                <View
+                  style={[
+                    styles.modalBadge,
+                    { backgroundColor: theme.primaryContainer },
+                  ]}
+                >
+                  <MaterialIcons
+                    name="storefront"
+                    size={21}
+                    color={theme.onPrimaryContainer}
+                  />
+                </View>
+                <Text style={[styles.modalTitle, { color: theme.secondary }]}>
                   Названия магазинов
                 </Text>
                 <Text style={[styles.modalDescription, { color: theme.muted }]}>
@@ -320,29 +334,51 @@ export function StoreNamesSection({
 const styles = StyleSheet.create({
   card: {
     alignItems: "center",
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1,
     flexDirection: "row",
     marginBottom: 16,
-    padding: 16,
+    padding: 15,
   },
   icon: {
     alignItems: "center",
-    borderRadius: 14,
+    borderRadius: 13,
     height: 44,
     justifyContent: "center",
     marginRight: 13,
     width: 44,
   },
   cardContent: { flex: 1 },
-  title: { fontSize: 16, fontWeight: "700" },
+  eyebrow: { fontSize: 10, fontWeight: "800", letterSpacing: 1 },
+  title: { fontFamily: "serif", fontSize: 18, fontWeight: "700" },
   description: { fontSize: 13, lineHeight: 18, marginTop: 3 },
-  modal: { borderRadius: 24, maxHeight: "82%", minHeight: 280, padding: 24 },
+  modal: {
+    borderRadius: 26,
+    borderWidth: 1,
+    maxHeight: "82%",
+    minHeight: 280,
+    padding: 24,
+  },
   keyboardAvoiding: { flex: 1 },
   editorContent: { flexGrow: 1, paddingBottom: 8 },
   modalHeader: { alignItems: "center", flexDirection: "row", marginBottom: 16 },
   headerSpacer: { width: 24 },
-  modalTitle: { flex: 1, fontSize: 20, fontWeight: "700", textAlign: "center" },
+  modalTitle: {
+    flex: 1,
+    fontFamily: "serif",
+    fontSize: 23,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  modalBadge: {
+    alignItems: "center",
+    alignSelf: "center",
+    borderRadius: 15,
+    height: 44,
+    justifyContent: "center",
+    marginBottom: 8,
+    width: 44,
+  },
   modalDescription: {
     fontSize: 14,
     lineHeight: 20,
@@ -353,9 +389,12 @@ const styles = StyleSheet.create({
   list: { flexGrow: 0 },
   storeRow: {
     alignItems: "center",
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
     flexDirection: "row",
     minHeight: 66,
+    marginBottom: 8,
+    paddingHorizontal: 12,
     paddingVertical: 10,
   },
   storeText: { flex: 1, marginRight: 12 },
