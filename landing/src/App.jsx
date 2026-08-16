@@ -212,7 +212,7 @@ export function App() {
       </section>
 
       <footer id="privacy">
-        <div className="footer-brand"><img src="/assets/foodler-icon.png" alt="" /> <span>FOODLER</span></div>
+        <div className="footer-brand"><img src="/assets/foodler-icon-editorial.png" alt="" /> <span>FOODLER</span></div>
         <p>С заботой о ваших покупках<br />и вашем бюджете.</p>
         <div className="footer-links"><a href="#privacy">Конфиденциальность</a><a href="#privacy">Условия использования</a><span>Поддержка</span></div>
       </footer>
