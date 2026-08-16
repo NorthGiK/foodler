@@ -1,9 +1,9 @@
 **Comparison target**
 
 - Source visual truth: `/home/vld/.codex/generated_images/01a009c8-513b-7811-8d9a-b3049db2c151/exec-99b76f1d-8904-44eb-9494-02dd03621f1b.png` — 864 × 1821 px.
-- Implementation: `/tmp/foodler-landing-desktop-full.png` — 1440 × 4922 px; Firefox, CSS viewport 1440 × 1024 px, default state.
-- Responsive implementation: `/tmp/foodler-landing-mobile.png` — 422 × 5789 px; Firefox, CSS viewport 390 × 844 px, default state.
-- Full-view comparison evidence: `/tmp/foodler-landing-comparison.png`. It places the source and a height-normalized desktop capture side by side. The implementation is deliberately taller because the approved content added a dedicated AI-advice section.
+- Implementation: `/tmp/foodler-landing-readable-desktop.png` — Firefox, CSS viewport 1440 × 1024 px, default state.
+- Responsive implementation: `/tmp/foodler-landing-readable-mobile.png` — Firefox, CSS viewport 390 × 844 px, default state.
+- Full-view comparison evidence: `/tmp/foodler-landing-comparison.png`. The follow-up readability pass increased ordinary copy while preserving the selected editorial hierarchy.
 
 **Browser verification**
 
@@ -11,6 +11,7 @@
 - Playwright Firefox captured the desktop and mobile views after the primary `.hero` element loaded.
 - Primary navigation uses same-page anchor links; Android CTAs use the configured Google Play package URL. No console errors were surfaced by the capture run.
 - The iPhone device preset could not run because the Firefox host libraries are unavailable; the identical 390 × 844 CSS viewport was captured instead.
+- The readability pass raised body, navigation, table, footer and AI-advice copy to comfortable sizes while leaving display headings unchanged.
 
 **Findings**
 

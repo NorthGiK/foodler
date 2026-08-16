@@ -1,0 +1,63 @@
+/* Readability pass: keep display typography intact while giving body copy a
+   comfortable reading size on both desktop and mobile. */
+.header-note,
+.site-header nav,
+footer {
+    font-size: 12px;
+}
+
+.header-download {
+    font-size: 11px;
+}
+
+.eyebrow {
+    font-size: 11px;
+}
+
+.download-link {
+    font-size: 13px;
+}
+
+.hero-summary,
+.editorial-quote div>p,
+.step p,
+.closing-copy>p:not(.eyebrow) {
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.spending-table span {
+    font-size: 14px;
+}
+
+.spending-table dd {
+    font-size: 13px;
+}
+
+.spending-aside {
+    font-size: 12px;
+}
+
+.spending-aside small {
+    font-size: 11px;
+}
+
+.ai-copy>p:not(.eyebrow):not(.ai-disclaimer) {
+    font-size: 15px;
+}
+
+.ai-disclaimer {
+    font-size: 12px;
+}
+
+.tip-label {
+    font-size: 10px;
+}
+
+.ai-tip>p:not(.tip-label) {
+    font-size: 11px;
+}
+
+.assistant-more {
+    font-size: 11px;
+}
