@@ -216,7 +216,7 @@ export function ReceiptDetailScreen() {
             <View style={styles.hero}>
               <View style={styles.heroCopy}>
                 <Text style={[styles.total, { color: theme.primary }]}>
-                  {fmtRub(receipt.totalSumRub)}
+                  {fmtRub(receipt.totalSumRub, false)}
                 </Text>
                 <Text style={[styles.date, { color: theme.muted }]}>
                   {fmtDate(receipt.ticketDate)}
@@ -229,6 +229,7 @@ export function ReceiptDetailScreen() {
                   route.params.storeAliases,
                 )}
                 totalRub={receipt.totalSumRub}
+                itemsCount={Math.min(items.length, 13)}
               />
             </View>
             <Text style={[styles.sectionTitle, { color: theme.text }]}>
@@ -483,7 +484,7 @@ const styles = StyleSheet.create({
   },
   total: {
     fontFamily: "serif",
-    fontSize: 39,
+    fontSize: 38,
     fontWeight: "700",
     letterSpacing: -1.5,
   },
@@ -516,6 +517,7 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   itemSum: {
+    fontFamily: "serif",
     fontSize: 14,
     fontWeight: "700",
   },
@@ -529,7 +531,7 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
   },
   categoryTotalLabel: { fontSize: 15 },
-  categoryTotalValue: { fontSize: 15, fontWeight: "700" },
+  categoryTotalValue: { fontFamily: "serif", fontSize: 15, fontWeight: "700" },
   receiptTotal: {
     alignItems: "center",
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -539,7 +541,7 @@ const styles = StyleSheet.create({
     paddingTop: 17,
   },
   receiptTotalLabel: { fontSize: 15, fontWeight: "600" },
-  receiptTotalValue: { fontSize: 22, fontWeight: "800" },
+  receiptTotalValue: { fontFamily: "serif", fontSize: 22, fontWeight: "800" },
   state: {
     alignItems: "center",
     justifyContent: "center",
@@ -570,7 +572,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
     justifyContent: "center",
-    marginTop: 20,
+    marginTop: 50,
     paddingVertical: 13,
   },
   deleteText: {

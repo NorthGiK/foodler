@@ -7,12 +7,14 @@ export const ReceiptPreview = memo(function ReceiptPreview({
   items,
   storeName,
   totalRub,
+  itemsCount = 3,
 }: {
   items: ReceiptItem[];
   storeName: string;
   totalRub: number;
+  itemsCount?: number;
 }) {
-  const previewItems = items.slice(0, 3);
+  const previewItems = items.slice(0, itemsCount);
 
   return (
     <View accessibilityElementsHidden style={styles.preview}>

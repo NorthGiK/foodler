@@ -135,11 +135,11 @@ export function buildAllTimeSeries(
 }
 
 // Форматирование валюты
-export function fmtRub(value: number): string {
+export function fmtRub(value: number, withKopeks: boolean = true): string {
   return new Intl.NumberFormat("ru-RU", {
     style: "currency",
     currency: "RUB",
-    maximumFractionDigits: 2,
+    maximumFractionDigits: withKopeks ? 2 : 0,
   }).format(value);
 }
 
