@@ -1,4 +1,5 @@
 import { CategoryMode, Period, Receipt, ReceiptItem } from "./types";
+import { normalizeCategory } from "./category";
 
 export function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -24,6 +25,24 @@ export function groupReceiptItems(items: ReceiptItem[]): ReceiptItem[] {
   }
 
   return [...grouped.values()];
+}
+
+export type ReceiptCategoryTotal = { label: string; sumRub: number };
+
+export function buildReceiptCategoryTotals(
+  items: ReceiptItem[],
+): ReceiptCategoryTotal[] {
+  const totals = new Map<string, number>();
+  for (const item of items) {
+    const category = normalizeCategory(item.category);
+    totals.set(category, (totals.get(category) ?? 0) + item.sumRub);
+  }
+
+  return [...totals.entries()]
+    .map(([label, sumRub]) => ({ label, sumRub }))
+    .sort(
+      (a, b) => b.sumRub - a.sumRub || a.label.localeCompare(b.label, "ru-RU"),
+    );
 }
 
 // Группировка чеков по дням / неделям / месяцам

@@ -1,4 +1,9 @@
-import { buildAllTimeSeries, fmtDate, groupReceiptItems } from "../utils";
+import {
+  buildAllTimeSeries,
+  buildReceiptCategoryTotals,
+  fmtDate,
+  groupReceiptItems,
+} from "../utils";
 import type { Receipt, ReceiptItem } from "../types";
 
 function receipt(id: string, ticketDate: string, totalSumRub: number): Receipt {
@@ -91,5 +96,50 @@ describe("groupReceiptItems", () => {
     expect(grouped[1]).toEqual(
       expect.objectContaining({ priceRub: 135, quantity: 1, sumRub: 135 }),
     );
+  });
+});
+
+describe("buildReceiptCategoryTotals", () => {
+  it("normalizes each category once and sorts by total, then label", () => {
+    const items: ReceiptItem[] = [
+      {
+        receiptId: "receipt-1",
+        name: "Молоко",
+        category: "молоченые",
+        priceRub: 100,
+        quantity: 1,
+        sumRub: 100,
+      },
+      {
+        receiptId: "receipt-1",
+        name: "Йогурт",
+        category: "Молочные продукты",
+        priceRub: 100,
+        quantity: 1,
+        sumRub: 100,
+      },
+      {
+        receiptId: "receipt-1",
+        name: "Яблоко",
+        category: "фрукты",
+        priceRub: 100,
+        quantity: 1,
+        sumRub: 200,
+      },
+      {
+        receiptId: "receipt-1",
+        name: "Хлеб",
+        category: "Хлеб и выпечка",
+        priceRub: 100,
+        quantity: 1,
+        sumRub: 200,
+      },
+    ];
+
+    expect(buildReceiptCategoryTotals(items)).toEqual([
+      { label: "Молочные продукты", sumRub: 200 },
+      { label: "Фрукты", sumRub: 200 },
+      { label: "Хлеб и выпечка", sumRub: 200 },
+    ]);
   });
 });

@@ -24,6 +24,7 @@ import type { RootStackParamList } from "../../App";
 import { queueReceiptDeletion, syncPendingReceiptDeletions } from "../api/sync";
 import { analyticsEvents } from "../analytics/facade";
 import { BUILT_IN_CATEGORIES, FALLBACK_CATEGORY } from "../category";
+import { ReceiptPreview } from "../components/ReceiptPreview";
 import { useTheme } from "../components/ThemeContext";
 import {
   deleteReceipt,
@@ -34,7 +35,12 @@ import {
   saveLocalCategoryOverride,
 } from "../storage";
 import type { ReceiptItem } from "../types";
-import { fmtDate, fmtRub, groupReceiptItems } from "../utils";
+import {
+  buildReceiptCategoryTotals,
+  fmtDate,
+  fmtRub,
+  groupReceiptItems,
+} from "../utils";
 import { getStoreDisplayName } from "../storeAliases";
 
 type LoadState = "loading" | "success" | "error";
@@ -47,6 +53,10 @@ export function ReceiptDetailScreen() {
   const receipt = route.params.receipt;
   const [items, setItems] = useState<ReceiptItem[]>([]);
   const groupedItems = useMemo(() => groupReceiptItems(items), [items]);
+  const categoryTotals = useMemo(
+    () => buildReceiptCategoryTotals(groupedItems),
+    [groupedItems],
+  );
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [deleting, setDeleting] = useState(false);
   const [editingItem, setEditingItem] = useState<ReceiptItem | null>(null);
@@ -171,7 +181,6 @@ export function ReceiptDetailScreen() {
         >
           {getStoreDisplayName(receipt.organization, route.params.storeAliases)}
         </Text>
-        <View style={styles.headerButton} />
       </View>
 
       <FlatList
@@ -203,17 +212,27 @@ export function ReceiptDetailScreen() {
           </View>
         )}
         ListHeaderComponent={
-          <View
-            style={[
-              styles.summary,
-              { backgroundColor: theme.surface, borderColor: theme.border },
-            ]}
-          >
-            <Text style={[styles.total, { color: theme.primary }]}>
-              {fmtRub(receipt.totalSumRub)}
-            </Text>
-            <Text style={[styles.date, { color: theme.muted }]}>
-              {fmtDate(receipt.ticketDate)}
+          <View>
+            <View style={styles.hero}>
+              <View style={styles.heroCopy}>
+                <Text style={[styles.total, { color: theme.primary }]}>
+                  {fmtRub(receipt.totalSumRub)}
+                </Text>
+                <Text style={[styles.date, { color: theme.muted }]}>
+                  {fmtDate(receipt.ticketDate)}
+                </Text>
+              </View>
+              <ReceiptPreview
+                items={groupedItems}
+                storeName={getStoreDisplayName(
+                  receipt.organization,
+                  route.params.storeAliases,
+                )}
+                totalRub={receipt.totalSumRub}
+              />
+            </View>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>
+              Состав покупки
             </Text>
           </View>
         }
@@ -245,27 +264,60 @@ export function ReceiptDetailScreen() {
           )
         }
         ListFooterComponent={
-          <Pressable
-            accessibilityRole="button"
-            disabled={deleting}
-            onPress={confirmDelete}
-            style={({ pressed }) => [
-              styles.deleteButton,
-              {
-                backgroundColor: `${theme.error}15`,
-                opacity: deleting || pressed ? 0.65 : 1,
-              },
-            ]}
-          >
-            <MaterialIcons
-              name="delete-outline"
-              size={18}
-              color={theme.error}
-            />
-            <Text style={[styles.deleteText, { color: theme.error }]}>
-              {deleting ? "Удаление…" : "Удалить чек"}
-            </Text>
-          </Pressable>
+          <View>
+            {loadState === "success" && categoryTotals.length > 0 ? (
+              <View style={styles.categoryTotals}>
+                <Text style={[styles.sectionTitle, { color: theme.text }]}>
+                  Итоги по категориям
+                </Text>
+                {categoryTotals.map((category) => (
+                  <View key={category.label} style={styles.categoryTotalRow}>
+                    <Text
+                      style={[styles.categoryTotalLabel, { color: theme.text }]}
+                    >
+                      {category.label}
+                    </Text>
+                    <Text
+                      style={[styles.categoryTotalValue, { color: theme.text }]}
+                    >
+                      {fmtRub(category.sumRub)}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+            <View style={[styles.receiptTotal, { borderColor: theme.border }]}>
+              <Text style={[styles.receiptTotalLabel, { color: theme.muted }]}>
+                Итого по чеку
+              </Text>
+              <Text
+                style={[styles.receiptTotalValue, { color: theme.primary }]}
+              >
+                {fmtRub(receipt.totalSumRub)}
+              </Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              disabled={deleting}
+              onPress={confirmDelete}
+              style={({ pressed }) => [
+                styles.deleteButton,
+                {
+                  backgroundColor: `${theme.error}15`,
+                  opacity: deleting || pressed ? 0.65 : 1,
+                },
+              ]}
+            >
+              <MaterialIcons
+                name="delete-outline"
+                size={18}
+                color={theme.error}
+              />
+              <Text style={[styles.deleteText, { color: theme.error }]}>
+                {deleting ? "Удаление…" : "Удалить чек"}
+              </Text>
+            </Pressable>
+          </View>
         }
         initialNumToRender={12}
         maxToRenderPerBatch={10}
@@ -411,26 +463,38 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     marginHorizontal: 8,
-    textAlign: "center",
+    textAlign: "left",
   },
   content: {
     flexGrow: 1,
     paddingBottom: 80,
     paddingHorizontal: 20,
   },
-  summary: {
-    borderRadius: 18,
-    borderWidth: 1,
-    marginBottom: 14,
-    padding: 18,
+  hero: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 27,
+    paddingTop: 12,
+  },
+  heroCopy: {
+    flex: 1,
+    marginRight: 18,
   },
   total: {
-    fontSize: 32,
-    fontWeight: "900",
+    fontFamily: "serif",
+    fontSize: 39,
+    fontWeight: "700",
+    letterSpacing: -1.5,
   },
   date: {
-    fontSize: 13,
-    marginTop: 4,
+    fontSize: 14,
+    marginTop: 8,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    marginBottom: 10,
   },
   item: {
     alignItems: "center",
@@ -455,6 +519,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
   },
+  categoryTotals: {
+    marginTop: 31,
+  },
+  categoryTotalRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 9,
+  },
+  categoryTotalLabel: { fontSize: 15 },
+  categoryTotalValue: { fontSize: 15, fontWeight: "700" },
+  receiptTotal: {
+    alignItems: "center",
+    borderTopWidth: StyleSheet.hairlineWidth,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 24,
+    paddingTop: 17,
+  },
+  receiptTotalLabel: { fontSize: 15, fontWeight: "600" },
+  receiptTotalValue: { fontSize: 22, fontWeight: "800" },
   state: {
     alignItems: "center",
     justifyContent: "center",

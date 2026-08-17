@@ -6,7 +6,6 @@ import {
   Alert,
   FlatList,
   Image,
-  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -23,6 +22,7 @@ import {
 } from "expo-image-picker";
 import { analyticsEvents, AnalyticsCancelledError } from "../analytics/facade";
 import { getReceiptByRawQR } from "../api/client";
+import { ReceiptPreview } from "../components/ReceiptPreview";
 import { normalizeReceiptResponse, saveReceipt } from "../storage";
 import { getStoreDisplayName, type StoreAliases } from "../storeAliases";
 import type { Receipt, ReceiptItem } from "../types";
@@ -30,9 +30,9 @@ import { fmtRub } from "../utils";
 import { useTheme } from "../components/ThemeContext";
 import TomatoIcon from "../assets/TomatoOutline.svg";
 import FullModalWindow from "@/components/FullModalWindow";
+import type { Theme } from "../themes";
 
 const basket = require("../assets/ProductBasket.png") as number;
-const tomato = require("../assets/TomatoOutline.svg") as number;
 const EMPTY_ITEMS: ReceiptItem[] = [];
 
 type JoinedItem = ReceiptItem & { ticketDate?: string };
@@ -84,43 +84,6 @@ function buildListItems(receipts: readonly Receipt[]): ReceiptListItem[] {
   }
   return list;
 }
-
-const ReceiptPreview = memo(function ReceiptPreview({
-  items,
-  storeName,
-  totalRub,
-}: {
-  items: ReceiptItem[];
-  storeName: string;
-  totalRub: number;
-}) {
-  const previewItems = items.slice(0, 3);
-  return (
-    <View accessibilityElementsHidden style={styles.preview}>
-      <Text numberOfLines={1} style={styles.previewStore}>
-        {storeName}
-      </Text>
-      <View style={styles.previewRule} />
-      {previewItems.map((item, index) => (
-        <View
-          key={`${item.id ?? item.name}-${index}`}
-          style={styles.previewLine}
-        >
-          <Text numberOfLines={1} style={styles.previewText}>
-            {item.name}
-          </Text>
-          <Text style={styles.previewSum}>{fmtRub(item.sumRub)}</Text>
-        </View>
-      ))}
-      {previewItems.length === 0 && <View style={styles.previewPlaceholder} />}
-      <View style={styles.previewRule} />
-      <View style={styles.previewLine}>
-        <Text style={styles.previewTotal}>ИТОГ</Text>
-        <Text style={styles.previewTotal}>{fmtRub(totalRub)}</Text>
-      </View>
-    </View>
-  );
-});
 
 const ReceiptRow = memo(function ReceiptRow({
   receipt,
@@ -174,6 +137,7 @@ export function ReceiptsScreen({
   const [refreshing, setRefreshing] = useState(false);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [capturing, setCapturing] = useState(false);
+  const [qrError, setQrError] = useState(false);
   const receiptItemsById = useMemo(() => {
     const result = new Map<string, ReceiptItem[]>();
     for (const item of joinedItems) {
@@ -185,7 +149,12 @@ export function ReceiptsScreen({
   }, [joinedItems]);
   const listItems = useMemo(() => buildListItems(receipts), [receipts]);
 
-  const closeScanningQr = () => !capturing && setSheetVisible(false)
+  const closeScanningQr = () => {
+    if (!capturing) {
+      setSheetVisible(false);
+      setQrError(false);
+    }
+  };
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
@@ -247,7 +216,7 @@ export function ReceiptsScreen({
           await getReceiptByRawQR(imageUri.replace("file://", "")),
         );
         if (!response) {
-          Alert.alert("Чек не найден", "Не удалось распознать QR-код на фото.");
+          setQrError(true);
           void analyticsEvents.receiptCapture(
             "receipt_capture_failed",
             "image",
@@ -257,6 +226,7 @@ export function ReceiptsScreen({
         }
         await saveReceipt(db, response.receipt, response.items);
         setSheetVisible(false);
+        setQrError(false);
         void analyticsEvents.receiptCapture(
           "receipt_capture_succeeded",
           "image",
@@ -269,12 +239,7 @@ export function ReceiptsScreen({
           startedAt,
           error,
         );
-        Alert.alert(
-          "Ошибка",
-          error instanceof Error
-            ? error.message
-            : "Не удалось распознать QR-код на фото.",
-        );
+        setQrError(true);
       } finally {
         setCapturing(false);
       }
@@ -321,7 +286,10 @@ export function ReceiptsScreen({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Загрузить QR"
-              onPress={() => setSheetVisible(true)}
+              onPress={() => {
+                setQrError(false);
+                setSheetVisible(true);
+              }}
               style={({ pressed }) => [
                 styles.uploadCard,
                 { borderColor: theme.primary, opacity: pressed ? 0.75 : 1 },
@@ -390,26 +358,38 @@ export function ReceiptsScreen({
             <View
               style={[styles.sheetHandle, { backgroundColor: theme.outline }]}
             />
-            <Text style={[styles.sheetTitle, { color: theme.text }]}>
-              Загрузить QR
-            </Text>
-            <Text style={[styles.sheetCopy, { color: theme.muted }]}>
-              Чтобы распознавать чеки, приложению нужен доступ к камере и фото.
-            </Text>
-            <CaptureButton
-              icon="photo-camera"
-              label="Сделать фото"
-              loading={capturing}
-              onPress={() => void pickImage("camera")}
-              themeColor={theme.primary}
-            />
-            <CaptureButton
-              icon="image"
-              label="Выбрать фото"
-              loading={capturing}
-              onPress={() => void pickImage("image")}
-              themeColor={theme.primary}
-            />
+            {qrError ? (
+              <QrErrorState
+                capturing={capturing}
+                onChooseAnother={() => void pickImage("image")}
+                onClose={closeScanningQr}
+                theme={theme}
+              />
+            ) : (
+              <>
+                <Text style={[styles.sheetTitle, { color: theme.text }]}>
+                  Загрузить QR
+                </Text>
+                <Text style={[styles.sheetCopy, { color: theme.muted }]}>
+                  Чтобы распознавать чеки, приложению нужен доступ к камере и
+                  фото.
+                </Text>
+                <CaptureButton
+                  icon="photo-camera"
+                  label="Сделать фото"
+                  loading={capturing}
+                  onPress={() => void pickImage("camera")}
+                  themeColor={theme.primary}
+                />
+                <CaptureButton
+                  icon="image"
+                  label="Выбрать фото"
+                  loading={capturing}
+                  onPress={() => void pickImage("image")}
+                  themeColor={theme.primary}
+                />
+              </>
+            )}
           </View>
         </View>
       </FullModalWindow>
@@ -451,6 +431,73 @@ function CaptureButton({
   );
 }
 
+function QrErrorState({
+  capturing,
+  onChooseAnother,
+  onClose,
+  theme,
+}: {
+  capturing: boolean;
+  onChooseAnother: () => void;
+  onClose: () => void;
+  theme: Theme;
+}) {
+  return (
+    <View>
+      <MaterialIcons
+        accessibilityLabel="Ошибка распознавания QR"
+        name="error-outline"
+        size={58}
+        color={theme.error}
+        style={styles.qrErrorIcon}
+      />
+      <Text style={[styles.qrErrorTitle, { color: theme.text }]}>
+        Не удалось распознать QR
+      </Text>
+      <Text style={[styles.qrErrorCopy, { color: theme.muted }]}>
+        Убедитесь, что QR-код на фото хорошо виден и не размыт, затем попробуйте
+        ещё раз.
+      </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Выбрать другое фото"
+        disabled={capturing}
+        onPress={onChooseAnother}
+        style={({ pressed }) => [
+          styles.qrErrorButton,
+          {
+            backgroundColor: theme.error,
+            opacity: capturing || pressed ? 0.65 : 1,
+          },
+        ]}
+      >
+        {capturing ? (
+          <ActivityIndicator color={theme.white} />
+        ) : (
+          <MaterialIcons name="image" size={24} color={theme.white} />
+        )}
+        <Text style={[styles.qrErrorButtonText, { color: theme.white }]}>
+          Выбрать другое фото
+        </Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Закрыть"
+        disabled={capturing}
+        onPress={onClose}
+        style={({ pressed }) => [
+          styles.qrErrorClose,
+          { opacity: capturing || pressed ? 0.65 : 1 },
+        ]}
+      >
+        <Text style={[styles.qrErrorCloseText, { color: theme.text }]}>
+          Закрыть
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   list: { paddingBottom: 100, paddingHorizontal: 24, paddingTop: 26 },
@@ -487,43 +534,11 @@ const styles = StyleSheet.create({
     paddingBottom: 17,
     paddingTop: 12,
   },
-  preview: {
-    backgroundColor: "#FFFDF8",
-    elevation: 2,
-    marginRight: 17,
-    padding: 7,
-    shadowColor: "#473D31",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.14,
-    shadowRadius: 3,
-    width: 85,
-  },
-  previewStore: {
-    color: "#433F39",
-    fontSize: 7,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  previewRule: {
-    backgroundColor: "#B6ADA1",
-    height: StyleSheet.hairlineWidth,
-    marginVertical: 4,
-  },
-  previewLine: {
-    flexDirection: "row",
-    gap: 3,
-    justifyContent: "space-between",
-    marginBottom: 2,
-  },
-  previewText: { color: "#645D54", flex: 1, fontSize: 5.5 },
-  previewSum: { color: "#645D54", fontSize: 5.5 },
-  previewTotal: { color: "#433F39", fontSize: 6, fontWeight: "700" },
-  previewPlaceholder: { height: 26 },
   receiptContent: { flex: 1, justifyContent: "center" },
   storeName: {
     fontFamily: "serif",
     fontSize: 23,
-    fontWeight: "600",
+    fontWeight: "700",
     letterSpacing: -0.8,
     marginBottom: 4,
   },
@@ -588,4 +603,31 @@ const styles = StyleSheet.create({
     marginBottom: 13,
   },
   captureText: { fontSize: 20, fontWeight: "400" },
+  qrErrorIcon: { alignSelf: "center", marginTop: 27 },
+  qrErrorTitle: {
+    fontFamily: "serif",
+    fontSize: 31,
+    fontWeight: "600",
+    letterSpacing: -1,
+    marginTop: 16,
+    textAlign: "center",
+  },
+  qrErrorCopy: {
+    fontSize: 16,
+    lineHeight: 23,
+    marginBottom: 24,
+    marginTop: 12,
+    textAlign: "center",
+  },
+  qrErrorButton: {
+    alignItems: "center",
+    borderRadius: 9,
+    flexDirection: "row",
+    gap: 10,
+    height: 58,
+    justifyContent: "center",
+  },
+  qrErrorButtonText: { fontSize: 17, fontWeight: "700" },
+  qrErrorClose: { alignItems: "center", paddingVertical: 18 },
+  qrErrorCloseText: { fontSize: 16, fontWeight: "600" },
 });
