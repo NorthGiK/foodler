@@ -36,39 +36,36 @@ function TextSection({
   theme: Theme;
 }) {
   return (
-    <View
-      style={[
-        styles.block,
-        { backgroundColor: theme.surface, borderColor: theme.border },
-      ]}
-    >
+    <View style={[styles.block, { borderBottomColor: theme.border }]}>
       <Text style={[styles.blockTitle, { color: theme.text }]}>
         {section.title}
       </Text>
       <Markdown
         style={{
           body: {
-            color: theme.muted,
-            fontSize: 15,
-            lineHeight: 22,
+            color: theme.text,
+            fontSize: 16,
+            lineHeight: 24,
           },
           heading1: {
             color: theme.text,
-            fontSize: 20,
-            fontWeight: "700",
+            fontFamily: "Georgia",
+            fontSize: 24,
+            fontWeight: "400",
             marginBottom: 8,
             marginTop: 16,
           },
           heading2: {
             color: theme.text,
-            fontSize: 18,
-            fontWeight: "600",
+            fontFamily: "Georgia",
+            fontSize: 20,
+            fontWeight: "400",
             marginBottom: 6,
             marginTop: 12,
           },
           heading3: {
             color: theme.text,
-            fontSize: 16,
+            fontSize: 17,
             fontWeight: "600",
             marginBottom: 4,
             marginTop: 8,
@@ -85,6 +82,7 @@ function TextSection({
           },
           bullet: {
             color: theme.primary,
+            fontSize: 18,
           },
           paragraph: {
             marginBottom: 8,
@@ -110,16 +108,17 @@ function ScoreSection({
   theme: Theme;
 }) {
   const max = section.max ?? 100;
-  const pct = Math.min(100, Math.max(0, (section.value / max) * 100));
-  const barColor = pct >= 80 ? "#22C55E" : pct >= 50 ? "#F59E0B" : "#EF4444";
+  const pct =
+    max > 0 ? Math.min(100, Math.max(0, (section.value / max) * 100)) : 0;
+  const barColor =
+    pct >= 80
+      ? (theme.accent ?? theme.secondary)
+      : pct >= 50
+        ? (theme.accent2 ?? theme.primary)
+        : theme.primary;
 
   return (
-    <View
-      style={[
-        styles.block,
-        { backgroundColor: theme.surface, borderColor: theme.border },
-      ]}
-    >
+    <View style={[styles.block, { borderBottomColor: theme.border }]}>
       <Text style={[styles.blockTitle, { color: theme.text }]}>
         {section.title}
       </Text>
@@ -156,17 +155,21 @@ function ListSection({
   theme: Theme;
 }) {
   return (
-    <View
-      style={[
-        styles.block,
-        { backgroundColor: theme.surface, borderColor: theme.border },
-      ]}
-    >
+    <View style={[styles.block, { borderBottomColor: theme.border }]}>
       <Text style={[styles.blockTitle, { color: theme.text }]}>
         {section.title}
       </Text>
       {section.items.map((item, i) => (
-        <View key={i} style={styles.listItem}>
+        <View
+          key={i}
+          style={[
+            styles.listItem,
+            i > 0 && {
+              borderTopColor: theme.border,
+              borderTopWidth: 1,
+            },
+          ]}
+        >
           <Text style={[styles.bullet, { color: theme.primary }]}>•</Text>
           <Text style={[styles.listText, { color: theme.muted }]}>{item}</Text>
         </View>
@@ -183,12 +186,7 @@ function ProductsSection({
   theme: Theme;
 }) {
   return (
-    <View
-      style={[
-        styles.block,
-        { backgroundColor: theme.surface, borderColor: theme.border },
-      ]}
-    >
+    <View style={[styles.block, { borderBottomColor: theme.border }]}>
       <Text style={[styles.blockTitle, { color: theme.text }]}>
         {section.title}
       </Text>
@@ -196,8 +194,11 @@ function ProductsSection({
         <View
           key={i}
           style={[
-            styles.productCard,
-            { backgroundColor: theme.surfaceElevated },
+            styles.productRow,
+            i > 0 && {
+              borderTopColor: theme.border,
+              borderTopWidth: 1,
+            },
           ]}
         >
           <View style={styles.productInfo}>
@@ -227,21 +228,21 @@ function ChartSection({
   theme: Theme;
 }) {
   const maxVal = Math.max(...section.values, 1);
-  const barColor = theme.primary;
+  const chartColors = [
+    theme.primary,
+    theme.accent2 ?? theme.primary,
+    theme.secondary,
+  ];
 
   return (
-    <View
-      style={[
-        styles.block,
-        { backgroundColor: theme.surface, borderColor: theme.border },
-      ]}
-    >
+    <View style={[styles.block, { borderBottomColor: theme.border }]}>
       <Text style={[styles.blockTitle, { color: theme.text }]}>
         {section.title}
       </Text>
       <View style={styles.chartContainer}>
         {section.values.map((val, i) => {
-          const heightPct = (val / maxVal) * 100;
+          const safeValue = Math.max(0, val);
+          const heightPct = (safeValue / maxVal) * 100;
           return (
             <View key={i} style={styles.chartColumn}>
               <Text style={[styles.chartValue, { color: theme.muted }]}>
@@ -252,8 +253,8 @@ function ChartSection({
                   styles.chartBar,
                   {
                     height: `${Math.max(4, heightPct)}%`,
-                    backgroundColor: barColor,
-                    opacity: 0.6 + 0.4 * (val / maxVal),
+                    backgroundColor: chartColors[i % chartColors.length],
+                    opacity: 0.65 + 0.35 * (safeValue / maxVal),
                   },
                 ]}
               />
@@ -270,19 +271,16 @@ function ChartSection({
 
 const styles = StyleSheet.create({
   block: {
-    borderRadius: 20,
-    padding: 18,
+    paddingVertical: 18,
     marginBottom: 14,
-    borderWidth: 1,
+    borderBottomWidth: 1,
   },
   blockTitle: {
-    fontSize: 17,
-    fontWeight: "600",
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: 0.8,
     marginBottom: 12,
-  },
-  text: {
-    fontSize: 15,
-    lineHeight: 22,
+    textTransform: "uppercase",
   },
   scoreRow: {
     flexDirection: "row",
@@ -298,18 +296,16 @@ const styles = StyleSheet.create({
     fontWeight: "400",
   },
   progressBar: {
-    height: 8,
-    borderRadius: 4,
+    height: 4,
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
-    borderRadius: 4,
   },
   listItem: {
     flexDirection: "row",
-    marginBottom: 8,
-    paddingRight: 8,
+    paddingVertical: 10,
+    paddingRight: 4,
   },
   bullet: {
     fontSize: 16,
@@ -317,27 +313,26 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   listText: {
-    fontSize: 15,
-    lineHeight: 21,
+    fontSize: 16,
+    lineHeight: 23,
     flex: 1,
   },
-  productCard: {
+  productRow: {
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 8,
+    paddingVertical: 12,
   },
   productInfo: {
     flex: 1,
   },
   productName: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "600",
-    marginBottom: 2,
+    lineHeight: 21,
   },
   productReason: {
-    fontSize: 13,
+    fontSize: 14,
+    lineHeight: 20,
   },
   productPrice: {
     fontSize: 16,
@@ -362,8 +357,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   chartBar: {
-    width: "60%",
-    borderRadius: 4,
+    width: "54%",
     minHeight: 4,
   },
   chartLabel: {

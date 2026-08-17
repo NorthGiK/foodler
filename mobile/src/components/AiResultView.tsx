@@ -33,9 +33,15 @@ export function AiResultView({
   if (loading) {
     return (
       <View style={[styles.center, { backgroundColor: theme.bg }]}>
+        <Text style={[styles.stateEyebrow, { color: theme.primary }]}>
+          FOODLER AI
+        </Text>
         <ActivityIndicator size="large" color={theme.primary} />
-        <Text style={[styles.loadingText, { color: theme.muted }]}>
+        <Text style={[styles.loadingText, { color: theme.text }]}>
           Анализируем ваши покупки...
+        </Text>
+        <Text style={[styles.stateHint, { color: theme.muted }]}>
+          Собираем факты из сохранённых чеков
         </Text>
       </View>
     );
@@ -44,11 +50,19 @@ export function AiResultView({
   if (!report) {
     return (
       <View style={[styles.center, { backgroundColor: theme.bg }]}>
-        <MaterialIcons name="error-outline" size={64} color={theme.muted} />
-        <Text style={[styles.errorText, { color: theme.muted }]}>
+        <Text style={[styles.stateEyebrow, { color: theme.primary }]}>
+          FOODLER AI / ОТЧЁТ
+        </Text>
+        <MaterialIcons name="error-outline" size={48} color={theme.primary} />
+        <Text style={[styles.errorText, { color: theme.text }]}>
           Не удалось загрузить отчёт
         </Text>
+        <Text style={[styles.stateHint, { color: theme.muted }]}>
+          Вернитесь к списку и попробуйте открыть его ещё раз.
+        </Text>
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Вернуться к отчётам"
           style={[styles.backButton, { backgroundColor: theme.primary }]}
           onPress={onBack}
         >
@@ -124,20 +138,42 @@ export function AiResultView({
     }
   };
 
+  const formattedDate = formatReportDate(report.createdAt);
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: theme.bg }]}
       contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
     >
-      {/* Шапка */}
       <View style={styles.header}>
-        <Pressable onPress={onBack} style={styles.backBtn}>
-          <MaterialIcons name="arrow-back" size={26} color={theme.text} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Назад к отчётам"
+          onPress={onBack}
+          style={styles.backBtn}
+        >
+          <MaterialIcons name="arrow-back" size={24} color={theme.text} />
         </Pressable>
+        <View style={styles.headerCopy}>
+          <Text style={[styles.eyebrow, { color: theme.primary }]}>
+            FOODLER AI / ОТЧЁТ
+          </Text>
+          <Text style={[styles.title, { color: theme.text }]}>
+            {report.response.title}
+          </Text>
+          <Text style={[styles.date, { color: theme.muted }]}>
+            {formattedDate}
+          </Text>
+        </View>
         <View style={styles.headerActions}>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              report.pinned ? "Открепить отчёт" : "Закрепить отчёт"
+            }
             onPress={() => onPin(report.id, !report.pinned)}
-            style={[styles.actionBtn, { backgroundColor: theme.surface }]}
+            style={styles.actionBtn}
           >
             <MaterialIcons
               name={report.pinned ? "push-pin" : "bookmark-outline"}
@@ -146,8 +182,10 @@ export function AiResultView({
             />
           </Pressable>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Удалить отчёт"
             onPress={() => onDelete(report.id)}
-            style={[styles.actionBtn, { backgroundColor: theme.surface }]}
+            style={styles.actionBtn}
           >
             <MaterialIcons
               name="delete-outline"
@@ -158,50 +196,62 @@ export function AiResultView({
         </View>
       </View>
 
-      {/* Заголовок */}
-      <Text style={[styles.title, { color: theme.text }]}>
-        {report.response.title}
-      </Text>
-      <Text style={[styles.date, { color: theme.muted }]}>
-        {new Date(report.createdAt).toLocaleDateString("ru", {
-          day: "numeric",
-          month: "long",
-          hour: "2-digit",
-          minute: "2-digit",
-        })}
-      </Text>
-
-      {/* Снимок данных */}
       {report.snapshot && (
         <View
           style={[
             styles.snapshot,
-            { backgroundColor: theme.surface, borderColor: theme.border },
+            {
+              backgroundColor: theme.surface,
+              borderColor: theme.border,
+            },
           ]}
         >
-          <Text style={[styles.snapshotTitle, { color: theme.muted }]}>
-            📋 Параметры анализа
+          <Text style={[styles.snapshotTitle, { color: theme.primary }]}>
+            СНИМОК ДАННЫХ
           </Text>
-          <Text style={[styles.snapshotText, { color: theme.muted }]}>
-            Проанализировано {report.snapshot.receiptCount} чеков
-            {report.snapshot.periodFrom
-              ? ` за период ${report.snapshot.periodFrom} — ${report.snapshot.periodTo || "настоящее время"}`
-              : ""}
-            {report.snapshot.totalSpent != null
-              ? ` на сумму ${report.snapshot.totalSpent.toFixed(0)} ₽`
-              : ""}
-          </Text>
+          <View style={styles.snapshotRow}>
+            <Text style={[styles.snapshotLabel, { color: theme.muted }]}>
+              Чеки
+            </Text>
+            <Text style={[styles.snapshotValue, { color: theme.text }]}>
+              {report.snapshot.receiptCount}
+            </Text>
+          </View>
+          {(report.snapshot.periodFrom || report.snapshot.periodTo) && (
+            <View style={styles.snapshotRow}>
+              <Text style={[styles.snapshotLabel, { color: theme.muted }]}>
+                Период
+              </Text>
+              <Text style={[styles.snapshotValue, { color: theme.text }]}>
+                {report.snapshot.periodFrom || "—"} —{" "}
+                {report.snapshot.periodTo || "сейчас"}
+              </Text>
+            </View>
+          )}
+          {report.snapshot.totalSpent != null && (
+            <View style={styles.snapshotRow}>
+              <Text style={[styles.snapshotLabel, { color: theme.muted }]}>
+                Сумма
+              </Text>
+              <Text style={[styles.snapshotValue, { color: theme.text }]}>
+                {report.snapshot.totalSpent.toFixed(0)} ₽
+              </Text>
+            </View>
+          )}
         </View>
       )}
 
-      {/* Резюме */}
       {report.response.summary ? (
-        <Text style={[styles.summary, { color: theme.muted }]}>
-          {report.response.summary}
-        </Text>
+        <View style={[styles.summary, { borderLeftColor: theme.primary }]}>
+          <Text style={[styles.summaryLabel, { color: theme.primary }]}>
+            ГЛАВНОЕ
+          </Text>
+          <Text style={[styles.summaryText, { color: theme.text }]}>
+            {report.response.summary}
+          </Text>
+        </View>
       ) : null}
 
-      {/* Секции */}
       {report.response.sections.map((section, i) => (
         <AiSectionRenderer key={i} section={section} />
       ))}
@@ -211,42 +261,70 @@ export function AiResultView({
         Проверяйте важные решения самостоятельно.
       </Text>
 
-      {/* Разделитель */}
-      <View style={styles.separator}>
-        <View
-          style={[styles.separatorLine, { backgroundColor: theme.border }]}
-        />
-        <Text style={[styles.separatorText, { color: theme.muted }]}>
-          ↓ Действия
+      <View style={styles.actionHeading}>
+        <Text style={[styles.actionHeadingText, { color: theme.primary }]}>
+          ДЕЙСТВИЯ
         </Text>
         <View
-          style={[styles.separatorLine, { backgroundColor: theme.border }]}
+          style={[styles.actionHeadingLine, { backgroundColor: theme.primary }]}
         />
       </View>
 
-      {/* Кнопки действий */}
-      <View style={styles.actionRow}>
+      <View
+        style={[
+          styles.actionList,
+          { borderTopColor: theme.border, borderBottomColor: theme.border },
+        ]}
+      >
         <Pressable
-          style={[styles.actionCard, { backgroundColor: theme.primary }]}
+          accessibilityRole="button"
+          accessibilityLabel={
+            report.pinned ? "Открепить отчёт" : "Сохранить отчёт"
+          }
+          style={styles.actionRow}
           onPress={() => onPin(report.id, !report.pinned)}
         >
           <MaterialIcons
             name={report.pinned ? "push-pin" : "bookmark-border"}
-            size={22}
-            color={theme.white}
+            size={21}
+            color={theme.primary}
           />
-          <Text style={[styles.actionCardText, { color: theme.white }]}>
+          <Text style={[styles.actionText, { color: theme.text }]}>
             {report.pinned ? "Открепить" : "Сохранить"}
           </Text>
+          <MaterialIcons name="chevron-right" size={22} color={theme.muted} />
         </Pressable>
         <Pressable
-          style={[styles.actionCard, { backgroundColor: theme.surface }]}
+          accessibilityRole="button"
+          accessibilityLabel="Поделиться отчётом"
+          style={[
+            styles.actionRow,
+            styles.actionDivider,
+            { borderTopColor: theme.border },
+          ]}
           onPress={() => shareReport(report)}
         >
-          <MaterialIcons name="share" size={22} color={theme.text} />
-          <Text style={[styles.actionCardText, { color: theme.text }]}>
+          <MaterialIcons name="share" size={21} color={theme.primary} />
+          <Text style={[styles.actionText, { color: theme.text }]}>
             Поделиться
           </Text>
+          <MaterialIcons name="chevron-right" size={22} color={theme.muted} />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Удалить отчёт из действий"
+          style={[
+            styles.actionRow,
+            styles.actionDivider,
+            { borderTopColor: theme.border },
+          ]}
+          onPress={() => onDelete(report.id)}
+        >
+          <MaterialIcons name="delete-outline" size={21} color={theme.error} />
+          <Text style={[styles.actionText, { color: theme.error }]}>
+            Удалить отчёт
+          </Text>
+          <MaterialIcons name="chevron-right" size={22} color={theme.muted} />
         </Pressable>
       </View>
 
@@ -269,18 +347,35 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   loadingText: {
-    fontSize: 16,
-    marginTop: 16,
+    fontFamily: "Georgia",
+    fontSize: 24,
+    marginTop: 18,
+    textAlign: "center",
+  },
+  stateEyebrow: {
+    fontSize: 12,
+    fontWeight: "600",
+    letterSpacing: 1.4,
+    marginBottom: 14,
+  },
+  stateHint: {
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: 8,
+    textAlign: "center",
   },
   errorText: {
-    fontSize: 16,
-    marginTop: 16,
-    marginBottom: 24,
+    fontFamily: "Georgia",
+    fontSize: 24,
+    marginTop: 14,
+    marginBottom: 4,
+    textAlign: "center",
   },
   backButton: {
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 4,
+    marginTop: 24,
   },
   backButtonText: {
     fontSize: 16,
@@ -288,99 +383,140 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
+    alignItems: "flex-start",
+    marginBottom: 24,
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 30,
+    height: 34,
     justifyContent: "center",
     alignItems: "center",
+    marginRight: 10,
+  },
+  headerCopy: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  eyebrow: {
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 1.1,
+    marginBottom: 8,
   },
   headerActions: {
     flexDirection: "row",
-    gap: 8,
+    gap: 2,
   },
   actionBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 30,
+    height: 34,
     justifyContent: "center",
     alignItems: "center",
   },
   title: {
-    fontSize: 28,
-    fontWeight: "700",
-    marginBottom: 8,
+    fontFamily: "Georgia",
+    fontSize: 30,
+    fontWeight: "400",
+    letterSpacing: -0.5,
+    lineHeight: 35,
   },
   date: {
     fontSize: 14,
-    marginBottom: 20,
+    marginTop: 7,
   },
   snapshot: {
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
-    borderWidth: 1,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    paddingVertical: 7,
+    marginBottom: 24,
   },
   snapshotTitle: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: "600",
-    marginBottom: 6,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 1.2,
+    marginBottom: 4,
   },
-  snapshotText: {
+  snapshotRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    minHeight: 30,
+    paddingVertical: 2,
+  },
+  snapshotLabel: {
+    fontSize: 13,
+  },
+  snapshotValue: {
+    flex: 1,
     fontSize: 14,
-    lineHeight: 20,
+    fontWeight: "600",
+    marginLeft: 16,
+    textAlign: "right",
   },
   summary: {
-    fontSize: 15,
-    lineHeight: 22,
+    borderLeftWidth: 3,
+    paddingLeft: 14,
     marginBottom: 20,
-    fontStyle: "italic",
+  },
+  summaryLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 1.2,
+    marginBottom: 7,
+  },
+  summaryText: {
+    fontFamily: "Georgia",
+    fontSize: 20,
+    lineHeight: 28,
   },
   disclaimer: {
     fontSize: 12,
     lineHeight: 17,
     marginTop: 4,
-    marginBottom: 16,
-    textAlign: "center",
+    marginBottom: 24,
+    textAlign: "left",
   },
-  separator: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 20,
+  actionHeading: {
+    marginBottom: 10,
+    marginTop: 6,
   },
-  separatorLine: {
-    flex: 1,
-    height: 1,
-  },
-  separatorText: {
+  actionHeadingText: {
     fontSize: 12,
     fontWeight: "600",
-    marginHorizontal: 12,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 1.4,
+  },
+  actionHeadingLine: {
+    height: 3,
+    marginTop: 8,
+    width: 34,
+  },
+  actionList: {
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    marginBottom: 28,
   },
   actionRow: {
     flexDirection: "row",
-    gap: 12,
-    marginBottom: 28,
-  },
-  actionCard: {
-    flex: 1,
-    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 16,
+    minHeight: 58,
+    paddingVertical: 12,
   },
-  actionCardText: {
-    fontSize: 15,
-    fontWeight: "600",
+  actionDivider: {
+    borderTopWidth: 1,
+  },
+  actionText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: "500",
+    marginLeft: 14,
   },
 });
+
+function formatReportDate(timestamp: number): string {
+  return new Date(timestamp).toLocaleDateString("ru", {
+    day: "numeric",
+    month: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}

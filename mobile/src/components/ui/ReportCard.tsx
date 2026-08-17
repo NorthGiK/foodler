@@ -16,26 +16,26 @@ interface ReportCardProps {
 }
 
 const actionColors: Record<AiActionType, string> = {
-  analysis: "#007AFF",
-  save_money: "#34C759",
-  health: "#FF3B30",
-  recipe: "#FF9500",
-  cart: "#AF52DE",
-  ingredients: "#007AFF",
-  habits: "#5AC8FA",
-  diet: "#34C759",
-  ask: "#FF9500",
+  analysis: "#C44935",
+  save_money: "#D5663D",
+  health: "#587448",
+  recipe: "#C56A47",
+  cart: "#D69B21",
+  ingredients: "#5B6875",
+  habits: "#C8813B",
+  diet: "#587448",
+  ask: "#C44935",
 };
 
 const actionIcons: Record<AiActionType, MaterialIconName> = {
   analysis: "analytics",
-  save_money: "savings",
-  health: "favorite",
-  recipe: "restaurant",
-  cart: "shopping-cart",
+  save_money: "sell",
+  health: "spa",
+  recipe: "soup-kitchen",
+  cart: "shopping-bag",
   ingredients: "science",
-  habits: "insights",
-  diet: "spa",
+  habits: "schedule",
+  diet: "restaurant-menu",
   ask: "chat",
 };
 
@@ -48,21 +48,27 @@ export function ReportCard({
   style,
 }: ReportCardProps) {
   const { theme } = useTheme();
-  const color = actionColors[action] || "#007AFF";
+  const color = actionColors[action] || theme.primary;
   const icon = actionIcons[action] || "analytics";
 
   return (
-    <AnimatedPressable scaleTo={0.98} onPress={onPress} style={style}>
+    <AnimatedPressable
+      accessibilityRole="button"
+      accessibilityLabel={`Отчёт: ${title}`}
+      scaleTo={0.99}
+      onPress={onPress}
+      style={style}
+    >
       <View
         style={[
-          styles.card,
+          styles.row,
           {
-            backgroundColor: theme.surface,
             borderColor: theme.border,
           },
         ]}
       >
-        <View style={[styles.iconContainer, { backgroundColor: color + "18" }]}>
+        <View style={[styles.ribbon, { backgroundColor: color }]} />
+        <View style={styles.iconContainer}>
           <MaterialIcons name={icon} size={22} color={color} />
         </View>
         <View style={styles.info}>
@@ -71,11 +77,16 @@ export function ReportCard({
           </Text>
           <Text style={[styles.date, { color: theme.muted }]}>{date}</Text>
         </View>
-        {pinned && (
-          <View style={[styles.pinBadge, { backgroundColor: color + "15" }]}>
-            <MaterialIcons name="push-pin" size={14} color={color} />
-          </View>
-        )}
+        <View
+          accessibilityLabel={pinned ? "Закреплено" : "Не закреплено"}
+          style={styles.pinBadge}
+        >
+          <MaterialIcons
+            name={pinned ? "push-pin" : "bookmark-border"}
+            size={18}
+            color={pinned ? color : theme.muted}
+          />
+        </View>
         <MaterialIcons name="chevron-right" size={20} color={theme.muted} />
       </View>
     </AnimatedPressable>
@@ -83,26 +94,25 @@ export function ReportCard({
 }
 
 const styles = StyleSheet.create({
-  card: {
+  row: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 14,
-    borderRadius: 18,
-    marginBottom: 10,
-    borderWidth: 1,
-    elevation: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    minHeight: 70,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  ribbon: {
+    width: 3,
+    height: 42,
+    borderRadius: 2,
+    marginRight: 14,
   },
   iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 34,
+    height: 34,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: 10,
   },
   info: {
     flex: 1,
@@ -116,11 +126,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   pinBadge: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 30,
+    height: 30,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 6,
+    marginRight: 4,
   },
 });
