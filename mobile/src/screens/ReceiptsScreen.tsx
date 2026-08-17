@@ -27,11 +27,9 @@ import { getStoreDisplayName, type StoreAliases } from "../storeAliases";
 import type { Receipt, ReceiptItem } from "../types";
 import { fmtRub } from "../utils";
 import { useTheme } from "../components/ThemeContext";
-import { getReceiptCategoryHighlights } from "../features/receipts/receiptHighlights";
 
 const basket = require("../assets/ProductBasket.png") as number;
 const EMPTY_ITEMS: ReceiptItem[] = [];
-const HIGHLIGHT_COLORS = ["#477850", "#D5641B", "#D6A12D"] as const;
 
 type JoinedItem = ReceiptItem & { ticketDate?: string };
 type ReceiptListItem =
@@ -128,10 +126,6 @@ const ReceiptRow = memo(function ReceiptRow({
 }: ReceiptRowProps) {
   const { theme } = useTheme();
   const storeName = getStoreDisplayName(receipt.organization, storeAliases);
-  const highlights = useMemo(
-    () => getReceiptCategoryHighlights(items),
-    [items],
-  );
 
   return (
     <Pressable
@@ -155,28 +149,10 @@ const ReceiptRow = memo(function ReceiptRow({
         >
           {storeName}
         </Text>
-        <View style={styles.categoryList}>
-          {highlights.map((highlight, index) => (
-            <View key={highlight.category} style={styles.categoryLine}>
-              <View
-                style={[
-                  styles.categoryDot,
-                  { backgroundColor: HIGHLIGHT_COLORS[index] },
-                ]}
-              />
-              <Text
-                numberOfLines={1}
-                style={[styles.categoryText, { color: theme.muted }]}
-              >
-                {highlight.category}
-              </Text>
-            </View>
-          ))}
-        </View>
+        <Text style={[styles.receiptSum, { color: theme.text }]}>
+          {fmtRub(receipt.totalSumRub)}
+        </Text>
       </View>
-      <Text style={[styles.receiptSum, { color: theme.text }]}>
-        {fmtRub(receipt.totalSumRub)}
-      </Text>
       <MaterialIcons name="chevron-right" size={25} color={theme.muted} />
     </Pressable>
   );
@@ -350,11 +326,17 @@ export function ReceiptsScreen({
                 size={39}
                 color={theme.primary}
               />
-              <View>
-                <Text style={[styles.uploadTitle, { color: theme.primary }]}>
+              <View style={styles.uploadCopy}>
+                <Text
+                  numberOfLines={1}
+                  style={[styles.uploadTitle, { color: theme.primary }]}
+                >
                   Загрузить QR
                 </Text>
-                <Text style={[styles.uploadSubtitle, { color: theme.muted }]}>
+                <Text
+                  numberOfLines={2}
+                  style={[styles.uploadSubtitle, { color: theme.muted }]}
+                >
                   Фото чека — и покупки уже в учёте
                 </Text>
               </View>
@@ -499,12 +481,13 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     borderWidth: 1,
     flexDirection: "row",
-    gap: 24,
+    gap: 16,
     marginBottom: 17,
     marginTop: 34,
     paddingHorizontal: 20,
     paddingVertical: 18,
   },
+  uploadCopy: { flex: 1, minWidth: 0 },
   uploadTitle: { fontSize: 19, fontWeight: "700" },
   uploadSubtitle: { fontSize: 14, marginTop: 4 },
   dayTitle: { fontSize: 16, fontWeight: "700", marginBottom: 7, marginTop: 3 },
@@ -548,19 +531,15 @@ const styles = StyleSheet.create({
   previewSum: { color: "#645D54", fontSize: 5.5 },
   previewTotal: { color: "#433F39", fontSize: 6, fontWeight: "700" },
   previewPlaceholder: { height: 26 },
-  receiptContent: { alignSelf: "stretch", flex: 1, justifyContent: "center" },
+  receiptContent: { flex: 1, justifyContent: "center" },
   storeName: {
     fontFamily: "serif",
     fontSize: 23,
     fontWeight: "600",
     letterSpacing: -0.8,
-    marginBottom: 6,
+    marginBottom: 4,
   },
-  categoryList: { gap: 4 },
-  categoryLine: { alignItems: "center", flexDirection: "row", gap: 7 },
-  categoryDot: { borderRadius: 5, height: 10, width: 10 },
-  categoryText: { flex: 1, fontSize: 13 },
-  receiptSum: { fontFamily: "serif", fontSize: 21, marginHorizontal: 8 },
+  receiptSum: { fontFamily: "serif", fontSize: 29, letterSpacing: -1.1 },
   empty: {
     alignItems: "center",
     flex: 1,

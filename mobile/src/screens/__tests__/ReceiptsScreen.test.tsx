@@ -43,7 +43,13 @@ const baseProps = {
 
 describe("ReceiptsScreen", () => {
   beforeEach(() => {
+    jest.useFakeTimers();
     baseProps.onOpenReceiptDetail.mockClear();
+  });
+
+  afterEach(() => {
+    jest.clearAllTimers();
+    jest.useRealTimers();
   });
 
   it("shows the redesigned empty state and QR upload entry point", async () => {
@@ -92,8 +98,25 @@ describe("ReceiptsScreen", () => {
     };
     let view: ReturnType<typeof create>;
     await act(async () => {
-      view = create(<ReceiptsScreen {...baseProps} receipts={[receipt]} />);
+      view = create(
+        <ReceiptsScreen
+          {...baseProps}
+          receipts={[receipt]}
+          joinedItems={[
+            {
+              receiptId: receipt.id,
+              name: "Минеральная вода",
+              category: "Напитки",
+              priceRub: 100,
+              quantity: 1,
+              sumRub: 100,
+            },
+          ]}
+        />,
+      );
     });
+
+    expect(() => view!.root.findByProps({ children: "Напитки" })).toThrow();
 
     await act(async () => {
       view!.root
