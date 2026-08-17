@@ -12,6 +12,7 @@ import { MainTabs } from "./src/navigation/MainTabs";
 import { createNavigationTheme } from "./src/navigationTheme";
 import { AskScreen } from "./src/screens/AskScreen";
 import { ForgotPasswordScreen } from "./src/screens/ForgotPasswordScreen";
+import { InitialEntryScreen } from "./src/screens/InitialEntryScreen";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { NewReceiptScreen } from "./src/screens/NewReceiptScreen";
 import { ReceiptDetailScreen } from "./src/screens/ReceiptDetailScreen";
@@ -22,7 +23,7 @@ import type { Receipt } from "./src/types";
 export type RootStackParamList = {
   __PoliciesAcception__: undefined;
   Main: undefined;
-  Login: undefined;
+  Login: { initialEntry?: boolean } | undefined;
   ForgotPassword: undefined;
   ReceiptDetail: { receipt: Receipt; storeAliases: StoreAliases };
   NewReceipt: undefined;
@@ -62,17 +63,15 @@ function AppNavigator() {
       }
     })();
   }, [trackOpenedOnce]);
-  const handlePoliciesAccepted = () => {
-    setPoliciesAccepted(true);
-    void (async () => {
-      await analyticsTriggers.resolvedConsent(true);
-      await Promise.all([
-        analyticsEvents.policyAccepted("privacy", "1.1"),
-        analyticsEvents.policyAccepted("terms", "1.1"),
-      ]);
-      trackOpenedOnce();
-    })();
+  const handlePoliciesAccepted = async () => {
+    await analyticsTriggers.resolvedConsent(true);
+    await Promise.all([
+      analyticsEvents.policyAccepted("privacy", "1.1"),
+      analyticsEvents.policyAccepted("terms", "1.1"),
+    ]);
+    trackOpenedOnce();
   };
+  if (policiesAccepted === null) return null;
   return (
     <AuthProvider>
       <NavigationContainer theme={createNavigationTheme(theme, themeName)}>
@@ -89,8 +88,7 @@ function AppNavigator() {
               policiesAccepted
                 ? MainTabs
                 : () => (
-                    <LoginScreen
-                      skipable={true}
+                    <InitialEntryScreen
                       onPoliciesAccepted={handlePoliciesAccepted}
                     />
                   )

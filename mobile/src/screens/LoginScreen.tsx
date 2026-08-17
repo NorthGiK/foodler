@@ -1,6 +1,6 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialIcons from "@react-native-vector-icons/material-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import type { RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useEffect, useState } from "react";
 import {
@@ -8,7 +8,6 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
-  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -21,32 +20,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import type { RootStackParamList } from "../../App";
 import { useAuth } from "../api/auth";
 import { useTheme } from "../components/ThemeContext";
-import { policy } from "../config";
 import { isValidEmail } from "../utils";
 
 type Step = "credentials" | "code";
 type CredentialField = "email" | "password";
-const POLICIES_ACCEPTED_KEY = "@policies_accepted";
 const basket = require("../assets/ProductBasket.png") as number;
-const POLICY_ENTRIES: { key: keyof typeof policy; label: string }[] = [
-  { key: "PRIVACY_POLICY", label: "Политика конфиденциальности" },
-  { key: "TERMS_OF_SERVICE", label: "Пользовательское соглашение" },
-  {
-    key: "CONSENT_TO_THE_PROCESSING_OF_PERSONAL_DATA",
-    label: "Согласие на обработку персональных данных",
-  },
-  {
-    key: "CONSENT_TO_THE_PROCESSING_OF_SPECIAL_CATEGORIES_OF_PERSONAL_DATA",
-    label: "Согласие на обработку специальных категорий персональных данных",
-  },
-];
-
-type Props = { skipable?: boolean; onPoliciesAccepted?: () => void };
-
-export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
+export function LoginScreen() {
   const { theme } = useTheme();
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const route = useRoute<RouteProp<RootStackParamList, "Login">>();
   const { sendCode, verifyCode } = useAuth();
   const [step, setStep] = useState<Step>("credentials");
   const [email, setEmail] = useState("");
@@ -59,15 +42,6 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
     field: CredentialField;
     message: string;
   } | null>(null);
-  const [accepted, setAccepted] = useState<
-    Record<keyof typeof policy, boolean>
-  >({
-    PRIVACY_POLICY: false,
-    TERMS_OF_SERVICE: false,
-    CONSENT_TO_THE_PROCESSING_OF_PERSONAL_DATA: false,
-    CONSENT_TO_THE_PROCESSING_OF_SPECIAL_CATEGORIES_OF_PERSONAL_DATA: false,
-  });
-  const allAccepted = Object.values(accepted).every(Boolean);
 
   useEffect(() => {
     if (step === "code") {
@@ -75,10 +49,6 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
       setCredentialError(null);
     }
   }, [step]);
-  const acceptPolicies = async () => {
-    await AsyncStorage.setItem(POLICIES_ACCEPTED_KEY, "true");
-    onPoliciesAccepted?.();
-  };
   const update = (field: CredentialField, value: string) => {
     if (field === "email") {
       setEmail(value);
@@ -130,8 +100,12 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
     setError("");
     try {
       await verifyCode(email.trim(), code.trim(), password);
-      await acceptPolicies();
-      navigation.goBack();
+      const initialEntry = route.params?.initialEntry;
+      if (initialEntry) {
+        navigation.reset({ index: 0, routes: [{ name: "Main" }] });
+      } else {
+        navigation.goBack();
+      }
       Alert.alert("Успешно", "Вы вошли в аккаунт");
     } catch (reason: unknown) {
       setError(reason instanceof Error ? reason.message : "Неверный код");
@@ -222,20 +196,12 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
       <View style={styles.topbar}>
-        {!skipable ? (
-          <Pressable
-            accessibilityLabel="Назад"
-            onPress={() => navigation.goBack()}
-          >
-            <MaterialIcons
-              name="arrow-back"
-              size={25}
-              color={theme.secondary}
-            />
-          </Pressable>
-        ) : (
-          <View />
-        )}
+        <Pressable
+          accessibilityLabel="Назад"
+          onPress={() => navigation.goBack()}
+        >
+          <MaterialIcons name="arrow-back" size={25} color={theme.secondary} />
+        </Pressable>
         <Text style={[styles.brand, { color: theme.secondary }]}>foodler</Text>
         <View style={styles.topSpacer} />
       </View>
@@ -255,27 +221,16 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
             accessibilityLabel="Корзина Foodler"
           />
           <Text style={[styles.eyebrow, { color: theme.primary }]}>
-            {skipable
-              ? "ДОБРО ПОЖАЛОВАТЬ"
-              : step === "code"
-                ? "ПОЧТА ПОДТВЕРЖДЕНИЯ"
-                : "ВАШИ ПОКУПКИ — В ПОРЯДКЕ"}
+            {step === "code"
+              ? "ПОЧТА ПОДТВЕРЖДЕНИЯ"
+              : "ВАШИ ПОКУПКИ — В ПОРЯДКЕ"}
           </Text>
-          {/* <Text style={[styles.heading, { color: theme.secondary }]}>
-            {skipable
-              ? "Начнём с важного"
-              : step === "code"
-                ? "Проверьте почту"
-                : "Войдите в Foodler"}
-          </Text> */}
           <Text style={[styles.lead, { color: theme.muted }]}>
-            {skipable
-              ? "Примите документы, чтобы продолжить пользоваться приложением."
-              : step === "code"
-                ? `Мы отправили код на ${email}.`
-                : "Сохраняйте покупки на и синхронизируйте их между своими устройствами."}
+            {step === "code"
+              ? `Мы отправили код на ${email}.`
+              : "Сохраняйте покупки на и синхронизируйте их между своими устройствами."}
           </Text>
-          {step === "credentials" && !skipable ? (
+          {step === "credentials" ? (
             <View style={styles.form}>
               {field("Email", "email", email, (value) =>
                 update("email", value),
@@ -299,79 +254,6 @@ export function LoginScreen({ skipable = false, onPoliciesAccepted }: Props) {
               >
                 <Text style={[styles.linkText, { color: theme.muted }]}>
                   Забыли пароль?
-                </Text>
-              </Pressable>
-            </View>
-          ) : null}
-          {step === "credentials" && skipable ? (
-            <View
-              style={[
-                styles.policyCard,
-                { borderColor: theme.border, backgroundColor: theme.surface },
-              ]}
-            >
-              {POLICY_ENTRIES.map((entry) => (
-                <View key={entry.key} style={styles.policyRow}>
-                  <Pressable
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: accepted[entry.key] }}
-                    onPress={() =>
-                      setAccepted((old) => ({
-                        ...old,
-                        [entry.key]: !old[entry.key],
-                      }))
-                    }
-                    style={[
-                      styles.checkbox,
-                      {
-                        borderColor: theme.secondary,
-                        backgroundColor: accepted[entry.key]
-                          ? theme.primary
-                          : "transparent",
-                      },
-                    ]}
-                  >
-                    {accepted[entry.key] ? (
-                      <MaterialIcons
-                        name="check"
-                        size={15}
-                        color={theme.white}
-                      />
-                    ) : null}
-                  </Pressable>
-                  <Pressable
-                    onPress={() =>
-                      Linking.openURL(policy[entry.key]).catch(() =>
-                        Alert.alert("Ошибка", "Не удалось открыть ссылку"),
-                      )
-                    }
-                    style={styles.policyText}
-                  >
-                    <Text
-                      style={[styles.policyLink, { color: theme.secondary }]}
-                    >
-                      {entry.label}
-                    </Text>
-                  </Pressable>
-                </View>
-              ))}
-              {button(
-                "Продолжить",
-                () => void acceptPolicies(),
-                loading || !allAccepted,
-              )}
-              <Pressable
-                disabled={!allAccepted}
-                onPress={() => void acceptPolicies()}
-                style={styles.guestLink}
-              >
-                <Text
-                  style={[
-                    styles.linkText,
-                    { color: theme.muted, opacity: allAccepted ? 1 : 0.45 },
-                  ]}
-                >
-                  Продолжить без аккаунта
                 </Text>
               </Pressable>
             </View>
@@ -499,27 +381,4 @@ const styles = StyleSheet.create({
   ctaText: { fontSize: 16, fontWeight: "800" },
   link: { alignSelf: "center", padding: 16 },
   linkText: { fontSize: 15, fontWeight: "400" },
-  policyCard: { borderRadius: 22, borderWidth: 1, marginTop: 28, padding: 18 },
-  policyRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 14,
-  },
-  checkbox: {
-    alignItems: "center",
-    borderRadius: 5,
-    borderWidth: 1.5,
-    height: 22,
-    justifyContent: "center",
-    width: 22,
-  },
-  policyText: { flex: 1 },
-  policyLink: {
-    fontSize: 14,
-    fontWeight: "600",
-    lineHeight: 19,
-    textDecorationLine: "underline",
-  },
-  guestLink: { alignSelf: "center", paddingTop: 18 },
 });
