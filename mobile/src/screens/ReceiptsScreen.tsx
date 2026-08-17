@@ -375,7 +375,7 @@ export function ReceiptsScreen({
         updateCellsBatchingPeriod={50}
         windowSize={7}
         removeClippedSubviews={Platform.OS === "android"}
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={true}
       />
       <FullModalWindow visible={sheetVisible} setVisible={closeScanningQr}>
         <View style={styles.sheetOverlay}>
@@ -527,7 +527,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.8,
     marginBottom: 4,
   },
-  receiptSum: { fontFamily: "serif", fontSize: 29, letterSpacing: -1.1 },
+  receiptSum: { fontFamily: "serif", fontSize: 27, letterSpacing: -1.3 },
   empty: {
     alignItems: "center",
     flex: 1,
