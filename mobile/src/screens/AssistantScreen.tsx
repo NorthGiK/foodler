@@ -2,6 +2,8 @@ import MaterialIcons from "@react-native-vector-icons/material-icons";
 import { useCallback, useEffect, useState } from "react";
 import {
   Animated,
+  Image,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -22,18 +24,16 @@ import {
 } from "../ai/storage";
 import { AiActionType, AiReport } from "../ai/types";
 import { AiResultView } from "../components/AiResultView";
-import {
-  AnimatedPressable,
-  FadeInView,
-  useStaggeredFadeIn,
-} from "../components/animations";
+import { FadeInView, useStaggeredFadeIn } from "../components/animations";
 import { loadProfile } from "../profileStorage";
 import { useTheme } from "../components/ThemeContext";
-import { ActionCard, HeroCard, ReportCard } from "../components/ui";
+import { ReportCard } from "../components/ui";
 import type { FamilyMember, Receipt, ReceiptItem } from "../types";
 import { useAuth } from "@/api/auth";
 import { analyticsEvents } from "@/analytics/facade";
 import type { MaterialIconName } from "../components/icons";
+
+const basket = require("../assets/ProductBasket.png") as number;
 
 interface Props {
   db: SQLiteDatabase | null;
@@ -45,6 +45,7 @@ type ViewMode = "menu" | "result";
 
 interface AssistantAction {
   title: string;
+  subtitle: string;
   icon: MaterialIconName;
   color: string;
   action: AiActionType;
@@ -60,6 +61,8 @@ export function AssistantScreen({ db, receipts, joinedItems }: Props) {
   const [loading, setLoading] = useState(false);
   const [recentReports, setRecentReports] = useState<AiReport[]>([]);
   const [showAllReports, setShowAllReports] = useState(false);
+  const [showMoreActions, setShowMoreActions] = useState(false);
+  const [showAuthSheet, setShowAuthSheet] = useState(false);
   const [errorKind, setErrorKind] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>("");
 
@@ -192,6 +195,17 @@ export function AssistantScreen({ db, receipts, joinedItems }: Props) {
     [db, receipts, joinedItems, isAuthenticated, loadRecentReports, openReport],
   );
 
+  const handleActionPress = useCallback(
+    (action: AiActionType) => {
+      if (!isAuthenticated) {
+        setShowAuthSheet(true);
+        return;
+      }
+      void runAnalysis(action);
+    },
+    [isAuthenticated, runAnalysis],
+  );
+
   const handlePin = useCallback(
     async (id: string, pinned: boolean) => {
       if (!db) return;
@@ -222,56 +236,67 @@ export function AssistantScreen({ db, receipts, joinedItems }: Props) {
 
   const actions: AssistantAction[] = [
     {
-      title: "Оценить покупки",
-      icon: "analytics",
-      color: "#007AFF",
-      action: "analysis",
-    },
-    {
-      title: "Сэкономить",
-      icon: "savings",
-      color: "#34C759",
-      action: "save_money",
-    },
-    {
       title: "Полезнее",
-      icon: "favorite",
-      color: "#FF3B30",
+      subtitle: "Как сделать рацион лучше",
+      icon: "spa",
+      color: "#587448",
       action: "health",
     },
     {
-      title: "Рецепты",
-      icon: "restaurant",
-      color: "#FF9500",
-      action: "recipe",
-    },
-    {
-      title: "Состав",
-      icon: "science",
-      color: "#007AFF",
-      action: "ingredients",
+      title: "Сэкономить",
+      subtitle: "Где можно тратить меньше",
+      icon: "sell",
+      color: "#D5663D",
+      action: "save_money",
     },
     {
       title: "Список покупок",
-      icon: "shopping-cart",
-      color: "#AF52DE",
+      subtitle: "Составим список по вашим чекам",
+      icon: "shopping-bag",
+      color: "#D69B21",
       action: "cart",
     },
     {
+      title: "Что приготовить",
+      subtitle: "Идеи на основе ваших продуктов",
+      icon: "soup-kitchen",
+      color: "#526B3C",
+      action: "recipe",
+    },
+  ];
+
+  const extraActions: AssistantAction[] = [
+    {
+      title: "Оценить покупки",
+      subtitle: "Разберём расходы и привычки",
+      icon: "analytics",
+      color: "#C44935",
+      action: "analysis",
+    },
+    {
+      title: "Состав продуктов",
+      subtitle: "Проверим ингредиенты и состав",
+      icon: "science",
+      color: "#5B6875",
+      action: "ingredients",
+    },
+    {
       title: "Заканчивается",
+      subtitle: "Найдём регулярные покупки",
       icon: "schedule",
-      color: "#FF9500",
+      color: "#C8813B",
       action: "habits",
     },
     {
       title: "Рацион",
-      icon: "spa",
-      color: "#34C759",
+      subtitle: "Соберём более сбалансированный план",
+      icon: "restaurant-menu",
+      color: "#587448",
       action: "diet",
     },
   ];
 
-  const cardStyles = useStaggeredFadeIn(actions.length + 2, 60);
+  const cardStyles = useStaggeredFadeIn(4, 60);
 
   if (viewMode === "result") {
     return (
@@ -334,76 +359,118 @@ export function AssistantScreen({ db, receipts, joinedItems }: Props) {
       showsVerticalScrollIndicator={false}
     >
       <Animated.View style={cardStyles[0]}>
-        <Text style={[styles.title, { color: theme.text }]}>AI-помощник</Text>
+        <Text style={[styles.brand, { color: theme.text }]}>FOODLER</Text>
+        <Text style={[styles.title, { color: theme.text }]}>Foodler AI</Text>
         <Text style={[styles.subtitle, { color: theme.muted }]}>
-          Анализируйте покупки и получайте рекомендации
+          Персональные инсайты по вашим
+          {"\n"}покупкам и питанию
         </Text>
       </Animated.View>
 
       <Animated.View style={cardStyles[1]}>
-        <HeroCard
-          title="Общий анализ"
-          subtitle="Полный анализ расходов, полезности покупок и привычек"
-          icon="auto-awesome"
-          iconColor="#007AFF"
-          onPress={() => runAnalysis("analysis")}
-        />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Общий анализ"
+          onPress={() => handleActionPress("analysis")}
+          style={({ pressed }) => [
+            styles.heroCard,
+            { borderColor: theme.primary, opacity: pressed ? 0.86 : 1 },
+          ]}
+        >
+          <Image
+            source={basket}
+            style={styles.heroImage}
+            resizeMode="contain"
+          />
+          <View style={styles.heroCopy}>
+            <Text style={[styles.eyebrow, { color: theme.primary }]}>
+              ГЛАВНОЕ
+            </Text>
+            <Text style={[styles.heroTitle, { color: theme.text }]}>
+              Общий анализ
+            </Text>
+            <Text style={[styles.heroSubtitle, { color: theme.muted }]}>
+              Посмотрим, как прошёл месяц
+              {"\n"}и что можно улучшить.
+            </Text>
+          </View>
+          <MaterialIcons name="arrow-forward" size={28} color={theme.primary} />
+        </Pressable>
       </Animated.View>
 
-      <Animated.View style={[cardStyles[2], { marginTop: 28 }]}>
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            Быстрые действия
-          </Text>
-          <View
-            style={[
-              styles.sectionLine,
-              { backgroundColor: theme.primary + "20" },
-            ]}
-          />
+      <Animated.View style={[cardStyles[2], { marginTop: 22 }]}>
+        <View style={styles.actionList}>
+          {actions.map((action) => (
+            <ActionRow
+              key={action.title}
+              action={action}
+              textColor={theme.text}
+              mutedColor={theme.muted}
+              borderColor={theme.border}
+              onPress={() => handleActionPress(action.action)}
+            />
+          ))}
         </View>
       </Animated.View>
 
-      <View style={styles.quickGrid}>
-        {actions.map((a, i) => (
-          <Animated.View
-            key={a.title}
-            style={[cardStyles[i + 3], styles.quickCardWrapper]}
-          >
-            <ActionCard
-              title={a.title}
-              icon={a.icon}
-              color={a.color}
-              onPress={() => runAnalysis(a.action)}
-            />
-          </Animated.View>
-        ))}
-      </View>
-
-      <Animated.View style={cardStyles[actions.length + 2]}>
-        <AnimatedPressable
-          scaleTo={0.97}
-          onPress={() => navigation.navigate("Ask")}
+      <Animated.View style={cardStyles[3]}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={
+            showMoreActions ? "Скрыть ещё" : "Ещё AI-действия"
+          }
+          onPress={() => setShowMoreActions((visible) => !visible)}
+          style={styles.moreButton}
         >
-          <View
-            style={[
-              styles.askButton,
-              {
-                backgroundColor: theme.primary,
-                shadowColor: theme.primary,
-              },
-            ]}
+          <Text style={[styles.moreButtonText, { color: theme.primary }]}>
+            {showMoreActions ? "Скрыть" : "Ещё AI-действия"}
+          </Text>
+          <MaterialIcons
+            name={showMoreActions ? "expand-less" : "expand-more"}
+            size={22}
+            color={theme.primary}
+          />
+        </Pressable>
+      </Animated.View>
+
+      {showMoreActions && (
+        <View style={styles.extraActions}>
+          {extraActions.map((action) => (
+            <ActionRow
+              key={action.title}
+              action={action}
+              textColor={theme.text}
+              mutedColor={theme.muted}
+              borderColor={theme.border}
+              onPress={() => handleActionPress(action.action)}
+            />
+          ))}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Задать вопрос"
+            onPress={() => navigation.navigate("Ask")}
+            style={[styles.askRow, { borderBottomColor: theme.border }]}
           >
-            <View style={styles.askButtonContent}>
-              <MaterialIcons name="chat" size={22} color={theme.white} />
-              <Text style={[styles.askButtonText, { color: theme.white }]}>
+            <View
+              style={[
+                styles.actionIcon,
+                { backgroundColor: theme.primary + "18" },
+              ]}
+            >
+              <MaterialIcons name="chat" size={24} color={theme.primary} />
+            </View>
+            <View style={styles.actionText}>
+              <Text style={[styles.actionTitle, { color: theme.text }]}>
                 Задать вопрос
               </Text>
+              <Text style={[styles.actionSubtitle, { color: theme.muted }]}>
+                Спросите AI о своих покупках
+              </Text>
             </View>
-            <MaterialIcons name="chevron-right" size={22} color={theme.white} />
-          </View>
-        </AnimatedPressable>
-      </Animated.View>
+            <MaterialIcons name="chevron-right" size={26} color={theme.muted} />
+          </Pressable>
+        </View>
+      )}
 
       {recentReports.length > 0 && (
         <FadeInView delay={400} slideDistance={20}>
@@ -444,7 +511,132 @@ export function AssistantScreen({ db, receipts, joinedItems }: Props) {
           </View>
         </FadeInView>
       )}
+
+      <AuthSheet
+        visible={showAuthSheet}
+        onClose={() => setShowAuthSheet(false)}
+        onLogin={() => {
+          setShowAuthSheet(false);
+          navigation.navigate("Login");
+        }}
+        theme={theme}
+      />
     </ScrollView>
+  );
+}
+
+function ActionRow({
+  action,
+  textColor,
+  mutedColor,
+  borderColor,
+  onPress,
+}: {
+  action: AssistantAction;
+  textColor: string;
+  mutedColor: string;
+  borderColor: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={action.title}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.actionRow,
+        { borderBottomColor: borderColor, opacity: pressed ? 0.65 : 1 },
+      ]}
+    >
+      <View
+        style={[styles.actionIcon, { backgroundColor: action.color + "20" }]}
+      >
+        <MaterialIcons name={action.icon} size={25} color={action.color} />
+      </View>
+      <View style={styles.actionText}>
+        <Text style={[styles.actionTitle, { color: textColor }]}>
+          {action.title}
+        </Text>
+        <Text style={[styles.actionSubtitle, { color: mutedColor }]}>
+          {action.subtitle}
+        </Text>
+      </View>
+      <MaterialIcons name="chevron-right" size={26} color={mutedColor} />
+    </Pressable>
+  );
+}
+
+function AuthSheet({
+  visible,
+  onClose,
+  onLogin,
+  theme,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onLogin: () => void;
+  theme: ReturnType<typeof useTheme>["theme"];
+}) {
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <View style={styles.sheetOverlay}>
+        <Pressable
+          accessibilityLabel="Закрыть"
+          style={styles.sheetBackdrop}
+          onPress={onClose}
+        />
+        <View style={[styles.sheet, { backgroundColor: theme.bg }]}>
+          <View
+            style={[styles.sheetHandle, { backgroundColor: theme.outline }]}
+          />
+          <View style={[styles.lockIcon, { borderColor: theme.primary }]}>
+            <MaterialIcons
+              name="lock-outline"
+              size={25}
+              color={theme.primary}
+            />
+          </View>
+          <Text
+            accessibilityLabel="AI доступен после входа"
+            style={[styles.sheetTitle, { color: theme.text }]}
+          >
+            AI доступен после входа
+          </Text>
+          <Text style={[styles.sheetCopy, { color: theme.muted }]}>
+            Войдите в аккаунт, чтобы получить персональные
+            {"\n"}инсайты на основе ваших чеков.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Войти"
+            onPress={onLogin}
+            style={({ pressed }) => [
+              styles.sheetLogin,
+              { backgroundColor: theme.primary, opacity: pressed ? 0.8 : 1 },
+            ]}
+          >
+            <Text style={[styles.sheetLoginText, { color: theme.white }]}>
+              Войти
+            </Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Продолжить без аккаунта"
+            onPress={onClose}
+            style={styles.sheetGuest}
+          >
+            <Text style={[styles.sheetGuestText, { color: theme.text }]}>
+              Продолжить без аккаунта
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -471,20 +663,116 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: 20,
-    paddingBottom: 100,
+    paddingHorizontal: 21,
+    paddingTop: 28,
+    paddingBottom: 112,
+  },
+  brand: {
+    fontSize: 16,
+    fontWeight: "500",
+    letterSpacing: 0.2,
   },
   title: {
-    fontSize: 32,
-    fontWeight: "800",
-    marginTop: 12,
-    letterSpacing: -0.5,
+    fontFamily: "Georgia",
+    fontSize: 46,
+    fontWeight: "400",
+    letterSpacing: -1.5,
+    marginTop: 17,
   },
   subtitle: {
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: 27,
+    marginTop: 7,
+  },
+  heroCard: {
+    borderRadius: 10,
+    borderWidth: 1,
+    minHeight: 318,
+    overflow: "hidden",
+    paddingBottom: 16,
+    paddingHorizontal: 22,
+    paddingTop: 0,
+  },
+  heroImage: {
+    alignSelf: "center",
+    height: 185,
+    marginTop: -3,
+    width: "90%",
+  },
+  heroCopy: {
+    flex: 1,
+  },
+  eyebrow: {
+    fontSize: 13,
+    fontWeight: "500",
+    letterSpacing: 1.3,
+    marginBottom: 12,
+    marginTop: 1,
+  },
+  heroTitle: {
+    fontFamily: "Georgia",
+    fontSize: 34,
+    fontWeight: "400",
+    letterSpacing: -0.8,
+    lineHeight: 40,
+  },
+  heroSubtitle: {
+    fontSize: 16,
+    lineHeight: 24,
+    marginTop: 7,
+  },
+  actionList: {
+    marginTop: 0,
+  },
+  actionRow: {
+    alignItems: "center",
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    minHeight: 76,
+    paddingVertical: 11,
+  },
+  askRow: {
+    alignItems: "center",
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    minHeight: 76,
+    paddingVertical: 11,
+  },
+  actionIcon: {
+    alignItems: "center",
+    borderRadius: 22,
+    height: 44,
+    justifyContent: "center",
+    marginRight: 16,
+    width: 44,
+  },
+  actionText: {
+    flex: 1,
+  },
+  actionTitle: {
+    fontSize: 18,
+    fontWeight: "500",
+    lineHeight: 23,
+  },
+  actionSubtitle: {
+    fontSize: 14,
+    lineHeight: 19,
+    marginTop: 2,
+  },
+  moreButton: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    minHeight: 52,
+  },
+  moreButtonText: {
     fontSize: 15,
-    marginTop: 6,
-    marginBottom: 28,
-    lineHeight: 22,
+    fontWeight: "600",
+    marginRight: 5,
+  },
+  extraActions: {
+    marginTop: -1,
   },
   sectionHeader: {
     marginBottom: 16,
@@ -511,37 +799,6 @@ const styles = StyleSheet.create({
   showMoreText: {
     fontSize: 15,
     fontWeight: "600",
-  },
-  quickGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    marginBottom: 24,
-  },
-  quickCardWrapper: {
-    width: "48%",
-    marginBottom: 12,
-  },
-  askButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    elevation: 4,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  askButtonContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  askButtonText: {
-    fontSize: 17,
-    fontWeight: "700",
   },
   center: {
     flex: 1,
@@ -571,5 +828,73 @@ const styles = StyleSheet.create({
   retryButtonText: {
     fontSize: 16,
     fontWeight: "600",
+  },
+  sheetOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  sheetBackdrop: {
+    backgroundColor: "rgba(22, 20, 17, 0.36)",
+    bottom: 0,
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: 0,
+  },
+  sheet: {
+    borderTopLeftRadius: 27,
+    borderTopRightRadius: 27,
+    minHeight: 336,
+    paddingBottom: 25,
+    paddingHorizontal: 30,
+    paddingTop: 10,
+  },
+  sheetHandle: {
+    alignSelf: "center",
+    borderRadius: 3,
+    height: 5,
+    marginBottom: 17,
+    width: 42,
+  },
+  lockIcon: {
+    alignItems: "center",
+    alignSelf: "center",
+    borderRadius: 25,
+    borderWidth: 1.5,
+    height: 50,
+    justifyContent: "center",
+    marginBottom: 15,
+    width: 50,
+  },
+  sheetTitle: {
+    fontFamily: "Georgia",
+    fontSize: 28,
+    fontWeight: "400",
+    textAlign: "center",
+  },
+  sheetCopy: {
+    fontSize: 16,
+    lineHeight: 22,
+    marginTop: 7,
+    textAlign: "center",
+  },
+  sheetLogin: {
+    alignItems: "center",
+    borderRadius: 9,
+    height: 51,
+    justifyContent: "center",
+    marginTop: 20,
+  },
+  sheetLoginText: {
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  sheetGuest: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 48,
+  },
+  sheetGuestText: {
+    fontSize: 16,
   },
 });
