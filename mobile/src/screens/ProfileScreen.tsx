@@ -439,7 +439,7 @@ const styles = StyleSheet.create({
     width: 42,
   },
   menuCopy: { flex: 1, marginHorizontal: 12 },
-  menuLabel: { fontSize: 16, fontWeight: "700" },
+  menuLabel: { fontFamily: "serif", fontSize: 16, fontWeight: "700" },
   menuCaption: { fontSize: 12, lineHeight: 17, marginTop: 2 },
   logout: {
     alignItems: "center",

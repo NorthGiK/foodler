@@ -1,3 +1,4 @@
+import React from "react";
 import MaterialIcons from "@react-native-vector-icons/material-icons";
 import { memo, useCallback, useMemo, useState, type ReactElement } from "react";
 import {
@@ -27,8 +28,11 @@ import { getStoreDisplayName, type StoreAliases } from "../storeAliases";
 import type { Receipt, ReceiptItem } from "../types";
 import { fmtRub } from "../utils";
 import { useTheme } from "../components/ThemeContext";
+import TomatoIcon from "../assets/TomatoOutline.svg";
+import FullModalWindow from "@/components/FullModalWindow";
 
 const basket = require("../assets/ProductBasket.png") as number;
+const tomato = require("../assets/TomatoOutline.svg") as number;
 const EMPTY_ITEMS: ReceiptItem[] = [];
 
 type JoinedItem = ReceiptItem & { ticketDate?: string };
@@ -181,6 +185,8 @@ export function ReceiptsScreen({
   }, [joinedItems]);
   const listItems = useMemo(() => buildListItems(receipts), [receipts]);
 
+  const closeScanningQr = () => !capturing && setSheetVisible(false)
+
   const refresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -321,11 +327,9 @@ export function ReceiptsScreen({
                 { borderColor: theme.primary, opacity: pressed ? 0.75 : 1 },
               ]}
             >
-              <MaterialIcons
-                name="qr-code-scanner"
-                size={39}
-                color={theme.primary}
-              />
+              <View>
+                <TomatoIcon height={39} width={39} />
+              </View>
               <View style={styles.uploadCopy}>
                 <Text
                   numberOfLines={1}
@@ -373,12 +377,7 @@ export function ReceiptsScreen({
         removeClippedSubviews={Platform.OS === "android"}
         showsVerticalScrollIndicator={false}
       />
-      <Modal
-        transparent
-        animationType="slide"
-        visible={sheetVisible}
-        onRequestClose={() => !capturing && setSheetVisible(false)}
-      >
+      <FullModalWindow visible={sheetVisible} setVisible={closeScanningQr}>
         <View style={styles.sheetOverlay}>
           <Pressable
             accessibilityRole="button"
@@ -411,20 +410,9 @@ export function ReceiptsScreen({
               onPress={() => void pickImage("image")}
               themeColor={theme.primary}
             />
-            <View style={styles.privacyNote}>
-              <MaterialIcons
-                name="lock-outline"
-                size={25}
-                color={theme.muted}
-              />
-              <Text style={[styles.privacyText, { color: theme.muted }]}>
-                Доступ нужен только для съёмки чека. Фото не сохраняются без
-                вашего согласия.
-              </Text>
-            </View>
           </View>
         </View>
-      </Modal>
+      </FullModalWindow>
     </View>
   );
 }
@@ -594,19 +582,10 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     borderWidth: 1,
     flexDirection: "row",
-    gap: 28,
-    height: 74,
-    justifyContent: "flex-start",
+    gap: 14,
+    height: 64,
+    justifyContent: "space-evenly",
     marginBottom: 13,
-    paddingHorizontal: 27,
   },
-  captureText: { fontSize: 20, fontWeight: "600" },
-  privacyNote: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 17,
-    marginTop: 17,
-    paddingHorizontal: 12,
-  },
-  privacyText: { flex: 1, fontSize: 12, lineHeight: 18 },
+  captureText: { fontSize: 20, fontWeight: "400" },
 });

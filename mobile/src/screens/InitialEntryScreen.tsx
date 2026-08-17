@@ -212,9 +212,6 @@ export function InitialEntryScreen({
                 Принять и продолжить
               </Text>
             </Pressable>
-            <Text style={[styles.version, { color: theme.muted }]}>
-              Версия 1.3.0 • Август 2026
-            </Text>
           </View>
         ) : (
           <View style={styles.choiceBody}>
@@ -269,7 +266,7 @@ const styles = StyleSheet.create({
   brand: { fontSize: 12, fontWeight: "800", letterSpacing: -0.3 },
   title: {
     fontFamily: "serif",
-    fontSize: 34,
+    fontSize: 30,
     fontWeight: "600",
     letterSpacing: -1.3,
     lineHeight: 37,
@@ -314,6 +311,7 @@ const styles = StyleSheet.create({
     gap: 12,
     justifyContent: "center",
     marginTop: 16,
+    marginBottom: 16,
     minHeight: 39,
     paddingHorizontal: 16,
   },
@@ -330,5 +328,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   secondaryButtonText: { fontSize: 14, fontWeight: "600" },
-  version: { fontSize: 11, marginBottom: 5, marginTop: 9, textAlign: "center" },
 });
