@@ -24,17 +24,18 @@ export { MAIN_TABS, type MainTabParamList } from "./mainTabsConfig";
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 function ReceiptsTab() {
-  const { receipts, storeAliases, refresh } = useAppData();
+  const { db, receipts, joinedItems, storeAliases, refresh } = useAppData();
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   return (
     <ReceiptsScreen
+      db={db}
       receipts={receipts}
+      joinedItems={joinedItems}
       onRefresh={refresh}
       onOpenReceiptDetail={(receipt) =>
         navigation.navigate("ReceiptDetail", { receipt, storeAliases })
       }
-      onNewReceipt={() => navigation.navigate("NewReceipt")}
       storeAliases={storeAliases}
     />
   );
