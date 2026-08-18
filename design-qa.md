@@ -34,6 +34,52 @@ final result: blocked
 
 ---
 
+# Design QA — account personal information card
+
+**Source visual truth**
+
+- Source: existing Foodler profile design language in
+  `mobile/src/screens/ProfileScreen.tsx`, `FamilySection.tsx`, and
+  `StoreNamesSection.tsx`; no Figma/App visual artifact was available in this
+  session.
+- A source screenshot could not be captured because no callable Android or
+  browser capture runtime is available.
+
+**Implementation evidence**
+
+- Implementation: `mobile/src/components/profile/ProfileInfoCard.tsx`.
+- Implementation screenshot: not captured; `adb devices` cannot start the
+  daemon in this environment (`Operation not permitted`).
+- Viewport, source/implementation pixel dimensions, CSS size, and density
+  normalization: unavailable.
+- State intended for comparison: authenticated account route, view mode and
+  edit mode, default light/dark theme variants.
+
+**Comparison evidence**
+
+- Full-view comparison: blocked because neither a source capture nor a device
+  capture is available.
+- Focused region comparison: blocked for the same reason.
+
+**Findings**
+
+- No visual P0/P1/P2 finding can be certified without rendered evidence.
+- Fonts/typography, spacing/layout rhythm, colors/tokens, image/icon fidelity,
+  and copy were checked against the existing source code tokens and profile
+  components, but not visually verified at runtime.
+
+**Comparison history**
+
+- Initial pass: unavailable source and implementation captures.
+- Fixes implemented: aligned card radius/padding, serif section title, themed
+  action buttons, input sizing, multiline alignment, and accessibility labels.
+- Post-fix visual evidence: unavailable because the Android capture runtime is
+  blocked.
+
+**final result: blocked**
+
+---
+
 # Design QA — profile family and feedback sections
 
 **Source visual truth**

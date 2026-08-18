@@ -109,7 +109,6 @@ export function FeedbackSection({
     >
       <View style={styles.sectionHeader}>
         <View style={styles.headingCopy}>
-          <LogoBrand />
           <Text style={[styles.sectionTitle, { color: theme.secondary }]}>
             Обратная связь
           </Text>

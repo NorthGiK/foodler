@@ -83,8 +83,9 @@ export function LoginScreen() {
     try {
       await sendCode(email.trim(), password.trim());
       setStep("code");
-    } catch {
+    } catch (e) {
       const message = "Ошибка отправки. Проверьте подключение к интернету.";
+      console.warn("error happend while trying to login", "\n", e);
       setError(message);
       Alert.alert("Ошибка", message);
     } finally {

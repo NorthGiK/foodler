@@ -37,15 +37,55 @@ export function ProfileInfoCard({
         </Text>
         {!editing ? (
           <AnimatedPressable scaleTo={0.9} onPress={onEdit}>
-            <MaterialIcons name="edit" size={20} color={theme.primary} />
+            <View
+              accessible
+              accessibilityRole="button"
+              accessibilityLabel="Изменить личную информацию"
+              style={[
+                styles.actionButton,
+                { backgroundColor: theme.primaryContainer },
+              ]}
+            >
+              <MaterialIcons
+                name="edit"
+                size={20}
+                color={theme.onPrimaryContainer}
+              />
+            </View>
           </AnimatedPressable>
         ) : (
           <View style={styles.headerActions}>
-            <AnimatedPressable scaleTo={0.9} onPress={onCancel}>
-              <MaterialIcons name="close" size={20} color={theme.muted} />
+            <AnimatedPressable
+              scaleTo={0.9}
+              onPress={onCancel}
+              accessibilityLabel="Отменить редактирование личной информации"
+            >
+              <View
+                style={[
+                  styles.actionButton,
+                  { backgroundColor: theme.surfaceElevated },
+                ]}
+              >
+                <MaterialIcons name="close" size={20} color={theme.muted} />
+              </View>
             </AnimatedPressable>
-            <AnimatedPressable scaleTo={0.9} onPress={onSave}>
-              <MaterialIcons name="check" size={20} color={theme.primary} />
+            <AnimatedPressable
+              scaleTo={0.9}
+              onPress={onSave}
+              accessibilityLabel="Сохранить личную информацию"
+            >
+              <View
+                style={[
+                  styles.actionButton,
+                  { backgroundColor: theme.primaryContainer },
+                ]}
+              >
+                <MaterialIcons
+                  name="check"
+                  size={20}
+                  color={theme.onPrimaryContainer}
+                />
+              </View>
             </AnimatedPressable>
           </View>
         )}
@@ -98,6 +138,8 @@ export function ProfileInfoCard({
             <View style={[styles.field, { flex: 1 }]}>
               <Text style={[styles.label, { color: theme.text }]}>Пол</Text>
               <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Изменить пол"
                 style={[
                   styles.input,
                   {
@@ -282,11 +324,10 @@ export function ProfileInfoCard({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 24,
-    padding: 20,
+    borderRadius: 20,
+    padding: 18,
     borderWidth: 1,
     marginBottom: 16,
-    alignItems: "center",
   },
   sectionHeader: {
     flexDirection: "row",
@@ -296,12 +337,20 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontFamily: "serif",
+    fontSize: 23,
     fontWeight: "700",
   },
   headerActions: {
     flexDirection: "row",
-    gap: 12,
+    gap: 8,
+  },
+  actionButton: {
+    alignItems: "center",
+    borderRadius: 14,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
   },
   form: {
     width: "100%",
@@ -315,18 +364,19 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   label: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "600",
   },
   input: {
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
+    minHeight: 50,
     paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
+    paddingVertical: 13,
+    fontSize: 16,
   },
   textArea: {
-    minHeight: 80,
+    minHeight: 96,
     paddingTop: 12,
   },
   infoList: {
@@ -334,7 +384,7 @@ const styles = StyleSheet.create({
   },
   infoRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 12,
     paddingVertical: 12,
     borderBottomWidth: 1,
@@ -344,10 +394,11 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 12,
-    marginBottom: 2,
+    marginBottom: 3,
   },
   infoValue: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "600",
+    lineHeight: 21,
   },
 });
