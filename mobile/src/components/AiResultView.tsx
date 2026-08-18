@@ -195,51 +195,6 @@ export function AiResultView({
         </View>
       </View>
 
-      {report.snapshot && (
-        <View
-          style={[
-            styles.snapshot,
-            {
-              backgroundColor: theme.surface,
-              borderColor: theme.border,
-            },
-          ]}
-        >
-          <Text style={[styles.snapshotTitle, { color: theme.primary }]}>
-            СНИМОК ДАННЫХ
-          </Text>
-          <View style={styles.snapshotRow}>
-            <Text style={[styles.snapshotLabel, { color: theme.muted }]}>
-              Чеки
-            </Text>
-            <Text style={[styles.snapshotValue, { color: theme.text }]}>
-              {report.snapshot.receiptCount}
-            </Text>
-          </View>
-          {(report.snapshot.periodFrom || report.snapshot.periodTo) && (
-            <View style={styles.snapshotRow}>
-              <Text style={[styles.snapshotLabel, { color: theme.muted }]}>
-                Период
-              </Text>
-              <Text style={[styles.snapshotValue, { color: theme.text }]}>
-                {report.snapshot.periodFrom || "—"} —{" "}
-                {report.snapshot.periodTo || "сейчас"}
-              </Text>
-            </View>
-          )}
-          {report.snapshot.totalSpent != null && (
-            <View style={styles.snapshotRow}>
-              <Text style={[styles.snapshotLabel, { color: theme.muted }]}>
-                Сумма
-              </Text>
-              <Text style={[styles.snapshotValue, { color: theme.text }]}>
-                {report.snapshot.totalSpent.toFixed(0)} ₽
-              </Text>
-            </View>
-          )}
-        </View>
-      )}
-
       {report.response.summary ? (
         <View style={[styles.summary, { borderLeftColor: theme.primary }]}>
           <Text style={[styles.summaryLabel, { color: theme.primary }]}>

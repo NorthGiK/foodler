@@ -335,7 +335,6 @@ export function StatsScreen({ receipts, joinedItems, onUploadReceipt }: Props) {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      <LogoBrand />
       <Text style={[styles.title, { color: theme.text }]}>Статистика</Text>
       <PeriodSelector selection={selection} onShift={shift} theme={theme} />
       <PeriodTabs
@@ -388,9 +387,8 @@ const styles = StyleSheet.create({
     fontFamily: "serif",
     fontSize: 42,
     fontWeight: "500",
-    letterSpacing: -2.1,
+    letterSpacing: -1.1,
     lineHeight: 58,
-    marginTop: 4,
   },
   periodSelector: {
     alignItems: "center",
@@ -412,6 +410,8 @@ const styles = StyleSheet.create({
   },
   disabledButton: { opacity: 0.25 },
   periodTabs: {
+    flex: 1,
+    justifyContent: "space-evenly",
     backgroundColor: "transparent",
     borderRadius: 11,
     flexDirection: "row",
