@@ -1,9 +1,11 @@
-import React from "react";
 import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 import MaterialIcons from "@react-native-vector-icons/material-icons";
 import { useTheme } from "../ThemeContext";
 import { AnimatedPressable } from "../animations";
 import { UserProfile } from "../../types";
+import { Dimensions } from "react-native";
+
+const { width } = Dimensions.get("window");
 
 interface ProfileInfoCardProps {
   profile: UserProfile;
@@ -333,7 +335,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    width: "100%",
+    width: (width - 16*2 - 18*2) * 0.8,
     marginBottom: 16,
   },
   sectionTitle: {
@@ -342,7 +344,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   headerActions: {
-    flexDirection: "row",
+    flexDirection: "column",
     gap: 8,
   },
   actionButton: {

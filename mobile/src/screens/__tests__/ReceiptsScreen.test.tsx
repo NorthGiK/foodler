@@ -115,6 +115,17 @@ describe("ReceiptsScreen", () => {
     ).toBeTruthy();
   });
 
+  it("opens the QR capture sheet for a widget request", async () => {
+    let view: ReturnType<typeof create>;
+    await act(async () => {
+      view = create(<ReceiptsScreen {...baseProps} scanRequestId={1} />);
+    });
+
+    expect(
+      view!.root.findByProps({ accessibilityLabel: "Сделать фото" }),
+    ).toBeTruthy();
+  });
+
   it("shows an inline QR error and keeps the sheet open after an invalid response", async () => {
     jest
       .mocked(requestMediaLibraryPermissionsAsync)

@@ -1,6 +1,13 @@
 import React from "react";
 import MaterialIcons from "@react-native-vector-icons/material-icons";
-import { memo, useCallback, useMemo, useState, type ReactElement } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactElement,
+} from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -48,6 +55,7 @@ interface Props {
   onRefresh: () => Promise<void>;
   onOpenReceiptDetail: (receipt: Receipt) => void;
   storeAliases: StoreAliases;
+  scanRequestId?: number;
 }
 
 interface ReceiptRowProps {
@@ -133,6 +141,7 @@ export function ReceiptsScreen({
   onRefresh,
   onOpenReceiptDetail,
   storeAliases,
+  scanRequestId = 0,
 }: Props) {
   const { theme } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
@@ -149,6 +158,12 @@ export function ReceiptsScreen({
     return result;
   }, [joinedItems]);
   const listItems = useMemo(() => buildListItems(receipts), [receipts]);
+
+  useEffect(() => {
+    if (scanRequestId <= 0) return;
+    setQrError(false);
+    setSheetVisible(true);
+  }, [scanRequestId]);
 
   const closeScanningQr = () => {
     if (!capturing) {

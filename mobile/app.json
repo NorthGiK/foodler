@@ -3,14 +3,14 @@
     "name": "Foodler",
     "slug": "food-spend-tracker",
     "scheme": "foodspendtracker",
-    "version": "2.0.5",
+    "version": "3.0.0",
     "orientation": "portrait",
     "platforms": ["android"],
     "userInterfaceStyle": "automatic",
     "android": {
-      "versionCode": 5,
+      "versionCode": 6,
       "package": "com.Foodler.chih_pih",
-      "icon": "./assets/FoodlerIcon.png",
+      "icon": "./assets/FoodlerIcon.ico",
       "permissions": ["CAMERA", "android.permission.CAMERA"]
     },
     "plugins": [
@@ -18,7 +18,7 @@
       "expo-sqlite",
       "expo-font",
       "@react-native-vector-icons/material-icons",
-      "expo-image-picker"
+      ["expo-image-picker", { "microphonePermission": false }]
     ],
     "extra": {
       "eas": {

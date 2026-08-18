@@ -31,6 +31,7 @@ import {
   type StoreAliases,
 } from "../../storeAliases";
 import type { Receipt, ReceiptItem } from "../../types";
+import { updateWeeklyWidget } from "../../native/widget";
 
 type JoinedItem = ReceiptItem & { ticketDate?: string };
 type AppData = {
@@ -66,6 +67,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       if (sequence !== refreshSequence.current) return;
       setReceipts(nextReceipts);
       setJoinedItems(nextJoinedItems);
+      updateWeeklyWidget(nextReceipts);
       setLoadError(null);
     } catch {
       if (sequence !== refreshSequence.current) return;

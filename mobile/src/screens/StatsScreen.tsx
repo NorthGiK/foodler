@@ -1,6 +1,6 @@
 import MaterialIcons from "@react-native-vector-icons/material-icons";
 import { BarChart, PieChart } from "react-native-gifted-charts";
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Dimensions,
   Image,
@@ -24,8 +24,6 @@ import {
   shiftPeriod,
   type PeriodSelection,
 } from "../stats";
-import ScanQrButton from "@/components/ui/ScanQrButton";
-import LogoBrand from "@/components/ui/LogoBrand";
 import { AnimatedPressable } from "@/components/animations";
 
 const WIDTH = Dimensions.get("screen").width;
@@ -34,7 +32,6 @@ const basket = require("../assets/ProductBasket.png") as number;
 type Props = {
   receipts: Receipt[];
   joinedItems: (ReceiptItem & { ticketDate?: string })[];
-  onUploadReceipt?: () => void;
 };
 
 const periods: { value: Period; label: string }[] = [
@@ -144,7 +141,6 @@ function PeriodSelector({
 
 function EmptyStats({
   theme,
-  onUploadReceipt,
 }: {
   theme: Theme;
   onUploadReceipt?: () => void;
@@ -162,7 +158,6 @@ function EmptyStats({
       <Text style={[styles.emptyText, { color: theme.muted }]}>
         Загрузите первый чек — и мы создадим вашу картину расходов.
       </Text>
-      <ScanQrButton onPress={onUploadReceipt} />
     </View>
   );
 }
@@ -302,7 +297,7 @@ function ExpenseChart({
   );
 }
 
-export function StatsScreen({ receipts, joinedItems, onUploadReceipt }: Props) {
+export function StatsScreen({ receipts, joinedItems }: Props) {
   const { theme } = useTheme();
   const [selection, setSelection] = useState<PeriodSelection>(() =>
     currentPeriodSelection("month"),
@@ -344,7 +339,7 @@ export function StatsScreen({ receipts, joinedItems, onUploadReceipt }: Props) {
       />
 
       {periodReceipts.length === 0 ? (
-        <EmptyStats theme={theme} onUploadReceipt={onUploadReceipt} />
+        <EmptyStats theme={theme} />
       ) : (
         <>
           <Text style={[styles.total, { color: theme.text }]}>

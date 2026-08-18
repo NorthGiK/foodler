@@ -6,6 +6,7 @@ import {
   isFuturePeriod,
   shiftPeriod,
   startOfPeriod,
+  totalForSelection,
 } from "../stats";
 import type { Receipt, ReceiptItem } from "../types";
 
@@ -101,6 +102,14 @@ describe("statistics calculations", () => {
     expect(series.map((point) => point.value)).toEqual([
       1000, 500, 0, 0, 0, 0, 0,
     ]);
+  });
+
+  it("calculates the current week total using the same receipt boundaries", () => {
+    const selection = currentPeriodSelection(
+      "week",
+      new Date("2026-08-12T12:00:00"),
+    );
+    expect(totalForSelection(receipts, selection)).toBe(1500);
   });
 
   it("groups a year series by month instead of repeating the annual total", () => {

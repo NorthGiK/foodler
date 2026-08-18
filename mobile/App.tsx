@@ -20,6 +20,7 @@ import { ReceiptDetailScreen } from "./src/screens/ReceiptDetailScreen";
 import { SubscriptionScreen } from "./src/screens/SubscriptionScreen";
 import type { StoreAliases } from "./src/storeAliases";
 import type { Receipt } from "./src/types";
+import { QrRequestProvider } from "./src/navigation/qrRequest";
 
 export type RootStackParamList = {
   __PoliciesAcception__: undefined;
@@ -133,7 +134,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <AppNavigator />
+        <QrRequestProvider>
+          <AppNavigator />
+        </QrRequestProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

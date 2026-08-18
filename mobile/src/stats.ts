@@ -96,6 +96,16 @@ export function filterReceiptsBySelection(
   });
 }
 
+export function totalForSelection(
+  receipts: readonly Receipt[],
+  selection: PeriodSelection,
+): number {
+  return filterReceiptsBySelection(receipts, selection).reduce(
+    (sum, receipt) => sum + Math.abs(receipt.totalSumRub),
+    0,
+  );
+}
+
 export function formatPeriodLabel(selection: PeriodSelection): string {
   const start = startOfPeriod(selection.anchor, selection.period);
   const capitalize = (value: string) =>

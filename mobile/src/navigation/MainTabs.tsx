@@ -10,6 +10,8 @@ import {
   Text,
   View,
 } from "react-native";
+import { useEffect } from "react";
+import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import type { RootStackParamList } from "../../App";
 import { analyticsEvents, type AnalyticsTab } from "../analytics/facade";
 import { useTheme } from "../components/ThemeContext";
@@ -19,11 +21,12 @@ import { ProfileScreen } from "../screens/ProfileScreen";
 import { ReceiptsScreen } from "../screens/ReceiptsScreen";
 import { StatsScreen } from "../screens/StatsScreen";
 import { MAIN_TABS, type MainTabParamList } from "./mainTabsConfig";
+import { useQrRequest } from "./qrRequest";
 
 export { MAIN_TABS, type MainTabParamList } from "./mainTabsConfig";
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-function ReceiptsTab() {
+function ReceiptsTab({ scanRequestId }: { scanRequestId: number }) {
   const { db, receipts, joinedItems, storeAliases, refresh } = useAppData();
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -37,18 +40,16 @@ function ReceiptsTab() {
         navigation.navigate("ReceiptDetail", { receipt, storeAliases })
       }
       storeAliases={storeAliases}
+      scanRequestId={scanRequestId}
     />
   );
 }
 function StatsTab() {
   const { receipts, joinedItems } = useAppData();
-  const navigation =
-    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   return (
     <StatsScreen
       receipts={receipts}
       joinedItems={joinedItems}
-      onUploadReceipt={() => navigation.navigate("NewReceipt")}
     />
   );
 }
@@ -75,8 +76,12 @@ function ProfileTab() {
   );
 }
 
-function MainTabsNavigator() {
+function MainTabsNavigator({ scanRequestId }: { scanRequestId: number }) {
   const { theme } = useTheme();
+  const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
+  useEffect(() => {
+    if (scanRequestId > 0) navigation.navigate("Receipts");
+  }, [navigation, scanRequestId]);
   return (
     <Tab.Navigator
       initialRouteName="Receipts"
@@ -90,6 +95,7 @@ function MainTabsNavigator() {
         return {
           headerShown: false,
           animation: "fade",
+          tabBarHideOnKeyboard: true,
           tabBarActiveTintColor: theme.primary,
           tabBarInactiveTintColor: theme.muted,
           tabBarStyle: {
@@ -107,11 +113,9 @@ function MainTabsNavigator() {
         };
       }}
     >
-      <Tab.Screen
-        name="Receipts"
-        component={ReceiptsTab}
-        options={{ title: "Чеки" }}
-      />
+      <Tab.Screen name="Receipts" options={{ title: "Чеки" }}>
+        {() => <ReceiptsTab scanRequestId={scanRequestId} />}
+      </Tab.Screen>
       <Tab.Screen
         name="Stats"
         component={StatsTab}
@@ -134,6 +138,7 @@ function MainTabsNavigator() {
 function MainTabsContent() {
   const { theme } = useTheme();
   const { db, loading, loadError, initializeStorage } = useAppData();
+  const { requestId: scanRequestId } = useQrRequest();
   if (loading)
     return (
       <View style={[styles.center, { backgroundColor: theme.bg }]}>
@@ -185,7 +190,7 @@ function MainTabsContent() {
           </Pressable>
         </View>
       )}
-      <MainTabsNavigator />
+      <MainTabsNavigator scanRequestId={scanRequestId} />
     </View>
   );
 }
@@ -193,7 +198,11 @@ function MainTabsContent() {
 export function MainTabs() {
   return (
     <AppDataProvider>
-      <StatusBar style="auto" animated={true} hideTransitionAnimation={"fade"} />
+      <StatusBar
+        style="auto"
+        animated={true}
+        hideTransitionAnimation={"fade"}
+      />
       <MainTabsContent />
     </AppDataProvider>
   );

@@ -7,11 +7,13 @@ import {
   Image,
   KeyboardAvoidingView,
   Pressable,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import type { RootStackParamList } from "../../App";
 import { useAuth } from "../api/auth";
 import { api } from "../api/client";
@@ -184,9 +186,9 @@ export function ProfileScreen({
   );
   if (route !== "home")
     return (
-      <KeyboardAvoidingView
+      <SafeAreaView
         style={[styles.page, { backgroundColor: theme.bg }]}
-        behavior="padding"
+        edges={["top"]}
       >
         <View style={styles.subHeader}>
           <Pressable
@@ -210,51 +212,56 @@ export function ProfileScreen({
           </Text>
           <View style={styles.backSpace} />
         </View>
-        <ScrollView
-          contentContainerStyle={styles.detailContent}
-          showsVerticalScrollIndicator={false}
+        <KeyboardAvoidingView
+          style={styles.page}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-          {route === "account" ? (
-            <>
-              <ProfileInfoCard
+          <ScrollView
+            contentContainerStyle={styles.detailContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {route === "account" ? (
+              <>
+                <ProfileInfoCard
+                  profile={profile}
+                  editing={editing}
+                  onEdit={() => setEditing(true)}
+                  onCancel={() => setEditing(false)}
+                  onSave={() => void saveAccount()}
+                  onProfileChange={setProfile}
+                />
+                <SubscriptionButton />
+                <AiCreditsCard />
+              </>
+            ) : null}
+            {route === "family" ? (
+              <FamilySection
                 profile={profile}
-                editing={editing}
-                onEdit={() => setEditing(true)}
-                onCancel={() => setEditing(false)}
-                onSave={() => void saveAccount()}
-                onProfileChange={setProfile}
+                onRemoveMember={(index) => setDeleteIndex(index)}
               />
-              <SubscriptionButton />
-              <AiCreditsCard />
-            </>
-          ) : null}
-          {route === "family" ? (
-            <FamilySection
-              profile={profile}
-              onRemoveMember={(index) => setDeleteIndex(index)}
-            />
-          ) : null}
-          {route === "privacy" ? (
-            <AnalyticsPreferenceCard
-              accountEnabled={user?.analyticsEnabled}
-              onSynced={refreshUser}
-            />
-          ) : null}
-          {route === "stores" ? (
-            <StoreNamesSection
-              stores={stores}
-              aliases={storeAliases}
-              onSave={onSaveStoreAlias}
-              onRestore={onRestoreStoreAlias}
-            />
-          ) : null}
-          {route === "feedback" ? (
-            <FeedbackSection
-              userEmail={user?.email}
-              onSendFeedback={feedback}
-            />
-          ) : null}
-        </ScrollView>
+            ) : null}
+            {route === "privacy" ? (
+              <AnalyticsPreferenceCard
+                accountEnabled={user?.analyticsEnabled}
+                onSynced={refreshUser}
+              />
+            ) : null}
+            {route === "stores" ? (
+              <StoreNamesSection
+                stores={stores}
+                aliases={storeAliases}
+                onSave={onSaveStoreAlias}
+                onRestore={onRestoreStoreAlias}
+              />
+            ) : null}
+            {route === "feedback" ? (
+              <FeedbackSection
+                userEmail={user?.email}
+                onSendFeedback={feedback}
+              />
+            ) : null}
+          </ScrollView>
+        </KeyboardAvoidingView>
         <ConfirmModal
           visible={deleteIndex !== null}
           title="Удалить члена семьи?"
@@ -264,7 +271,7 @@ export function ProfileScreen({
           onConfirm={() => void deleteMember()}
           onCancel={() => setDeleteIndex(null)}
         />
-      </KeyboardAvoidingView>
+      </SafeAreaView>
     );
   return (
     <>
