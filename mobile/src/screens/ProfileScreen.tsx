@@ -188,21 +188,24 @@ export function ProfileScreen({
         style={[styles.page, { backgroundColor: theme.bg }]}
         behavior="padding"
       >
-        <View style={[styles.subHeader, { borderBottomColor: theme.border }]}>
+        <View style={styles.subHeader}>
           <Pressable
             accessibilityLabel="Назад к профилю"
             onPress={() => {
               setEditing(false);
               setRoute("home");
             }}
+            style={({ pressed }) => [
+              styles.backButton,
+              {
+                backgroundColor: theme.surfaceElevated,
+                opacity: pressed ? 0.68 : 1,
+              },
+            ]}
           >
-            <MaterialIcons
-              name="arrow-back"
-              size={25}
-              color={theme.secondary}
-            />
+            <MaterialIcons name="arrow-back" size={22} color={theme.text} />
           </Pressable>
-          <Text style={[styles.subTitle, { color: theme.secondary }]}>
+          <Text style={[styles.subTitle, { color: theme.text }]}>
             {screenTitle[route]}
           </Text>
           <View style={styles.backSpace} />
@@ -270,7 +273,7 @@ export function ProfileScreen({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.title, { color: theme.secondary }]}>Профиль</Text>
+        <Text style={[styles.title, { color: theme.text }]}>Профиль</Text>
         {isAuthenticated && user ? (
           <>
             <View
@@ -307,11 +310,11 @@ export function ProfileScreen({
               </View>
             </View>
             <Text style={[styles.section, { color: theme.secondary }]}>
-              ВАШ ПРОФИЛЬ
+              АККАУНТ
             </Text>
             {menu(accountMenu)}
             <Text style={[styles.section, { color: theme.secondary }]}>
-              В ПРИЛОЖЕНИИ
+              НАСТРОЙКИ ПРИЛОЖЕНИЯ
             </Text>
             {menu(commonMenu)}
             <Pressable
@@ -358,7 +361,7 @@ export function ProfileScreen({
               </Pressable>
             </View>
             <Text style={[styles.section, { color: theme.secondary }]}>
-              НАСТРОЙКИ
+              НАСТРОЙКИ ПРИЛОЖЕНИЯ
             </Text>
             {menu(commonMenu)}
           </>
@@ -382,20 +385,21 @@ export function ProfileScreen({
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
-  content: { padding: 22, paddingBottom: 106 },
+  content: { paddingBottom: 108, paddingHorizontal: 24, paddingTop: 27 },
   title: {
     fontFamily: "serif",
-    fontSize: 38,
-    fontWeight: "700",
-    letterSpacing: -1,
-    marginBottom: 20,
+    fontSize: 42,
+    fontWeight: "500",
+    letterSpacing: -1.1,
+    lineHeight: 58,
+    marginBottom: 15,
   },
   identity: {
     alignItems: "center",
-    borderRadius: 22,
+    borderRadius: 26,
     borderWidth: 1,
     flexDirection: "row",
-    padding: 16,
+    padding: 18,
   },
   avatar: {
     alignItems: "center",
@@ -412,40 +416,40 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "800",
     letterSpacing: 1.15,
-    marginBottom: 9,
-    marginTop: 26,
+    marginBottom: 10,
+    marginTop: 28,
   },
-  menu: { borderRadius: 20, borderWidth: 1, overflow: "hidden" },
+  menu: { borderRadius: 24, borderWidth: 1, overflow: "hidden" },
   menuRow: {
     alignItems: "center",
     flexDirection: "row",
-    minHeight: 76,
-    paddingHorizontal: 14,
+    minHeight: 78,
+    paddingHorizontal: 16,
   },
   menuIcon: {
     alignItems: "center",
-    borderRadius: 13,
-    height: 42,
+    borderRadius: 14,
+    height: 44,
     justifyContent: "center",
-    width: 42,
+    width: 44,
   },
-  menuCopy: { flex: 1, marginHorizontal: 12 },
-  menuLabel: { fontFamily: "serif", fontSize: 16, fontWeight: "700" },
+  menuCopy: { flex: 1, marginHorizontal: 13 },
+  menuLabel: { fontFamily: "serif", fontSize: 17, fontWeight: "700" },
   menuCaption: { fontSize: 12, lineHeight: 17, marginTop: 2 },
   logout: {
     alignItems: "center",
     flexDirection: "row",
     gap: 9,
     justifyContent: "center",
-    marginTop: 26,
-    padding: 16,
+    marginTop: 22,
+    padding: 17,
   },
   logoutText: { fontSize: 15, fontWeight: "700" },
   guestHero: {
-    borderRadius: 26,
-    marginTop: 3,
+    borderRadius: 28,
+    marginTop: 2,
     overflow: "hidden",
-    padding: 22,
+    padding: 24,
   },
   tomato: {
     height: 170,
@@ -490,13 +494,20 @@ const styles = StyleSheet.create({
   guestButtonText: { fontSize: 15, fontWeight: "800" },
   subHeader: {
     alignItems: "center",
-    borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 22,
-    paddingVertical: 17,
+    gap: 14,
+    paddingHorizontal: 24,
+    paddingTop: 18,
+    paddingBottom: 8,
   },
-  subTitle: { fontFamily: "serif", fontSize: 22, fontWeight: "700" },
-  backSpace: { width: 25 },
-  detailContent: { padding: 20, paddingBottom: 100 },
+  backButton: {
+    alignItems: "center",
+    borderRadius: 20,
+    height: 40,
+    justifyContent: "center",
+    width: 40,
+  },
+  subTitle: { fontFamily: "serif", fontSize: 28, fontWeight: "600" },
+  backSpace: { flex: 1 },
+  detailContent: { padding: 24, paddingBottom: 108, paddingTop: 18 },
 });
