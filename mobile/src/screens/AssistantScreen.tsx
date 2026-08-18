@@ -3,7 +3,6 @@ import { useCallback, useEffect, useState } from "react";
 import {
   Animated,
   Image,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,

@@ -1,6 +1,9 @@
 import { act, create } from "react-test-renderer";
+import React from "react";
 
 import { ProfileScreen } from "../ProfileScreen";
+
+const mockUseEffect = React.useEffect;
 
 const mockNavigate = jest.fn();
 const mockAuth = {
@@ -17,6 +20,7 @@ const mockAuth = {
 jest.mock("@react-native-vector-icons/material-icons", () => () => null);
 jest.mock("@react-navigation/native", () => ({
   useNavigation: () => ({ navigate: mockNavigate }),
+  useFocusEffect: (callback: () => void) => mockUseEffect(callback, [callback]),
 }));
 jest.mock("@/components/ThemeContext", () => ({
   useTheme: () => ({

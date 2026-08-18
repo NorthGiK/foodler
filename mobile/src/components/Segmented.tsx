@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { Theme } from "../themes";
 import { useTheme } from "./ThemeContext";
+import { AnimatedPressable } from "./animations";
 
 interface Props<T extends string> {
   value: T;
@@ -19,7 +20,7 @@ export function Segmented<T extends string>({
   return (
     <View style={styles.wrap}>
       {items.map((item) => (
-        <Pressable
+        <AnimatedPressable
           key={item.value}
           onPress={() => onChange(item.value)}
           style={[styles.chip, value === item.value && styles.chipActive]}
@@ -29,7 +30,7 @@ export function Segmented<T extends string>({
           >
             {item.label}
           </Text>
-        </Pressable>
+        </AnimatedPressable>
       ))}
     </View>
   );

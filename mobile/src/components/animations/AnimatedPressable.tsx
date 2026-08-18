@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from "react";
+import React, { useRef, useCallback, useState } from "react";
 import {
   Pressable,
   Animated,
@@ -8,11 +8,12 @@ import {
   StyleProp,
 } from "react-native";
 import { springSnappy } from "./animations";
+import { useReducedMotion } from "./useReducedMotion";
 
 interface AnimatedPressableProps extends PressableProps {
   scaleTo?: number;
   children: React.ReactNode;
-  style?: StyleProp<ViewStyle>;
+  style?: PressableProps["style"];
 }
 
 export function AnimatedPressable({
@@ -25,27 +26,31 @@ export function AnimatedPressable({
   ...props
 }: AnimatedPressableProps) {
   const scale = useRef(new Animated.Value(1)).current;
+  const reducedMotion = useReducedMotion();
+  const [pressed, setPressed] = useState(false);
+
+  const resolvedStyle: StyleProp<ViewStyle> =
+    typeof style === "function" ? style({ pressed }) : style;
 
   const handlePressIn = useCallback(
     (event: GestureResponderEvent) => {
-      Animated.spring(scale, {
-        toValue: scaleTo,
-        ...springSnappy,
-      }).start();
+      setPressed(true);
+      if (reducedMotion) scale.setValue(1);
+      else
+        Animated.spring(scale, { toValue: scaleTo, ...springSnappy }).start();
       onPressIn?.(event);
     },
-    [scale, scaleTo, onPressIn],
+    [reducedMotion, scale, scaleTo, onPressIn],
   );
 
   const handlePressOut = useCallback(
     (event: GestureResponderEvent) => {
-      Animated.spring(scale, {
-        toValue: 1,
-        ...springSnappy,
-      }).start();
+      setPressed(false);
+      if (reducedMotion) scale.setValue(1);
+      else Animated.spring(scale, { toValue: 1, ...springSnappy }).start();
       onPressOut?.(event);
     },
-    [scale, onPressOut],
+    [reducedMotion, scale, onPressOut],
   );
 
   return (
@@ -55,7 +60,7 @@ export function AnimatedPressable({
       onPressOut={handlePressOut}
       {...props}
     >
-      <Animated.View style={[{ transform: [{ scale }] }, style]}>
+      <Animated.View style={[{ transform: [{ scale }] }, resolvedStyle]}>
         {children}
       </Animated.View>
     </Pressable>

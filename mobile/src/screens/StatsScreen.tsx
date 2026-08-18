@@ -26,6 +26,7 @@ import {
 } from "../stats";
 import ScanQrButton from "@/components/ui/ScanQrButton";
 import LogoBrand from "@/components/ui/LogoBrand";
+import { AnimatedPressable } from "@/components/animations";
 
 const WIDTH = Dimensions.get("screen").width;
 const basket = require("../assets/ProductBasket.png") as number;
@@ -74,7 +75,7 @@ function PeriodTabs({
       accessibilityRole="tablist"
     >
       {periods.map((period) => (
-        <Pressable
+        <AnimatedPressable
           key={period.value}
           accessibilityRole="tab"
           accessibilityState={{ selected: value === period.value }}
@@ -96,7 +97,7 @@ function PeriodTabs({
           >
             {period.label}
           </Text>
-        </Pressable>
+        </AnimatedPressable>
       ))}
     </View>
   );

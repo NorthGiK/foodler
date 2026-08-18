@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useContext } from "react";
 import { ViewStyle, StyleProp } from "react-native";
 import Modal, { Direction } from "react-native-modal";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaInsetsContext } from "react-native-safe-area-context";
+import { useReducedMotion } from "./animations";
 
 type Props = {
   visible: boolean;
@@ -18,7 +19,8 @@ export default function FullModalWindow({
   children,
   style,
 }: Props) {
-  const insets = useSafeAreaInsets();
+  const insets = useContext(SafeAreaInsetsContext);
+  const reducedMotion = useReducedMotion();
 
   return (
     <Modal
@@ -27,12 +29,26 @@ export default function FullModalWindow({
       onSwipeComplete={() => setVisible(false)}
       onBackdropPress={() => setVisible(false)}
       onBackButtonPress={() => setVisible(false)}
+      animationIn={
+        reducedMotion
+          ? { from: { opacity: 1 }, to: { opacity: 1 } }
+          : "slideInUp"
+      }
+      animationOut={
+        reducedMotion
+          ? { from: { opacity: 1 }, to: { opacity: 1 } }
+          : "slideOutDown"
+      }
+      animationInTiming={reducedMotion ? 0 : 240}
+      animationOutTiming={reducedMotion ? 0 : 180}
+      backdropTransitionInTiming={reducedMotion ? 0 : 220}
+      backdropTransitionOutTiming={reducedMotion ? 0 : 160}
       style={[
         style,
         {
           justifyContent: "flex-end",
           margin: 0,
-          paddingBottom: insets.bottom,
+          paddingBottom: insets?.bottom ?? 0,
         },
       ]}
     >

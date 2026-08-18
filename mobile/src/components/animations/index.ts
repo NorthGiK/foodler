@@ -1,4 +1,5 @@
 export { useFadeIn, FadeInView, useStaggeredFadeIn } from "./useFadeIn";
+export { useReducedMotion } from "./useReducedMotion";
 export { AnimatedPressable } from "./AnimatedPressable";
 export {
   easing,

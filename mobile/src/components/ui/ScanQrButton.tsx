@@ -1,7 +1,8 @@
-import { Pressable, View, Text, StyleSheet, Image } from "react-native";
+import { View, Text, StyleSheet, Image } from "react-native";
 import { useTheme } from "../ThemeContext";
 import TomatoIconDark from "@/assets/TomatoOutline.svg";
 import TomatoIconLight from "@/assets/TomatoOutlineLight.png";
+import { AnimatedPressable } from "../animations";
 
 export type Props = {
   onPress?: () => void | undefined | null;
@@ -11,7 +12,7 @@ export default function ScanQrButton({ onPress }: Props) {
   const { theme, themeName } = useTheme();
 
   return (
-    <Pressable
+    <AnimatedPressable
       accessibilityRole="button"
       accessibilityLabel="Загрузить QR"
       onPress={onPress}
@@ -45,7 +46,7 @@ export default function ScanQrButton({ onPress }: Props) {
           Фото чека — и покупки уже в учёте
         </Text>
       </View>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 

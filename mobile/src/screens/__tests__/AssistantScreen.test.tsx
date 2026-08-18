@@ -1,4 +1,5 @@
 import { act, create } from "react-test-renderer";
+import React from "react";
 
 import { AssistantScreen } from "../AssistantScreen";
 
@@ -35,6 +36,17 @@ jest.mock("../../components/animations", () => ({
   FadeInView: ({ children }: { children: React.ReactNode }) => children,
   useStaggeredFadeIn: (count: number) =>
     Array.from({ length: count }, () => ({})),
+  useReducedMotion: () => true,
+}));
+jest.mock("../../components/FullModalWindow", () => ({
+  __esModule: true,
+  default: ({
+    visible,
+    children,
+  }: {
+    visible: boolean;
+    children: React.ReactNode;
+  }) => (visible ? children : null),
 }));
 jest.mock("../../components/ui", () => ({
   ReportCard: () => null,

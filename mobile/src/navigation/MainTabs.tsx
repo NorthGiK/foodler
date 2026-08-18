@@ -89,7 +89,7 @@ function MainTabsNavigator() {
         const tab = MAIN_TABS.find((item) => item.name === route.name);
         return {
           headerShown: false,
-          animation: "none",
+          animation: "fade",
           tabBarActiveTintColor: theme.primary,
           tabBarInactiveTintColor: theme.muted,
           tabBarStyle: {

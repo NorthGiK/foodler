@@ -5,6 +5,7 @@ import {
   entranceInterpolation,
   springGentle,
 } from "./animations";
+import { useReducedMotion } from "./useReducedMotion";
 
 type Options = {
   delay?: number;
@@ -23,8 +24,13 @@ export function useFadeIn(options: Options = {}) {
     useSpring = false,
   } = options;
   const anim = useRef(new Animated.Value(0)).current;
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
+    if (reducedMotion) {
+      anim.setValue(1);
+      return () => undefined;
+    }
     if (useSpring) {
       Animated.sequence([
         Animated.delay(delay),
@@ -42,7 +48,8 @@ export function useFadeIn(options: Options = {}) {
         useNativeDriver,
       }).start();
     }
-  }, [anim, delay, duration, useNativeDriver, useSpring]);
+    return () => anim.stopAnimation();
+  }, [anim, delay, duration, reducedMotion, useNativeDriver, useSpring]);
 
   const animatedStyle = entranceInterpolation(anim, slideDistance);
 
@@ -65,8 +72,13 @@ export function useStaggeredFadeIn(count: number, baseDelay = 80) {
   const anims = useRef<Animated.Value[]>(
     Array.from({ length: count }, () => new Animated.Value(0)),
   ).current;
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
+    if (reducedMotion) {
+      anims.forEach((anim) => anim.setValue(1));
+      return () => undefined;
+    }
     const animations = anims.map((anim, i) =>
       Animated.spring(anim, {
         toValue: 1,
@@ -76,7 +88,8 @@ export function useStaggeredFadeIn(count: number, baseDelay = 80) {
       }),
     );
     Animated.stagger(baseDelay, animations).start();
-  }, [anims, baseDelay]);
+    return () => anims.forEach((anim) => anim.stopAnimation());
+  }, [anims, baseDelay, reducedMotion]);
 
   return anims.map((anim) => entranceInterpolation(anim, 20));
 }
