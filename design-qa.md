@@ -31,3 +31,44 @@
 - Copy and content: checked against the written task requirements.
 
 final result: blocked
+
+---
+
+# Design QA — profile family and feedback sections
+
+**Source visual truth**
+
+- Intended source: the existing Profile detail style, especially the profile
+  menu and `StoreNamesSection` card/modal.
+- A source screenshot was not captured in this environment, so visual fidelity
+  cannot be certified from code alone.
+
+**Implementation evidence**
+
+- Target components: `mobile/src/components/profile/FeedbackSection.tsx`,
+  `mobile/src/components/profile/FamilySection.tsx`, and
+  `mobile/src/components/ui/FamilyMemberCard.tsx`.
+- Android screenshot was not captured. `adb devices` cannot start the daemon:
+  `could not install *smartsocket* listener: Operation not permitted`.
+- Viewport, pixel dimensions, CSS size, density normalization, interaction
+  screenshots, and console/runtime evidence are therefore unavailable.
+
+**Functional checks**
+
+- New feedback and family behavior tests pass.
+- Full mobile test run: 115 passed, 4 pre-existing `AssistantScreen` failures
+  caused by missing `SafeAreaProvider` in tests.
+
+**Required fidelity surfaces**
+
+- Fonts and typography: implemented with the existing serif editorial headings
+  and current body text hierarchy; not visually verified.
+- Spacing and layout rhythm: aligned to existing profile card/modal tokens; not
+  visually verified at a device viewport.
+- Colors and visual tokens: hardcoded family gender colors were replaced with
+  theme values; not visually verified in light/dark runtime.
+- Image quality and asset fidelity: no new image assets; existing icon assets
+  and Material Icons are reused.
+- Copy and content: existing Russian labels and feedback behavior preserved.
+
+final result: blocked

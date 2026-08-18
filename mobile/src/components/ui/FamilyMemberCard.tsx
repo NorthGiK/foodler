@@ -37,15 +37,19 @@ export function FamilyMemberCard({
           {
             backgroundColor:
               member.gender === "male"
-                ? theme.primary + "18"
-                : theme.accent2 + "18",
+                ? theme.primaryContainer
+                : theme.secondary + "18",
           },
         ]}
       >
         <MaterialIcons
           name={member.gender === "male" ? "face" : "face-3"}
           size={24}
-          color={member.gender === "male" ? "#00ffdd" : "#ff7de9"}
+          color={
+            member.gender === "male"
+              ? theme.onPrimaryContainer
+              : theme.secondary
+          }
         />
       </View>
       <View style={styles.info}>
@@ -64,18 +68,28 @@ export function FamilyMemberCard({
         ) : null}
       </View>
       {onEdit ? (
-        <AnimatedPressable scaleTo={0.85} onPress={onEdit}>
+        <AnimatedPressable
+          accessibilityRole="button"
+          accessibilityLabel={`Изменить профиль ${member.name}`}
+          scaleTo={0.85}
+          onPress={onEdit}
+        >
           <View
             style={[
               styles.deleteBtn,
-              { backgroundColor: theme.primary + "15" },
+              { backgroundColor: theme.primaryContainer },
             ]}
           >
             <MaterialIcons name="edit" size={17} color={theme.primary} />
           </View>
         </AnimatedPressable>
       ) : null}
-      <AnimatedPressable scaleTo={0.85} onPress={onDelete}>
+      <AnimatedPressable
+        accessibilityRole="button"
+        accessibilityLabel={`Удалить профиль ${member.name}`}
+        scaleTo={0.85}
+        onPress={onDelete}
+      >
         <View
           style={[styles.deleteBtn, { backgroundColor: theme.error + "15" }]}
         >
@@ -90,10 +104,10 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 14,
+    padding: 13,
     borderRadius: 18,
     borderWidth: 1,
-    gap: 12,
+    gap: 11,
   },
   avatar: {
     width: 44,
@@ -106,8 +120,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   name: {
-    fontSize: 15,
-    fontWeight: "600",
+    fontFamily: "serif",
+    fontSize: 16,
+    fontWeight: "700",
     marginBottom: 2,
   },
   details: {
@@ -119,9 +134,9 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
   deleteBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
   },

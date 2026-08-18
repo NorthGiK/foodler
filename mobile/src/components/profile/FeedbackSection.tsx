@@ -131,6 +131,7 @@ export function FeedbackSection({
         Расскажите, что стоит улучшить. Можно приложить скриншоты.
       </Text>
       <TextInput
+        accessibilityLabel="Текст обратной связи"
         style={[
           styles.feedbackInput,
           {
@@ -155,6 +156,8 @@ export function FeedbackSection({
               style={styles.feedbackImage}
             />
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Удалить изображение ${i + 1}`}
               style={styles.feedbackImageRemove}
               onPress={() => removeFeedbackImage(i)}
             >
@@ -164,6 +167,8 @@ export function FeedbackSection({
         ))}
         {feedbackImages.length < MAX_FEEDBACK_IMAGES && (
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Добавить изображение к обратной связи"
             style={[styles.feedbackAddImage, { borderColor: theme.outline }]}
             onPress={pickFeedbackImages}
           >
@@ -176,6 +181,8 @@ export function FeedbackSection({
         )}
       </View>
       <AnimatedPressable
+        accessibilityRole="button"
+        accessibilityLabel="Отправить обратную связь"
         scaleTo={0.97}
         onPress={handleSend}
         disabled={feedbackSending}
