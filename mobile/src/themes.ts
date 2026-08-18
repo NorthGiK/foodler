@@ -73,33 +73,33 @@ export const themes: Record<ThemeName, Theme> = {
   },
 
   dark: {
-    bg: "#0C0C0E",
-    surface: "#1C1C1E",
-    surfaceElevated: "#2C2C2E",
-    card: "#1C1C1E",
-    card2: "#222226",
-    border: "#38383A",
-    text: "#F5F5F7",
-    muted: "#98989D",
+    bg: "#171512",
+    surface: "#24211D",
+    surfaceElevated: "#312C25",
+    card: "#24211D",
+    card2: "#2A251F",
+    border: "#4A4338",
+    text: "#F7F0E5",
+    muted: "#B8AD9C",
 
-    primary: "#0A84FF",
-    primaryContainer: "#1A3A6A",
-    onPrimaryContainer: "#D6EAFF",
+    primary: "#E56A50",
+    primaryContainer: "#5A2E27",
+    onPrimaryContainer: "#FFDCD2",
 
-    secondary: "#5E5CE6",
+    secondary: "#A7C29A",
 
-    error: "#FF453A",
-    danger: "#FF453A",
+    error: "#FF8A75",
+    danger: "#FF8A75",
 
-    outline: "#48484A",
-    shadow: "#000000",
-    white: "#FFFFFF",
+    outline: "#726658",
+    shadow: "#080706",
+    white: "#FFFDF8",
 
-    accent: "#30D158",
-    accent2: "#FF9F0A",
+    accent: "#A7C29A",
+    accent2: "#E7A43A",
 
-    glassBg: "rgba(28, 28, 30, 0.7)",
-    glassBorder: "rgba(255, 255, 255, 0.08)",
+    glassBg: "rgba(36, 33, 29, 0.82)",
+    glassBorder: "rgba(247, 240, 229, 0.1)",
   },
 
   // Revolut-inspired

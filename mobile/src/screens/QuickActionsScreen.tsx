@@ -77,7 +77,7 @@ export function QuickActionsScreen({
 
           <SmallCard
             title="Полезнее"
-            icon="favorite"
+            icon="healing"
             color="#EF4444"
             onPress={() => handleAction("health")}
           />

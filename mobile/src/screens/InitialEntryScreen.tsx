@@ -17,6 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import type { RootStackParamList } from "../../App";
 import { useTheme } from "../components/ThemeContext";
 import { policy } from "../config";
+import LogoBrand from "@/components/ui/LogoBrand";
 
 const POLICIES_ACCEPTED_KEY = "@policies_accepted";
 const basket = require("../assets/ProductBasket.png") as number;
@@ -107,7 +108,7 @@ export function InitialEntryScreen({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.brand, { color: theme.text }]}>FOODLER</Text>
+        <LogoBrand />
         <Text style={[styles.title, { color: theme.text }]}>
           Ваши покупки —{"\n"}в ясных цифрах
         </Text>

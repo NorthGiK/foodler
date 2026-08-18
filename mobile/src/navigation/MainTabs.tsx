@@ -42,7 +42,15 @@ function ReceiptsTab() {
 }
 function StatsTab() {
   const { receipts, joinedItems } = useAppData();
-  return <StatsScreen receipts={receipts} joinedItems={joinedItems} />;
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  return (
+    <StatsScreen
+      receipts={receipts}
+      joinedItems={joinedItems}
+      onUploadReceipt={() => navigation.navigate("NewReceipt")}
+    />
+  );
 }
 function AssistantTab() {
   const { db, receipts, joinedItems } = useAppData();

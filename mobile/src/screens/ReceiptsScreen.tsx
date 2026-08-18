@@ -28,9 +28,10 @@ import { getStoreDisplayName, type StoreAliases } from "../storeAliases";
 import type { Receipt, ReceiptItem } from "../types";
 import { fmtRub } from "../utils";
 import { useTheme } from "../components/ThemeContext";
-import TomatoIcon from "../assets/TomatoOutline.svg";
 import FullModalWindow from "@/components/FullModalWindow";
+import ScanQrButton from "@/components/ui/ScanQrButton";
 import type { Theme } from "../themes";
+import LogoBrand from "@/components/ui/LogoBrand";
 
 const basket = require("../assets/ProductBasket.png") as number;
 const EMPTY_ITEMS: ReceiptItem[] = [];
@@ -279,40 +280,15 @@ export function ReceiptsScreen({
         ]}
         ListHeaderComponent={
           <View>
-            <Text style={[styles.brand, { color: theme.text }]}>FOODLER</Text>
+            <LogoBrand />
             <Text style={[styles.title, { color: theme.text }]}>
               Ваши покупки
             </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Загрузить QR"
-              onPress={() => {
+            <ScanQrButton onPress={() => {
                 setQrError(false);
                 setSheetVisible(true);
               }}
-              style={({ pressed }) => [
-                styles.uploadCard,
-                { borderColor: theme.primary, opacity: pressed ? 0.75 : 1 },
-              ]}
-            >
-              <View>
-                <TomatoIcon height={39} width={39} />
-              </View>
-              <View style={styles.uploadCopy}>
-                <Text
-                  numberOfLines={1}
-                  style={[styles.uploadTitle, { color: theme.primary }]}
-                >
-                  Загрузить QR
-                </Text>
-                <Text
-                  numberOfLines={2}
-                  style={[styles.uploadSubtitle, { color: theme.muted }]}
-                >
-                  Фото чека — и покупки уже в учёте
-                </Text>
-              </View>
-            </Pressable>
+            />
           </View>
         }
         ListEmptyComponent={
@@ -505,26 +481,12 @@ const styles = StyleSheet.create({
   brand: { fontSize: 16, fontWeight: "700", letterSpacing: -0.4 },
   title: {
     fontFamily: "serif",
-    fontSize: 52,
+    fontSize: 42,
     fontWeight: "500",
     letterSpacing: -2.1,
     lineHeight: 58,
     marginTop: 4,
   },
-  uploadCard: {
-    alignItems: "center",
-    borderRadius: 9,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 16,
-    marginBottom: 17,
-    marginTop: 34,
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-  },
-  uploadCopy: { flex: 1, minWidth: 0 },
-  uploadTitle: { fontSize: 19, fontWeight: "700" },
-  uploadSubtitle: { fontSize: 14, marginTop: 4 },
   dayTitle: { fontSize: 16, fontWeight: "700", marginBottom: 7, marginTop: 3 },
   receiptRow: {
     alignItems: "center",

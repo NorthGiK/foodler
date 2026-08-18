@@ -32,6 +32,8 @@ import type { FamilyMember, Receipt, ReceiptItem } from "../types";
 import { useAuth } from "@/api/auth";
 import { analyticsEvents } from "@/analytics/facade";
 import type { MaterialIconName } from "../components/icons";
+import FullModalWindow from "@/components/FullModalWindow";
+import LogoBrand from "@/components/ui/LogoBrand";
 
 const basket = require("../assets/ProductBasket.png") as number;
 
@@ -359,7 +361,7 @@ export function AssistantScreen({ db, receipts, joinedItems }: Props) {
       showsVerticalScrollIndicator={false}
     >
       <Animated.View style={cardStyles[0]}>
-        <Text style={[styles.brand, { color: theme.text }]}>FOODLER</Text>
+        <LogoBrand />
         <Text style={[styles.title, { color: theme.text }]}>Foodler AI</Text>
         <Text style={[styles.subtitle, { color: theme.muted }]}>
           Персональные инсайты по вашим
@@ -578,11 +580,9 @@ function AuthSheet({
   theme: ReturnType<typeof useTheme>["theme"];
 }) {
   return (
-    <Modal
+    <FullModalWindow
       visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
+      setVisible={onClose}
     >
       <View style={styles.sheetOverlay}>
         <Pressable
@@ -636,7 +636,7 @@ function AuthSheet({
           </Pressable>
         </View>
       </View>
-    </Modal>
+    </FullModalWindow>
   );
 }
 
@@ -668,6 +668,7 @@ const styles = StyleSheet.create({
     paddingBottom: 112,
   },
   brand: {
+    fontFamily: "serif",
     fontSize: 16,
     fontWeight: "500",
     letterSpacing: 0.2,

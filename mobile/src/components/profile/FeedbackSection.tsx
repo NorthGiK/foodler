@@ -13,6 +13,7 @@ import MaterialIcons from "@react-native-vector-icons/material-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useTheme } from "../ThemeContext";
 import { AnimatedPressable } from "../animations";
+import LogoBrand from "../ui/LogoBrand";
 
 const MAX_FEEDBACK_IMAGES = 10;
 const MAX_IMAGE_SIZE_MB = 5;
@@ -108,9 +109,7 @@ export function FeedbackSection({
     >
       <View style={styles.sectionHeader}>
         <View style={styles.headingCopy}>
-          <Text style={[styles.eyebrow, { color: theme.secondary }]}>
-            FOODLER
-          </Text>
+          <LogoBrand />
           <Text style={[styles.sectionTitle, { color: theme.secondary }]}>
             Обратная связь
           </Text>

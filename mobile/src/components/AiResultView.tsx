@@ -12,6 +12,7 @@ import MaterialIcons from "@react-native-vector-icons/material-icons";
 import { useTheme } from "./ThemeContext";
 import { AiSectionRenderer } from "./AiSectionRenderer";
 import { AiReport } from "../ai/types";
+import LogoBrand from "./ui/LogoBrand";
 
 interface Props {
   report: AiReport | null;
@@ -33,9 +34,7 @@ export function AiResultView({
   if (loading) {
     return (
       <View style={[styles.center, { backgroundColor: theme.bg }]}>
-        <Text style={[styles.stateEyebrow, { color: theme.primary }]}>
-          FOODLER AI
-        </Text>
+        <LogoBrand />
         <ActivityIndicator size="large" color={theme.primary} />
         <Text style={[styles.loadingText, { color: theme.text }]}>
           Анализируем ваши покупки...
