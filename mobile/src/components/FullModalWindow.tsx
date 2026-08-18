@@ -1,4 +1,5 @@
 import React from "react";
+import { ViewStyle, StyleProp } from "react-native";
 import Modal, { Direction } from "react-native-modal";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -6,14 +7,16 @@ type Props = {
   visible: boolean;
   setVisible: React.Dispatch<React.SetStateAction<boolean>>;
   swipeDirection?: Direction | Direction[];
+  style?: StyleProp<ViewStyle>
   children: React.JSX.Element;
-};
+}
 
 export default function FullModalWindow({
   visible,
   setVisible,
   swipeDirection,
   children,
+  style,
 }: Props) {
   const insets = useSafeAreaInsets();
 
@@ -24,11 +27,11 @@ export default function FullModalWindow({
       onSwipeComplete={() => setVisible(false)}
       onBackdropPress={() => setVisible(false)}
       onBackButtonPress={() => setVisible(false)}
-      style={{
+      style={[style, {
         justifyContent: "flex-end",
         margin: 0,
         paddingBottom: insets.bottom,
-      }}
+      }]}
     >
       {children}
     </Modal>

@@ -158,11 +158,11 @@ export function FamilySection({
       </View>
 
       {/* Add Member Modal */}
-      <FullModalWindow visible={modalVisible} setVisible={setModalVisible}>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.keyboardAvoiding}
         >
+      <FullModalWindow visible={modalVisible} setVisible={setModalVisible} style={{}}>
           <View
             style={[
               styles.modal,
@@ -369,8 +369,8 @@ export function FamilySection({
               </AnimatedPressable>
             </ScrollView>
           </View>
-        </KeyboardAvoidingView>
       </FullModalWindow>
+        </KeyboardAvoidingView>
     </>
   );
 }

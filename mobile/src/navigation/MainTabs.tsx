@@ -193,7 +193,7 @@ function MainTabsContent() {
 export function MainTabs() {
   return (
     <AppDataProvider>
-      <StatusBar style="auto" />
+      <StatusBar style="auto" animated={true} />
       <MainTabsContent />
     </AppDataProvider>
   );
