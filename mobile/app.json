@@ -1,14 +1,14 @@
 {
   "expo": {
     "name": "Foodler",
-    "slug": "food-spend-tracker",
-    "scheme": "foodspendtracker",
-    "version": "3.0.0",
+    "slug": "foodler",
+    "scheme": "foodler",
+    "version": "3.0.1",
     "orientation": "portrait",
     "platforms": ["android"],
     "userInterfaceStyle": "automatic",
     "android": {
-      "versionCode": 6,
+      "versionCode": 7,
       "package": "com.Foodler.chih_pih",
       "icon": "./assets/FoodlerIcon.ico",
       "permissions": ["CAMERA", "android.permission.CAMERA"]
