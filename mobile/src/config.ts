@@ -15,9 +15,7 @@ const configuredApiBase = process.env.EXPO_PUBLIC_API_BASE_URL;
 if (!configuredApiBase && !__DEV__) {
   throw new Error("EXPO_PUBLIC_API_BASE_URL is required in production builds");
 }
-const apiUrls = resolveApiUrls(
-  configuredApiBase ?? "http://10.0.2.2:8000/api",
-);
+const apiUrls = resolveApiUrls(configuredApiBase ?? "http://10.0.2.2:8000/api");
 export const API_ORIGIN = apiUrls.apiOrigin;
 export const API_BASE = apiUrls.apiBase;
 

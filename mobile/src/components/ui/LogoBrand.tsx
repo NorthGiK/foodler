@@ -10,24 +10,25 @@ export default function LogoBrand() {
 
   return (
     <View style={styles.container}>
-      <Image source={ICON} style={{height: 50, width: 50}} />
+      <Image source={ICON} style={{ height: 50, width: 50 }} />
       <Text style={[styles.brand, { color: theme.text }]}>FOODLER</Text>
     </View>
   );
 }
 
-const getStyles = (theme: Theme) => StyleSheet.create({
-  container: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  brand: {
-    fontFamily: "serif",
-    fontSize: 20,
-    color: theme.text,
-    fontWeight: "500",
-    letterSpacing: 0.2,
-  },
-})
+const getStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    brand: {
+      fontFamily: "serif",
+      fontSize: 20,
+      color: theme.text,
+      fontWeight: "500",
+      letterSpacing: 0.2,
+    },
+  });

@@ -161,7 +161,7 @@ function EmptyStats({
       <Text style={[styles.emptyText, { color: theme.muted }]}>
         Загрузите первый чек — и мы создадим вашу картину расходов.
       </Text>
-      <ScanQrButton onPress={onUploadReceipt}/>
+      <ScanQrButton onPress={onUploadReceipt} />
     </View>
   );
 }

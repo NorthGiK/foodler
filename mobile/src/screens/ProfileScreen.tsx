@@ -1,7 +1,7 @@
 import MaterialIcons from "@react-native-vector-icons/material-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useCallback, useState } from "react";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useEffect, useState } from "react";
 import {
   Alert,
   Image,
@@ -29,7 +29,7 @@ import {
 } from "../components/profile";
 import { loadProfile, saveProfile } from "../profileStorage";
 import { StoreAliases } from "../storeAliases";
-import { FamilyMember, UserProfile, defaultProfile } from "../types";
+import { UserProfile, defaultProfile } from "../types";
 
 type Route = "home" | "account" | "family" | "privacy" | "stores" | "feedback";
 const tomato = require("../assets/TomatoShape.png") as number;
@@ -96,9 +96,11 @@ export function ProfileScreen({
   const [editing, setEditing] = useState(false);
   const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
   const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
-  useEffect(() => {
-    void loadProfile().then(setProfile);
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      void loadProfile().then(setProfile);
+    }, []),
+  );
   const persist = async (next: UserProfile) => {
     try {
       await saveProfile(next);
@@ -112,15 +114,6 @@ export function ProfileScreen({
   const saveAccount = async () => {
     if (await persist(profile)) setEditing(false);
   };
-  const addMember = (member: FamilyMember) =>
-    persist({ ...profile, familyMembers: [...profile.familyMembers, member] });
-  const updateMember = (index: number, member: FamilyMember) =>
-    persist({
-      ...profile,
-      familyMembers: profile.familyMembers.map((current, currentIndex) =>
-        currentIndex === index ? member : current,
-      ),
-    });
   const deleteMember = async () => {
     if (deleteIndex !== null)
       await persist({
@@ -235,8 +228,6 @@ export function ProfileScreen({
           {route === "family" ? (
             <FamilySection
               profile={profile}
-              onAddMember={addMember}
-              onUpdateMember={updateMember}
               onRemoveMember={(index) => setDeleteIndex(index)}
             />
           ) : null}

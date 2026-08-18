@@ -1,8 +1,12 @@
 import type { ReactNode } from "react";
 import { act, create } from "react-test-renderer";
-import { Text, TextInput } from "react-native";
 
 import { FamilySection } from "../FamilySection";
+
+const mockNavigate = jest.fn();
+jest.mock("@react-navigation/native", () => ({
+  useNavigation: () => ({ navigate: mockNavigate }),
+}));
 
 jest.mock("@react-native-vector-icons/material-icons", () => () => null);
 jest.mock("@/components/ThemeContext", () => ({
@@ -79,18 +83,12 @@ jest.mock("../../ui", () => ({
 const profile = { familyMembers: [] } as never;
 
 describe("FamilySection", () => {
-  it("opens the add form and validates a missing name", async () => {
-    const onAddMember = jest.fn().mockResolvedValue(true);
+  it("opens the add member screen", async () => {
     let view: ReturnType<typeof create>;
 
     await act(async () => {
       view = create(
-        <FamilySection
-          profile={profile}
-          onAddMember={onAddMember}
-          onUpdateMember={jest.fn()}
-          onRemoveMember={jest.fn()}
-        />,
+        <FamilySection profile={profile} onRemoveMember={jest.fn()} />,
       );
     });
 
@@ -102,23 +100,6 @@ describe("FamilySection", () => {
         .props.onPress();
     });
 
-    expect(view!.root.findAllByType(TextInput)).toHaveLength(5);
-    await act(async () => {
-      view!.root
-        .findByProps({
-          accessibilityLabel: "Сохранить члена семьи",
-        })
-        .props.onPress();
-      await Promise.resolve();
-    });
-
-    expect(onAddMember).not.toHaveBeenCalled();
-    expect(
-      view!.root
-        .findAllByType(Text)
-        .some((node) =>
-          String(node.props.children).includes("Введите имя члена семьи"),
-        ),
-    ).toBe(true);
+    expect(mockNavigate).toHaveBeenCalledWith("FamilyMember", {});
   });
 });

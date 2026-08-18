@@ -12,6 +12,7 @@ import { MainTabs } from "./src/navigation/MainTabs";
 import { createNavigationTheme } from "./src/navigationTheme";
 import { AskScreen } from "./src/screens/AskScreen";
 import { ForgotPasswordScreen } from "./src/screens/ForgotPasswordScreen";
+import { FamilyMemberScreen } from "./src/screens/FamilyMemberScreen";
 import { InitialEntryScreen } from "./src/screens/InitialEntryScreen";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { NewReceiptScreen } from "./src/screens/NewReceiptScreen";
@@ -29,6 +30,7 @@ export type RootStackParamList = {
   NewReceipt: undefined;
   Ask: undefined;
   Subscription: undefined;
+  FamilyMember: { index?: number };
 };
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const POLICIES_ACCEPTED_KEY = "@policies_accepted";
@@ -114,6 +116,11 @@ function AppNavigator() {
           <Stack.Screen
             name="Subscription"
             component={SubscriptionScreen}
+            options={{ animation: "slide_from_right" }}
+          />
+          <Stack.Screen
+            name="FamilyMember"
+            component={FamilyMemberScreen}
             options={{ animation: "slide_from_right" }}
           />
         </Stack.Navigator>

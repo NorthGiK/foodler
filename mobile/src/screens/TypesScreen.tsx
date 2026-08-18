@@ -88,11 +88,14 @@ export function TypesScreen({ receipts, joinedItems }: TypesScreenProps) {
 
       <Animated.View style={cardStyles[1]}>
         <StatList
-          title={mode === "count" ? "Самые частые категории" : "Самые дорогие категории"}
+          title={
+            mode === "count"
+              ? "Самые частые категории"
+              : "Самые дорогие категории"
+          }
           data={stats.slice(0, 10)}
         />
       </Animated.View>
-
     </ScrollView>
   );
 }

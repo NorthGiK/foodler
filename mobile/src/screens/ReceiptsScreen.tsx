@@ -284,7 +284,8 @@ export function ReceiptsScreen({
             <Text style={[styles.title, { color: theme.text }]}>
               Ваши покупки
             </Text>
-            <ScanQrButton onPress={() => {
+            <ScanQrButton
+              onPress={() => {
                 setQrError(false);
                 setSheetVisible(true);
               }}

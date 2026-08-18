@@ -7,9 +7,9 @@ type Props = {
   visible: boolean;
   setVisible: React.Dispatch<React.SetStateAction<boolean>>;
   swipeDirection?: Direction | Direction[];
-  style?: StyleProp<ViewStyle>
+  style?: StyleProp<ViewStyle>;
   children: React.JSX.Element;
-}
+};
 
 export default function FullModalWindow({
   visible,
@@ -27,11 +27,14 @@ export default function FullModalWindow({
       onSwipeComplete={() => setVisible(false)}
       onBackdropPress={() => setVisible(false)}
       onBackButtonPress={() => setVisible(false)}
-      style={[style, {
-        justifyContent: "flex-end",
-        margin: 0,
-        paddingBottom: insets.bottom,
-      }]}
+      style={[
+        style,
+        {
+          justifyContent: "flex-end",
+          margin: 0,
+          paddingBottom: insets.bottom,
+        },
+      ]}
     >
       {children}
     </Modal>

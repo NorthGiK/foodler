@@ -22,8 +22,13 @@ jest.mock("@/components/ThemeContext", () => ({
 }));
 jest.mock("@/components/FullModalWindow", () => ({
   __esModule: true,
-  default: ({ children, visible }: { children: ReactNode; visible: boolean }) =>
-    visible ? <>{children}</> : null,
+  default: ({
+    children,
+    visible,
+  }: {
+    children: ReactNode;
+    visible: boolean;
+  }) => (visible ? <>{children}</> : null),
 }));
 
 describe("StoreNamesSection", () => {
@@ -46,9 +51,11 @@ describe("StoreNamesSection", () => {
         .props.onPress();
     });
     await act(async () => {
-      view!.root.findByProps({
-        accessibilityLabel: "Изменить название Delivery Foods",
-      }).props.onPress();
+      view!.root
+        .findByProps({
+          accessibilityLabel: "Изменить название Delivery Foods",
+        })
+        .props.onPress();
     });
 
     expect(view!.root.findByType(KeyboardAvoidingView)).toBeTruthy();

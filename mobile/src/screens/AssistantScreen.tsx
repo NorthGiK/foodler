@@ -580,10 +580,7 @@ function AuthSheet({
   theme: ReturnType<typeof useTheme>["theme"];
 }) {
   return (
-    <FullModalWindow
-      visible={visible}
-      setVisible={onClose}
-    >
+    <FullModalWindow visible={visible} setVisible={onClose}>
       <View style={styles.sheetOverlay}>
         <Pressable
           accessibilityLabel="Закрыть"
