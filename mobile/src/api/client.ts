@@ -204,6 +204,22 @@ export const api = {
     );
   },
 
+  forgotPasswordConfirmCode(email: string, code: string) {
+    return unwrap(
+      sdk.forgotPasswordConfirmCodeApiAuthForgotPasswordConfirmCodePost({
+        body: { email, code },
+      }),
+    );
+  },
+
+  forgotPasswordReset(resetToken: string, newPassword: string) {
+    return unwrap(
+      sdk.forgotPasswordResetApiAuthForgotPasswordResetPost({
+        body: { resetToken, new_password: newPassword },
+      }),
+    );
+  },
+
   getMe() {
     return unwrap(sdk.getMeApiUsersMeGet());
   },

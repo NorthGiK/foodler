@@ -441,6 +441,20 @@ export type ForgotPassword = {
 };
 
 /**
+ * ForgotPasswordConfirmCode
+ */
+export type ForgotPasswordConfirmCode = {
+  /**
+   * Code
+   */
+  code: string;
+  /**
+   * Email
+   */
+  email: string;
+};
+
+/**
  * ForgotPasswordVerify
  */
 export type ForgotPasswordVerify = {
@@ -580,6 +594,30 @@ export type NutritionSummary = {
    * Total Proteins
    */
   total_proteins: number;
+};
+
+/**
+ * PasswordResetRequest
+ */
+export type PasswordResetRequest = {
+  /**
+   * New Password
+   */
+  new_password: string;
+  /**
+   * Resettoken
+   */
+  resetToken: string;
+};
+
+/**
+ * PasswordResetTokenResponse
+ */
+export type PasswordResetTokenResponse = {
+  /**
+   * Resettoken
+   */
+  resetToken: string;
 };
 
 /**
@@ -1635,6 +1673,63 @@ export type SpendingAnalysisApiAnalyticsSpendingGetResponses = {
    */
   200: unknown;
 };
+
+export type ForgotPasswordConfirmCodeApiAuthForgotPasswordConfirmCodePostData =
+  {
+    body: ForgotPasswordConfirmCode;
+    path?: never;
+    query?: never;
+    url: "/api/auth/forgot-password/confirm-code";
+  };
+
+export type ForgotPasswordConfirmCodeApiAuthForgotPasswordConfirmCodePostErrors =
+  {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+  };
+
+export type ForgotPasswordConfirmCodeApiAuthForgotPasswordConfirmCodePostError =
+  ForgotPasswordConfirmCodeApiAuthForgotPasswordConfirmCodePostErrors[keyof ForgotPasswordConfirmCodeApiAuthForgotPasswordConfirmCodePostErrors];
+
+export type ForgotPasswordConfirmCodeApiAuthForgotPasswordConfirmCodePostResponses =
+  {
+    /**
+     * Successful Response
+     */
+    200: PasswordResetTokenResponse;
+  };
+
+export type ForgotPasswordConfirmCodeApiAuthForgotPasswordConfirmCodePostResponse =
+  ForgotPasswordConfirmCodeApiAuthForgotPasswordConfirmCodePostResponses[keyof ForgotPasswordConfirmCodeApiAuthForgotPasswordConfirmCodePostResponses];
+
+export type ForgotPasswordResetApiAuthForgotPasswordResetPostData = {
+  body: PasswordResetRequest;
+  path?: never;
+  query?: never;
+  url: "/api/auth/forgot-password/reset";
+};
+
+export type ForgotPasswordResetApiAuthForgotPasswordResetPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ForgotPasswordResetApiAuthForgotPasswordResetPostError =
+  ForgotPasswordResetApiAuthForgotPasswordResetPostErrors[keyof ForgotPasswordResetApiAuthForgotPasswordResetPostErrors];
+
+export type ForgotPasswordResetApiAuthForgotPasswordResetPostResponses = {
+  /**
+   * Successful Response
+   */
+  200: MessageResponse;
+};
+
+export type ForgotPasswordResetApiAuthForgotPasswordResetPostResponse =
+  ForgotPasswordResetApiAuthForgotPasswordResetPostResponses[keyof ForgotPasswordResetApiAuthForgotPasswordResetPostResponses];
 
 export type ForgotPasswordSendCodeApiAuthForgotPasswordSendCodePostData = {
   body: ForgotPassword;

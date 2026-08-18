@@ -1,11 +1,14 @@
 import logging
 from datetime import datetime, timedelta, timezone
 
+import jwt
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth import (
+    create_password_reset_token,
+    decode_password_reset_token,
     generate_email_code,
     hash_email_code,
     hash_password,
@@ -19,9 +22,12 @@ from ..models import EmailCodesStorage, RefreshToken, User
 from ..schemas import (
     AuthResponse,
     ForgotPassword,
+    ForgotPasswordConfirmCode,
     ForgotPasswordVerify,
     LoginRequest,
     MessageResponse,
+    PasswordResetRequest,
+    PasswordResetTokenResponse,
     RefreshRequest,
     SendCodeRequest,
     UserResponse,
@@ -275,6 +281,76 @@ async def forgot_password_verify_code(
     user.password_hash = hash_password(body.new_password)
     await revoke_user_sessions(db, user)
 
+    return {"message": "Password reset successful"}
+
+
+@post(
+    "/auth/forgot-password/confirm-code",
+    response_model=PasswordResetTokenResponse,
+)
+async def forgot_password_confirm_code(
+    body: ForgotPasswordConfirmCode,
+    db: AsyncSession = Depends(get_db),
+):
+    """Confirm a reset code and issue a short-lived reset token."""
+    await _cleanup_expired_codes(db)
+    result = await db.execute(
+        select(EmailCodesStorage).where(
+            EmailCodesStorage.email == body.email,
+            EmailCodesStorage.code_hash == hash_email_code(str(body.email), body.code),
+            EmailCodesStorage.created_at
+            > _utcnow_naive() - timedelta(minutes=EMAIL_CODE_EXPIRE_MINUTES),
+        )
+    )
+    code_storage = result.scalar_one_or_none()
+    if not code_storage:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired reset code",
+        )
+
+    user = await db.scalar(select(User).where(User.email == body.email))
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired reset code",
+        )
+
+    await db.delete(code_storage)
+    await db.commit()
+    return {"resetToken": create_password_reset_token(user.id, user.auth_version)}
+
+
+@post("/auth/forgot-password/reset", response_model=MessageResponse)
+async def forgot_password_reset(
+    body: PasswordResetRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Set a new password using a confirmed reset token."""
+    try:
+        user_id, token_auth_version = decode_password_reset_token(body.resetToken)
+    except jwt.PyJWTError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired password reset token",
+        ) from exc
+
+    try:
+        validate_password(body.new_password)
+    except PasswordValidationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    user = await db.scalar(select(User).where(User.id == user_id))
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+    if user.auth_version != token_auth_version:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired password reset token",
+        )
+
+    user.password_hash = hash_password(body.new_password)
+    await revoke_user_sessions(db, user)
     return {"message": "Password reset successful"}
 
 

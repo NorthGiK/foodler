@@ -16,6 +16,7 @@ from .config import (
     ALGORITHM,
     JWT_AUDIENCE,
     JWT_ISSUER,
+    PASSWORD_RESET_TOKEN_EXPIRE_MINUTES,
     PREVIOUS_SECRET_KEYS,
     SECRET_KEY,
 )
@@ -69,6 +70,49 @@ def hash_email_code(email: str, code: str) -> str:
         f"{normalized_email}:{code}".encode(),
         hashlib.sha256,
     ).hexdigest()
+
+
+def create_password_reset_token(user_id: str, auth_version: int) -> str:
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": user_id,
+        "exp": now + timedelta(minutes=PASSWORD_RESET_TOKEN_EXPIRE_MINUTES),
+        "iat": now,
+        "jti": uuid4().hex,
+        "iss": JWT_ISSUER,
+        "aud": JWT_AUDIENCE,
+        "type": "password_reset",
+        "ver": auth_version,
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def decode_password_reset_token(token: str) -> tuple[str, int]:
+    last_error: jwt.PyJWTError | None = None
+    for key in (SECRET_KEY, *PREVIOUS_SECRET_KEYS):
+        try:
+            payload = jwt.decode(
+                token,
+                key,
+                algorithms=[ALGORITHM],
+                audience=JWT_AUDIENCE,
+                issuer=JWT_ISSUER,
+                options={
+                    "require": ["exp", "sub", "iat", "jti", "iss", "aud", "type", "ver"]
+                },
+            )
+            if payload.get("type") != "password_reset":
+                raise jwt.InvalidTokenError("Unexpected token type")
+            user_id = payload.get("sub")
+            if not isinstance(user_id, str) or not user_id:
+                raise jwt.InvalidTokenError("Invalid subject")
+            auth_version = payload.get("ver")
+            if not isinstance(auth_version, int):
+                raise jwt.InvalidTokenError("Invalid auth version")
+            return user_id, auth_version
+        except jwt.PyJWTError as exc:
+            last_error = exc
+    raise last_error or jwt.InvalidTokenError("Invalid token")
 
 
 def _decode_access_token(token: str) -> dict:

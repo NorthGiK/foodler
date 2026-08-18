@@ -23,6 +23,12 @@ import type {
   DeleteReportApiAiHistoryReportIdDeleteData,
   DeleteReportApiAiHistoryReportIdDeleteErrors,
   DeleteReportApiAiHistoryReportIdDeleteResponses,
+  ForgotPasswordConfirmCodeApiAuthForgotPasswordConfirmCodePostData,
+  ForgotPasswordConfirmCodeApiAuthForgotPasswordConfirmCodePostErrors,
+  ForgotPasswordConfirmCodeApiAuthForgotPasswordConfirmCodePostResponses,
+  ForgotPasswordResetApiAuthForgotPasswordResetPostData,
+  ForgotPasswordResetApiAuthForgotPasswordResetPostErrors,
+  ForgotPasswordResetApiAuthForgotPasswordResetPostResponses,
   ForgotPasswordSendCodeApiAuthForgotPasswordSendCodePostData,
   ForgotPasswordSendCodeApiAuthForgotPasswordSendCodePostErrors,
   ForgotPasswordSendCodeApiAuthForgotPasswordSendCodePostResponses,
@@ -344,6 +350,60 @@ export class Sdk extends HeyApiClient {
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/analytics/spending",
       ...options,
+    });
+  }
+
+  /**
+   * Forgot Password Confirm Code
+   *
+   * Confirm a reset code and issue a short-lived reset token.
+   */
+  public forgotPasswordConfirmCodeApiAuthForgotPasswordConfirmCodePost<
+    ThrowOnError extends boolean = false,
+  >(
+    options: Options<
+      ForgotPasswordConfirmCodeApiAuthForgotPasswordConfirmCodePostData,
+      ThrowOnError
+    >,
+  ) {
+    return (options.client ?? this.client).post<
+      ForgotPasswordConfirmCodeApiAuthForgotPasswordConfirmCodePostResponses,
+      ForgotPasswordConfirmCodeApiAuthForgotPasswordConfirmCodePostErrors,
+      ThrowOnError
+    >({
+      url: "/api/auth/forgot-password/confirm-code",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Forgot Password Reset
+   *
+   * Set a new password using a confirmed reset token.
+   */
+  public forgotPasswordResetApiAuthForgotPasswordResetPost<
+    ThrowOnError extends boolean = false,
+  >(
+    options: Options<
+      ForgotPasswordResetApiAuthForgotPasswordResetPostData,
+      ThrowOnError
+    >,
+  ) {
+    return (options.client ?? this.client).post<
+      ForgotPasswordResetApiAuthForgotPasswordResetPostResponses,
+      ForgotPasswordResetApiAuthForgotPasswordResetPostErrors,
+      ThrowOnError
+    >({
+      url: "/api/auth/forgot-password/reset",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 

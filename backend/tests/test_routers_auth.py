@@ -7,6 +7,9 @@ from unittest.mock import AsyncMock
 import pytest
 from httpx import AsyncClient
 
+from src.auth import verify_password
+from src.models import EmailCodesStorage
+
 
 class TestSendCode:
     """Tests for POST /api/auth/send-code"""
@@ -144,6 +147,72 @@ class TestLogin:
         response = await client.post(
             "/api/auth/login",
             json={"email": "test@example.com", "password": "WrongPassword!"},
+        )
+        assert response.status_code == 401
+
+
+class TestPasswordResetFlow:
+    """Tests for the two-step password reset flow."""
+
+    @pytest.mark.asyncio
+    async def test_confirm_code_returns_one_time_reset_token(
+        self, client: AsyncClient, async_session, test_user
+    ):
+        from src.auth import hash_email_code
+
+        code = "12345678"
+        async_session.add(
+            EmailCodesStorage(
+                email=test_user.email,
+                code_hash=hash_email_code(test_user.email, code),
+            )
+        )
+        await async_session.commit()
+
+        response = await client.post(
+            "/api/auth/forgot-password/confirm-code",
+            json={"email": test_user.email, "code": code},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["resetToken"]
+        reused = await client.post(
+            "/api/auth/forgot-password/confirm-code",
+            json={"email": test_user.email, "code": code},
+        )
+        assert reused.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_reset_password_with_token_revokes_sessions(
+        self, client: AsyncClient, async_session, test_user
+    ):
+        from src.auth import create_password_reset_token
+
+        original_version = test_user.auth_version
+        token = create_password_reset_token(test_user.id, test_user.auth_version)
+        response = await client.post(
+            "/api/auth/forgot-password/reset",
+            json={"resetToken": token, "new_password": "NewPass123!"},
+        )
+
+        assert response.status_code == 200
+        await async_session.refresh(test_user)
+        assert verify_password("NewPass123!", test_user.password_hash)
+        assert test_user.auth_version == original_version + 1
+        reused = await client.post(
+            "/api/auth/forgot-password/reset",
+            json={"resetToken": token, "new_password": "AnotherPass123!"},
+        )
+        assert reused.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_reset_password_rejects_invalid_token(self, client: AsyncClient):
+        response = await client.post(
+            "/api/auth/forgot-password/reset",
+            json={
+                "resetToken": "invalid-reset-token",
+                "new_password": "NewPass123!",
+            },
         )
         assert response.status_code == 401
 

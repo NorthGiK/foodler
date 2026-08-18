@@ -38,6 +38,20 @@ class ForgotPasswordVerify(BaseModel):
     new_password: str = Field(min_length=1, max_length=128)
 
 
+class ForgotPasswordConfirmCode(BaseModel):
+    email: EmailStr
+    code: str = Field(min_length=8, max_length=8, pattern=r"^\d{8}$")
+
+
+class PasswordResetTokenResponse(BaseModel):
+    resetToken: str
+
+
+class PasswordResetRequest(BaseModel):
+    resetToken: str = Field(min_length=1, max_length=2048)
+    new_password: str = Field(min_length=1, max_length=128)
+
+
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1, max_length=128)

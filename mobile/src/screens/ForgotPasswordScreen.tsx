@@ -14,7 +14,9 @@ import {
 } from "react-native";
 import type { RootStackParamList } from "../../App";
 import { api } from "../api/client";
+import { ApiError } from "../api/transport";
 import { useTheme } from "../components/ThemeContext";
+import { isValidEmail } from "../utils";
 
 type Step = "email" | "code" | "newPassword";
 
@@ -27,6 +29,7 @@ export function ForgotPasswordScreen() {
   const [code, setCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [resetToken, setResetToken] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -36,12 +39,30 @@ export function ForgotPasswordScreen() {
     setCode("");
     setNewPassword("");
     setConfirmPassword("");
+    setResetToken("");
     setError("");
+  };
+
+  const getErrorMessage = (reason: unknown, fallback: string) => {
+    if (reason instanceof ApiError) {
+      if (reason.status === 401)
+        return "Код неверный или срок его действия истёк";
+      if (reason.status === 422) return "Проверьте введённые данные";
+      if (reason.status === 429)
+        return "Слишком много запросов. Попробуйте позже";
+    }
+    return reason instanceof Error && !reason.message.startsWith("HTTP ")
+      ? reason.message
+      : fallback;
   };
 
   const handleSendCode = async () => {
     if (!email.trim()) {
       setError("Введите email");
+      return;
+    }
+    if (!isValidEmail(email.trim())) {
+      setError("Введён некорректный email");
       return;
     }
 
@@ -51,8 +72,7 @@ export function ForgotPasswordScreen() {
       await api.forgotPasswordSendCode(email.trim());
       setStep("code");
     } catch (error: unknown) {
-      const msg =
-        error instanceof Error ? error.message : "Не удалось отправить код";
+      const msg = getErrorMessage(error, "Не удалось отправить код");
       setError(msg);
       Alert.alert("Ошибка", msg);
     } finally {
@@ -61,19 +81,22 @@ export function ForgotPasswordScreen() {
   };
 
   const handleVerifyCode = async () => {
-    if (!code.trim()) {
-      setError("Введите код подтверждения");
+    if (!/^\d{8}$/.test(code.trim())) {
+      setError("Введите 8-значный код подтверждения");
       return;
     }
 
     setLoading(true);
     setError("");
     try {
-      // Verify the code is valid before allowing password reset
-      await api.forgotPasswordVerifyCode(email.trim(), code.trim(), "");
+      const result = await api.forgotPasswordConfirmCode(
+        email.trim(),
+        code.trim(),
+      );
+      setResetToken(result.resetToken);
       setStep("newPassword");
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "Неверный код";
+      const msg = getErrorMessage(error, "Неверный код");
       setError(msg);
       Alert.alert("Ошибка", msg);
     } finally {
@@ -94,17 +117,12 @@ export function ForgotPasswordScreen() {
     setLoading(true);
     setError("");
     try {
-      await api.forgotPasswordVerifyCode(
-        email.trim(),
-        code.trim(),
-        newPassword,
-      );
+      await api.forgotPasswordReset(resetToken, newPassword);
       navigation.goBack();
       reset();
       Alert.alert("Успешно", "Пароль успешно изменен");
     } catch (error: unknown) {
-      const msg =
-        error instanceof Error ? error.message : "Не удалось изменить пароль";
+      const msg = getErrorMessage(error, "Не удалось изменить пароль");
       setError(msg);
       Alert.alert("Ошибка", msg);
     } finally {

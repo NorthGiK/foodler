@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Password reset now confirms the email code in a separate request and uses a
+  short-lived signed reset token to set the new password; existing sessions are
+  revoked after the reset.
+
 - Receipt AI batches now use short opaque item keys and retry missing rows or
   transient `429/5xx` responses once within the configured timeout. Structured
   application logging is enabled again and reports missing AI configuration
