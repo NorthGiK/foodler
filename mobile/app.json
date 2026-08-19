@@ -7,10 +7,10 @@
     "orientation": "portrait",
     "platforms": ["android"],
     "userInterfaceStyle": "automatic",
+    "icon": "./assets/FoodlerIcon.png",
     "android": {
-      "versionCode": 7,
+      "versionCode": 8,
       "package": "com.Foodler.chih_pih",
-      "icon": "./assets/FoodlerIcon.ico",
       "permissions": ["CAMERA", "android.permission.CAMERA"]
     },
     "plugins": [
