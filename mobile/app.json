@@ -3,26 +3,35 @@
     "name": "Foodler",
     "slug": "foodler",
     "scheme": "foodler",
-    "version": "3.0.1",
+    "version": "3.0.6",
     "orientation": "portrait",
-    "platforms": ["android"],
+    "platforms": [
+      "android"
+    ],
     "userInterfaceStyle": "automatic",
     "icon": "./assets/FoodlerIcon.png",
     "android": {
-      "versionCode": 8,
+      "versionCode": 9,
       "package": "com.Foodler.chih_pih",
-      "permissions": ["CAMERA", "android.permission.CAMERA"]
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
     },
     "plugins": [
       "expo-camera",
       "expo-sqlite",
       "expo-font",
       "@react-native-vector-icons/material-icons",
-      ["expo-image-picker", { "microphonePermission": false }]
+      [
+        "expo-image-picker",
+        {
+          "microphonePermission": false
+        }
+      ]
     ],
     "extra": {
       "eas": {
-        "projectId": "e7c0f227-265c-460b-8890-48bcd4be97ee"
+        "projectId": "3ee9bd6b-0d28-40da-bcf9-cbce20899eb2"
       }
     }
   }

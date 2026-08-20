@@ -1,10 +1,11 @@
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
-import type { UserProfile } from "../../types";
+import type { Theme } from "@/themes";
 import {
   activityLevelLabels,
   nutritionGoalLabels,
 } from "../../profileNutrition";
+import type { UserProfile } from "../../types";
 import { useTheme } from "../ThemeContext";
 import { getAccountTheme } from "./accountTheme";
 import { NutritionProfileFields } from "./NutritionProfileFields";
@@ -28,6 +29,7 @@ function ProfileValue({
   onPress: () => void;
 }) {
   const { theme, themeName } = useTheme();
+  const styles = getStyles(theme);
   const accountTheme = getAccountTheme(theme, themeName);
   return (
     <Pressable
@@ -57,6 +59,7 @@ function ChipGroup({
   highlighted?: boolean;
 }) {
   const { theme, themeName } = useTheme();
+  const styles = getStyles(theme);
   const accountTheme = getAccountTheme(theme, themeName);
   return (
     <View style={[styles.groupCard, { backgroundColor: accountTheme.card }]}>
@@ -110,12 +113,13 @@ export function ProfileInfoCard({
   onProfileChange,
 }: ProfileInfoCardProps) {
   const { theme, themeName } = useTheme();
+  const styles = getStyles(theme);
   const accountTheme = getAccountTheme(theme, themeName);
 
   if (editing)
     return (
       <View style={styles.editing}>
-        <Text style={[styles.sectionLabel, { color: accountTheme.muted }]}>
+        <Text style={styles.sectionLabel}>
           ЛИЧНАЯ ИНФОРМАЦИЯ
         </Text>
         <View style={styles.editGrid}>
@@ -263,7 +267,7 @@ export function ProfileInfoCard({
           accessibilityLabel="Изменить личную информацию"
           onPress={onEdit}
         >
-          <Text style={[styles.editLink, { color: accountTheme.accent }]}>
+          <Text style={styles.editLink}>
             Изменить
           </Text>
         </Pressable>
@@ -350,15 +354,15 @@ export function ProfileInfoCard({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: Theme) => StyleSheet.create({
   sectionHeader: {
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 10,
   },
-  sectionLabel: { fontSize: 11, fontWeight: "700", letterSpacing: 0.1 },
-  editLink: { fontSize: 13, fontWeight: "700" },
+  sectionLabel: { color: theme.muted, fontSize: 11, fontWeight: "700", letterSpacing: 0.1 },
+  editLink: {color: theme.accent, fontSize: 13, fontWeight: "700" },
   valueCard: {
     borderRadius: 18,
     flex: 1,

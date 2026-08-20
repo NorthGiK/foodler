@@ -255,3 +255,8 @@
 
 - `src/components/profile/index.ts` — barrel export для всех компонентов профиля
 - `CHANGELOG.md` — файл изменений проекта
+
+## Unreleased
+
+- Исправлена Android release-сборка: Gradle wrapper закреплён на версии 8.13,
+  совместимой с Foojay resolver из React Native 0.85.3.

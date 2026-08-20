@@ -18,6 +18,7 @@ export interface Theme {
   white: string;
   accent?: string;
   accent2?: string;
+  accent3?: string;
   glassBg?: string;
   glassBorder?: string;
 }
@@ -67,6 +68,7 @@ export const themes: Record<ThemeName, Theme> = {
 
     accent: "#79740E",
     accent2: "#B57614",
+    accent3: "#C94438",
 
     glassBg: "rgba(249, 245, 215, 0.82)",
     glassBorder: "rgba(60, 56, 54, 0.12)",
@@ -97,6 +99,7 @@ export const themes: Record<ThemeName, Theme> = {
 
     accent: "#98971A",
     accent2: "#D79921",
+    accent3: "#C94438",
 
     glassBg: "rgba(60, 56, 54, 0.84)",
     glassBorder: "rgba(235, 219, 178, 0.1)",
