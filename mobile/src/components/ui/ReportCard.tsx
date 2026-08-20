@@ -1,10 +1,9 @@
-import React from "react";
-import { View, Text, StyleSheet, ViewStyle } from "react-native";
 import MaterialIcons from "@react-native-vector-icons/material-icons";
-import { AnimatedPressable } from "../animations/AnimatedPressable";
-import { useTheme } from "../ThemeContext";
+import { StyleSheet, Text, View, ViewStyle } from "react-native";
 import { AiActionType } from "../../ai/types";
+import { AnimatedPressable } from "../animations/AnimatedPressable";
 import type { MaterialIconName } from "../icons";
+import { useTheme } from "../ThemeContext";
 
 interface ReportCardProps {
   title: string;
@@ -16,9 +15,9 @@ interface ReportCardProps {
 }
 
 const actionColors: Record<AiActionType, string> = {
-  analysis: "#C44935",
+  analysis: "#fabd2f",
   save_money: "#D5663D",
-  health: "#587448",
+  health: "#8ec07c",
   recipe: "#C56A47",
   cart: "#D69B21",
   ingredients: "#5B6875",

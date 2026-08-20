@@ -1,8 +1,10 @@
 import MaterialIcons from "@react-native-vector-icons/material-icons";
+import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -10,8 +12,6 @@ import {
   Text,
   View,
 } from "react-native";
-import { useEffect } from "react";
-import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import type { RootStackParamList } from "../../App";
 import { analyticsEvents, type AnalyticsTab } from "../analytics/facade";
 import { useTheme } from "../components/ThemeContext";
@@ -101,6 +101,7 @@ function MainTabsNavigator({ scanRequestId }: { scanRequestId: number }) {
           tabBarStyle: {
             backgroundColor: theme.surface,
             borderTopColor: theme.border,
+            paddingBottom: 8,
           },
           tabBarLabelStyle: styles.tabLabel,
           tabBarIcon: ({ color, size }) => (

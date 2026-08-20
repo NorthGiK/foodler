@@ -1,4 +1,13 @@
+import FullModalWindow from "@/components/FullModalWindow";
+import ScanQrButton from "@/components/ui/ScanQrButton";
 import MaterialIcons from "@react-native-vector-icons/material-icons";
+import {
+  launchCameraAsync,
+  launchImageLibraryAsync,
+  requestCameraPermissionsAsync,
+  requestMediaLibraryPermissionsAsync,
+} from "expo-image-picker";
+import type { SQLiteDatabase } from "expo-sqlite";
 import {
   memo,
   useCallback,
@@ -19,31 +28,21 @@ import {
   Text,
   View,
 } from "react-native";
-import type { SQLiteDatabase } from "expo-sqlite";
-import {
-  launchCameraAsync,
-  launchImageLibraryAsync,
-  requestCameraPermissionsAsync,
-  requestMediaLibraryPermissionsAsync,
-} from "expo-image-picker";
-import { analyticsEvents, AnalyticsCancelledError } from "../analytics/facade";
+import { AnalyticsCancelledError, analyticsEvents } from "../analytics/facade";
 import { getReceiptByRawQR } from "../api/client";
-import { ReceiptPreview } from "../components/ReceiptPreview";
+import { useTheme } from "../components/ThemeContext";
 import { normalizeReceiptResponse, saveReceipt } from "../storage";
 import { getStoreDisplayName, type StoreAliases } from "../storeAliases";
-import type { Receipt, ReceiptItem } from "../types";
-import { fmtRub } from "../utils";
-import { useTheme } from "../components/ThemeContext";
-import FullModalWindow from "@/components/FullModalWindow";
-import ScanQrButton from "@/components/ui/ScanQrButton";
 import type { Theme } from "../themes";
+import type { Receipt, ReceiptItem } from "../types";
+import { fmtRub, toTitleCase } from "../utils";
 
 const basket = require("../assets/ProductBasket.png") as number;
 const EMPTY_ITEMS: ReceiptItem[] = [];
 
 type JoinedItem = ReceiptItem & { ticketDate?: string };
 type ReceiptListItem =
-  | { key: string; kind: "day"; title: string }
+  | { key: string; kind: "month"; title: string }
   | { key: string; kind: "receipt"; receipt: Receipt };
 
 interface Props {
@@ -58,7 +57,7 @@ interface Props {
 
 interface ReceiptRowProps {
   receipt: Receipt;
-  items: ReceiptItem[];
+  itemsLength: string;
   onPress: (receipt: Receipt) => void;
   storeAliases: StoreAliases;
 }
@@ -72,19 +71,28 @@ function dayTitle(ticketDate: string): string {
     date.getDate() === today.getDate()
   )
     return "Сегодня";
-  return new Intl.DateTimeFormat("ru-RU", {
-    day: "numeric",
-    month: "long",
-  }).format(date);
+
+  const dateFmt = new Intl.DateTimeFormat("ru-RU", {day: "numeric", month: "long"});
+  const formatedDate = dateFmt.format(date);
+
+  return toTitleCase(formatedDate);
+}
+
+function monthTitle(ticketDate: string): string {
+  const date = new Date(ticketDate);
+  const dateFmt = new Intl.DateTimeFormat("ru-RU", {month: "long"});
+  const formatedDate = dateFmt.format(date);
+
+  return toTitleCase(formatedDate);
 }
 
 function buildListItems(receipts: readonly Receipt[]): ReceiptListItem[] {
   const list: ReceiptListItem[] = [];
   let previousDay = "";
   for (const receipt of receipts) {
-    const title = dayTitle(receipt.ticketDate);
+    const title = monthTitle(receipt.ticketDate);
     if (title !== previousDay) {
-      list.push({ key: `day-${receipt.id}`, kind: "day", title });
+      list.push({ key: `day-${receipt.id}`, kind: "month", title });
       previousDay = title;
     }
     list.push({ key: receipt.id, kind: "receipt", receipt });
@@ -94,13 +102,23 @@ function buildListItems(receipts: readonly Receipt[]): ReceiptListItem[] {
 
 const ReceiptRow = memo(function ReceiptRow({
   receipt,
-  items,
+  itemsLength,
   onPress,
   storeAliases,
 }: ReceiptRowProps) {
   const { theme } = useTheme();
   const styles = getStyles(theme);
   const storeName = getStoreDisplayName(receipt.organization, storeAliases);
+
+  // Сделать правильное окончание для Позиции
+  let receiptPosition = itemsLength + " ";
+  if (itemsLength === "1") receiptPosition += "Позиция"
+  else if (
+    itemsLength === "2" ||
+    itemsLength === "3" ||
+    itemsLength === "4"
+  ) receiptPosition += "Позиции"
+  else receiptPosition += "Позиций"
 
   return (
     <Pressable
@@ -112,16 +130,19 @@ const ReceiptRow = memo(function ReceiptRow({
         { opacity: pressed ? 0.7 : 1 },
       ]}
     >
-      <View style={{flex: 1,}} >
-      <Text style={styles.semiTitle}>{receipt.ticketDate}</Text>
-      <View style={styles.receiptContent}>
+      <View style={styles.receiptContent} >
+        <Text style={styles.boldSemiTitle}>
+          {dayTitle(receipt.ticketDate)}
+        </Text>
         <Text
           numberOfLines={1}
           style={styles.storeName}
         >
           {storeName}
         </Text>
-      </View>
+        <Text style={styles.semiTitle}>
+          {receiptPosition + " в покупке"}
+        </Text>
       </View>
       <Text style={styles.receiptSum}>
         {fmtRub(receipt.totalSumRub, false)}
@@ -263,16 +284,20 @@ export function ReceiptsScreen({
 
   const renderItem = useCallback(
     ({ item }: { item: ReceiptListItem }): ReactElement => {
-      if (item.kind === "day")
+      if (item.kind === "month")
         return (
-          <Text style={[styles.dayTitle, { color: theme.text }]}>
+          <Text style={styles.dayTitle}>
             {item.title}
           </Text>
         );
+
+      const receiptItems = receiptItemsById.get(item.key);
+      let receiptItemsCount = receiptItems ? receiptItems.length.toString() : "Многа";
+
       return (
         <ReceiptRow
           receipt={item.receipt}
-          items={receiptItemsById.get(item.receipt.id) ?? EMPTY_ITEMS}
+          itemsLength={receiptItemsCount}
           onPress={onOpenReceiptDetail}
           storeAliases={storeAliases}
         />
@@ -346,9 +371,9 @@ export function ReceiptsScreen({
             onPress={() => setSheetVisible(false)}
             style={styles.sheetDismiss}
           />
-          <View style={[styles.sheet, { backgroundColor: theme.surface }]}>
+          <View style={styles.sheet}>
             <View
-              style={[styles.sheetHandle, { backgroundColor: theme.outline }]}
+              style={styles.sheetHandle}
             />
             {qrError ? (
               <QrErrorState
@@ -362,7 +387,7 @@ export function ReceiptsScreen({
                 <Text style={styles.sheetTitle}>
                   Загрузить QR
                 </Text>
-                <Text style={[styles.sheetCopy, { color: theme.muted }]}>
+                <Text style={styles.sheetCopy}>
                   Чтобы распознавать чеки, приложению нужен доступ к камере и
                   фото.
                 </Text>
@@ -506,10 +531,20 @@ const getStyles = (theme: Theme) => StyleSheet.create({
     marginTop: 4,
   },
   semiTitle: {
-    fontSize: 14,
+    fontSize: 11,
     color: theme.muted,
   },
-  dayTitle: { fontSize: 16, fontWeight: "700", marginBottom: 7, marginTop: 3 },
+  boldSemiTitle: {
+    fontSize: 11,
+    color: theme.muted,
+    fontWeight: "700",
+  },
+  dayTitle: {
+    color: theme.text,
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 7,
+  },
   receiptRow: {
     alignItems: "center",
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -519,11 +554,15 @@ const getStyles = (theme: Theme) => StyleSheet.create({
     flexDirection: "row",
     paddingBottom: 17,
     paddingTop: 12,
+    marginBottom: 12,
   },
-  receiptContent: { flex: 1, justifyContent: "center" },
+  receiptContent: {
+    flex: 1,
+    paddingLeft: 16,
+    rowGap: 6,
+  },
   storeName: {
     fontSize: 17,
-    marginLeft: 17,
     fontWeight: "700",
     marginBottom: 4,
     color: theme.text
@@ -560,16 +599,16 @@ const getStyles = (theme: Theme) => StyleSheet.create({
   },
   sheetDismiss: { flex: 1 },
   sheet: {
+    backgroundColor: theme.primaryContainer,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     paddingBottom: 34,
     paddingHorizontal: 40,
     paddingTop: 14,
   },
-  sheetHandle: { alignSelf: "center", borderRadius: 4, height: 5, width: 48 },
+  sheetHandle: { alignSelf: "center", backgroundColor: theme.muted, borderRadius: 4, height: 5, width: 48 },
   sheetTitle: {
-    fontFamily: "serif",
-    fontSize: 16,
+    fontSize: 22,
     fontWeight: "600",
     color: theme.text,
     letterSpacing: -1.2,
@@ -577,7 +616,8 @@ const getStyles = (theme: Theme) => StyleSheet.create({
     textAlign: "center",
   },
   sheetCopy: {
-    fontSize: 17,
+    color: theme.muted,
+    fontSize: 14,
     lineHeight: 25,
     marginBottom: 24,
     marginTop: 13,
@@ -585,7 +625,7 @@ const getStyles = (theme: Theme) => StyleSheet.create({
   },
   captureButton: {
     alignItems: "center",
-    borderRadius: 9,
+    borderRadius: 28,
     borderWidth: 1,
     flexDirection: "row",
     gap: 14,

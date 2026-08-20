@@ -1,13 +1,14 @@
+import type { Theme } from "@/themes";
 import MaterialIcons from "@react-native-vector-icons/material-icons";
-import { useCallback, useState } from "react";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useCallback, useState } from "react";
 import {
   Alert,
   Image,
   KeyboardAvoidingView,
-  Pressable,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,9 +16,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { RootStackParamList } from "../../App";
+import { analyticsEvents } from "../analytics/facade";
 import { useAuth } from "../api/auth";
 import { api } from "../api/client";
-import { analyticsEvents } from "../analytics/facade";
 import { useTheme } from "../components/ThemeContext";
 import {
   AiCreditsCard,
@@ -90,6 +91,7 @@ export function ProfileScreen({
   onRestoreStoreAlias,
 }: Props) {
   const { theme } = useTheme();
+  const styles = getStyles(theme);
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user, logout, isAuthenticated, refreshUser } = useAuth();
@@ -139,10 +141,7 @@ export function ProfileScreen({
   };
   const menu = (items: MenuItem[]) => (
     <View
-      style={[
-        styles.menu,
-        { backgroundColor: theme.surface, borderColor: theme.border },
-      ]}
+      style={styles.menu}
     >
       {items.map((item, index) => (
         <Pressable
@@ -160,10 +159,7 @@ export function ProfileScreen({
           ]}
         >
           <View
-            style={[
-              styles.menuIcon,
-              { backgroundColor: theme.primaryContainer },
-            ]}
+            style={styles.menuIcon}
           >
             <MaterialIcons
               name={item.icon}
@@ -172,7 +168,7 @@ export function ProfileScreen({
             />
           </View>
           <View style={styles.menuCopy}>
-            <Text style={[styles.menuLabel, { color: theme.text }]}>
+            <Text style={styles.menuLabel}>
               {item.label}
             </Text>
             <Text style={[styles.menuCaption, { color: theme.muted }]}>
@@ -207,7 +203,7 @@ export function ProfileScreen({
           >
             <MaterialIcons name="arrow-back" size={22} color={theme.text} />
           </Pressable>
-          <Text style={[styles.subTitle, { color: theme.text }]}>
+          <Text style={styles.subTitle}>
             {screenTitle[route]}
           </Text>
           <View style={styles.backSpace} />
@@ -390,7 +386,7 @@ export function ProfileScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: Theme) => StyleSheet.create({
   page: { flex: 1 },
   content: { paddingBottom: 108, paddingHorizontal: 24, paddingTop: 27 },
   title: {
@@ -426,7 +422,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     marginTop: 28,
   },
-  menu: { borderRadius: 24, borderWidth: 1, overflow: "hidden" },
+  menu: { backgroundColor: theme.surface, borderColor: theme.border, borderRadius: 24, borderWidth: 1, overflow: "hidden" },
   menuRow: {
     alignItems: "center",
     flexDirection: "row",
@@ -434,6 +430,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   menuIcon: {
+    backgroundColor: theme.primaryContainer,
     alignItems: "center",
     borderRadius: 14,
     height: 44,
@@ -441,7 +438,7 @@ const styles = StyleSheet.create({
     width: 44,
   },
   menuCopy: { flex: 1, marginHorizontal: 13 },
-  menuLabel: { fontFamily: "serif", fontSize: 17, fontWeight: "700" },
+  menuLabel: { color: theme.text, fontSize: 17, fontWeight: "700" },
   menuCaption: { fontSize: 12, lineHeight: 17, marginTop: 2 },
   logout: {
     alignItems: "center",
@@ -514,7 +511,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 40,
   },
-  subTitle: { fontFamily: "serif", fontSize: 28, fontWeight: "600" },
+  subTitle: { fontFamily:"serif", fontSize: 28, fontWeight: "600" },
   backSpace: { flex: 1 },
   detailContent: { padding: 24, paddingBottom: 108, paddingTop: 18 },
 });

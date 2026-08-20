@@ -1,10 +1,19 @@
-import { CategoryMode, Period, Receipt, ReceiptItem } from "./types";
 import { normalizeCategory } from "./category";
+import { CategoryMode, Period, Receipt, ReceiptItem } from "./types";
 
 export function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 }
+
+export function toTitleCase(str: string): string {
+  return str
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 
 export function groupReceiptItems(items: ReceiptItem[]): ReceiptItem[] {
   const grouped = new Map<string, ReceiptItem>();
