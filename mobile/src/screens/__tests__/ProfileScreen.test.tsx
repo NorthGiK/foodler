@@ -1,6 +1,6 @@
 import { act, create } from "react-test-renderer";
 import React from "react";
-import { ScrollView, Text } from "react-native";
+import { KeyboardAvoidingView, ScrollView, Text } from "react-native";
 
 import { ProfileScreen } from "../ProfileScreen";
 
@@ -121,5 +121,8 @@ describe("ProfileScreen menu", () => {
     expect(
       view!.root.findByType(ScrollView).props.keyboardShouldPersistTaps,
     ).toBe("handled");
+    expect(
+      view!.root.findByType(KeyboardAvoidingView).props.behavior,
+    ).toBeDefined();
   });
 });

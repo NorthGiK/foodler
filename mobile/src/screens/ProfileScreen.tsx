@@ -198,7 +198,7 @@ export function ProfileScreen({
         </Pressable>
         <KeyboardAvoidingView
           style={styles.page}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
           <ScrollView
             contentContainerStyle={[
