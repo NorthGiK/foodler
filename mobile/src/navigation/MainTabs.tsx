@@ -93,6 +93,7 @@ function MainTabsNavigator({ scanRequestId }: { scanRequestId: number }) {
       screenOptions={({ route }) => {
         const tab = MAIN_TABS.find((item) => item.name === route.name);
         return {
+          tabBarAccessibilityLabel: "Меню вкладок",
           headerShown: false,
           animation: "fade",
           tabBarHideOnKeyboard: true,

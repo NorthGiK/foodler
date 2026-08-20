@@ -54,7 +54,7 @@ export function NutritionProfileFields({ value, onChange }: Props) {
           accessibilityLabel={`Добавить продукт: ${label}`}
           value={input}
           onChangeText={setInput}
-          placeholder="Например, яблоки"
+          placeholder="Брокколи"
           placeholderTextColor={theme.muted}
           onSubmitEditing={() => {
             const next = addFoodValue(foods, input);
