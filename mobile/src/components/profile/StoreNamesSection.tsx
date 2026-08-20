@@ -4,13 +4,12 @@ import {
   ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  View,
+  View
 } from "react-native";
 import { getStoreDisplayName, StoreAliases } from "../../storeAliases";
 import FullModalWindow from "../FullModalWindow";
@@ -129,7 +128,7 @@ export function StoreNamesSection({
         <MaterialIcons name="chevron-right" size={24} color={theme.muted} />
       </Pressable>
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior="padding"
         style={styles.keyboardAvoiding}
       >
         <FullModalWindow visible={visible} setVisible={close}>
@@ -188,7 +187,6 @@ export function StoreNamesSection({
                 <Text style={[styles.label, { color: theme.text }]}>
                   Показывать как
                 </Text>
-                <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
                 <TextInput
                   accessibilityLabel="Новое название магазина"
                   autoFocus
@@ -207,7 +205,6 @@ export function StoreNamesSection({
                   ]}
                   value={alias}
                 />
-                </KeyboardAvoidingView>
 
                 {error ? (
                   <Text style={[styles.error, { color: theme.error }]}>
