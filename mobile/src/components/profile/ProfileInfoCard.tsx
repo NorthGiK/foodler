@@ -1,4 +1,4 @@
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import type { Theme } from "@/themes";
 import {
@@ -118,9 +118,6 @@ export function ProfileInfoCard({
 
   if (editing)
     return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
       <View style={styles.editing}>
         <Text style={styles.sectionLabel}>
           ЛИЧНАЯ ИНФОРМАЦИЯ
@@ -257,7 +254,6 @@ export function ProfileInfoCard({
           </Pressable>
         </View>
       </View>
-    </KeyboardAvoidingView>
     );
 
   return (

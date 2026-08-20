@@ -1,5 +1,5 @@
 import { act, create } from "react-test-renderer";
-import { Text, TextInput } from "react-native";
+import { KeyboardAvoidingView, Text, TextInput } from "react-native";
 
 import { defaultProfile, UserProfile } from "../../../types";
 import { ProfileInfoCard } from "../ProfileInfoCard";
@@ -131,5 +131,6 @@ describe("ProfileInfoCard", () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(view!.root.findAllByType(TextInput)).toHaveLength(7);
+    expect(view!.root.findAllByType(KeyboardAvoidingView)).toHaveLength(0);
   });
 });

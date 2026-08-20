@@ -1,6 +1,6 @@
 import { act, create } from "react-test-renderer";
 import React from "react";
-import { Text } from "react-native";
+import { ScrollView, Text } from "react-native";
 
 import { ProfileScreen } from "../ProfileScreen";
 
@@ -118,5 +118,8 @@ describe("ProfileScreen menu", () => {
         .findAllByType(Text)
         .filter((node) => node.props.children === "Аккаунт"),
     ).toHaveLength(0);
+    expect(
+      view!.root.findByType(ScrollView).props.keyboardShouldPersistTaps,
+    ).toBe("handled");
   });
 });

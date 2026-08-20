@@ -207,6 +207,7 @@ export function ProfileScreen({
                 backgroundColor: accountTheme.background,
               },
             ]}
+            keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
             {route === "account" ? (
