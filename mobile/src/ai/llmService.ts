@@ -2,6 +2,10 @@ import { api } from "../api/client";
 import { FamilyMember, Receipt, ReceiptItem } from "../types";
 import { loadProfile } from "../profileStorage";
 import {
+  buildProfileContext,
+  familyMemberToApiMember,
+} from "../profileNutrition";
+import {
   ACTION_LABELS,
   ACTION_TO_SERVER,
   AiActionType,
@@ -15,26 +19,6 @@ interface PurchaseContext {
   periodFrom?: string;
   periodTo?: string;
   members?: FamilyMember[];
-}
-
-function familyMemberToApiMember(member: FamilyMember) {
-  const infoParts: string[] = [];
-  const dietaryPrefs = member.dietaryPreferences || [];
-  if (dietaryPrefs.length > 0) {
-    infoParts.push(dietaryPrefs.join(", "));
-  }
-  if (member.additionalInfo) {
-    infoParts.push(member.additionalInfo);
-  }
-
-  return {
-    name: member.name,
-    age: member.age,
-    height: member.heightCm != null ? member.heightCm : 0,
-    weight: member.weightKg != null ? member.weightKg : 0,
-    gender: member.gender === "male" ? "Мужской" : "Женский",
-    additional_info: infoParts.join(". "),
-  };
 }
 
 export type AiErrorKind = "network" | "server" | "rate_limit" | "unknown";
@@ -205,14 +189,7 @@ export async function generateAiResponse(
     parameters.members = context.members.map(familyMemberToApiMember);
   }
   const profile = await loadProfile();
-  const profileParts = [
-    profile.healthGoals.length ? `Цели: ${profile.healthGoals.join(", ")}` : "",
-    profile.dietaryPreferences.length
-      ? `Ограничения: ${profile.dietaryPreferences.join(", ")}`
-      : "",
-    profile.additionalInfo ? `Дополнительно: ${profile.additionalInfo}` : "",
-  ].filter(Boolean);
-  if (profileParts.length) parameters.profile_context = profileParts.join(". ");
+  parameters.profile_context = buildProfileContext(profile);
 
   try {
     const result = await api.runAiAction(serverAction, parameters);

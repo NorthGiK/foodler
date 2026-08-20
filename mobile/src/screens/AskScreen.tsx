@@ -22,7 +22,10 @@ import { useAuth } from "../api/auth";
 import { api } from "../api/client";
 import { useTheme } from "../components/ThemeContext";
 import { loadProfile } from "../profileStorage";
-import { FamilyMember } from "../types";
+import {
+  familyMemberToApiMember,
+  ownerToFamilyMember,
+} from "../profileNutrition";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -31,25 +34,6 @@ interface ChatMessage {
 }
 
 const PINNED_MESSAGES_KEY = "@food_tracker_pinned_messages";
-
-function familyMemberToApiMember(member: FamilyMember) {
-  const infoParts: string[] = [];
-  if (member.dietaryPreferences.length > 0) {
-    infoParts.push(member.dietaryPreferences.join(", "));
-  }
-  if (member.additionalInfo) {
-    infoParts.push(member.additionalInfo);
-  }
-
-  return {
-    name: member.name,
-    age: member.age,
-    height: member.heightCm,
-    weight: member.weightKg,
-    gender: member.gender === "male" ? "Мужской" : "Женский",
-    additional_info: infoParts.join(". "),
-  };
-}
 
 export function AskScreen() {
   const { theme } = useTheme();
@@ -127,9 +111,11 @@ export function AskScreen() {
         ReturnType<typeof familyMemberToApiMember>[] | undefined;
       try {
         const profile = await loadProfile();
-        if (profile.familyMembers && profile.familyMembers.length > 0) {
-          profileMembers = profile.familyMembers.map(familyMemberToApiMember);
-        }
+        const members = profile.name
+          ? [ownerToFamilyMember(profile), ...profile.familyMembers]
+          : profile.familyMembers;
+        if (members.length > 0)
+          profileMembers = members.map(familyMemberToApiMember);
       } catch {
         // ignore if profile not available
       }

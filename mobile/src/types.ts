@@ -30,14 +30,21 @@ export interface ApiReceiptResponse {
   };
 }
 
+export type NutritionGoal =
+  "balance" | "healthy" | "cheaper" | "lose_weight" | "gain_weight";
+
+export type ActivityLevel = "low" | "medium" | "high";
+
 export interface FamilyMember {
   name: string;
   age: number;
   gender: "male" | "female";
   heightCm: number;
   weightKg: number;
-  dietaryPreferences: string[];
-  healthGoals: string[];
+  likedFoods: string[];
+  dislikedFoods: string[];
+  nutritionGoal: NutritionGoal;
+  activityLevel: ActivityLevel;
   additionalInfo?: string;
 }
 
@@ -55,8 +62,10 @@ export const defaultProfile: UserProfile = {
   weightKg: 70,
   familySize: 1,
   hasChildren: false,
-  dietaryPreferences: [],
-  healthGoals: [],
+  likedFoods: [],
+  dislikedFoods: [],
+  nutritionGoal: "balance",
+  activityLevel: "low",
   familyMembers: [],
 };
 

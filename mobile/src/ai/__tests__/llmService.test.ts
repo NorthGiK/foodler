@@ -66,8 +66,10 @@ describe("parseServerSections", () => {
           gender: "female",
           heightCm: 170,
           weightKg: 60,
-          dietaryPreferences: ["без лактозы"],
-          healthGoals: [],
+          likedFoods: ["йогурт"],
+          dislikedFoods: ["лактоза"],
+          nutritionGoal: "healthy",
+          activityLevel: "medium",
           additionalInfo: "аллергия",
         },
       ],
@@ -81,9 +83,12 @@ describe("parseServerSections", () => {
           height: 170,
           weight: 60,
           gender: "Женский",
-          additional_info: "без лактозы. аллергия",
+          additional_info:
+            "Любимые продукты: йогурт. Не любит: лактоза. Цель питания: Питаться полезнее. Уровень физической нагрузки: Средняя. аллергия",
         },
       ],
+      profile_context:
+        "Цель питания: Сбалансированное питание. Уровень физической нагрузки: Низкая",
     });
   });
 });

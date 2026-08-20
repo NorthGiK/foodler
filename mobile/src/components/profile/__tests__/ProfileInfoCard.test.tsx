@@ -25,8 +25,10 @@ const profile: UserProfile = {
   ...defaultProfile,
   name: "Анна",
   additionalInfo: "Без орехов",
-  dietaryPreferences: ["Овощи"],
-  healthGoals: ["Больше белка"],
+  likedFoods: ["Овощи"],
+  dislikedFoods: ["Печень"],
+  nutritionGoal: "healthy",
+  activityLevel: "medium",
 };
 
 describe("ProfileInfoCard", () => {
@@ -49,7 +51,14 @@ describe("ProfileInfoCard", () => {
       .findAllByType(Text)
       .map((node) => node.props.children);
     expect(texts).toEqual(
-      expect.arrayContaining(["Анна", "Без орехов", "Овощи", "Больше белка"]),
+      expect.arrayContaining([
+        "Анна",
+        "Без орехов",
+        "Овощи",
+        "Печень",
+        "Питаться полезнее",
+        "Средняя",
+      ]),
     );
     expect(texts).toContain("30");
     expect(
@@ -121,6 +130,6 @@ describe("ProfileInfoCard", () => {
 
     expect(onCancel).toHaveBeenCalledTimes(1);
     expect(onSave).toHaveBeenCalledTimes(1);
-    expect(view!.root.findAllByType(TextInput)).toHaveLength(5);
+    expect(view!.root.findAllByType(TextInput)).toHaveLength(7);
   });
 });

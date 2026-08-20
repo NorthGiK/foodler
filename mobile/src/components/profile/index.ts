@@ -1,5 +1,6 @@
 export { ProfileHeaderCard, ProfileGuestCard } from "./ProfileHeaderCard";
 export { SubscriptionButton } from "./SubscriptionButton";
+export { NutritionProfileFields } from "./NutritionProfileFields";
 export { ProfileInfoCard } from "./ProfileInfoCard";
 export { FamilySection } from "./FamilySection";
 export { FeedbackSection } from "./FeedbackSection";

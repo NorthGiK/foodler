@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import type { RootStackParamList } from "../../App";
 import { useTheme } from "../components/ThemeContext";
+import { NutritionProfileFields } from "../components/profile";
 import { loadProfile, saveProfile } from "../profileStorage";
 import { FamilyMember, defaultProfile } from "../types";
 
@@ -23,8 +24,10 @@ const emptyMember = (): FamilyMember => ({
   gender: "male",
   heightCm: 0,
   weightKg: 0,
-  dietaryPreferences: [],
-  healthGoals: [],
+  likedFoods: [],
+  dislikedFoods: [],
+  nutritionGoal: "balance",
+  activityLevel: "low",
 });
 
 export function FamilyMemberScreen() {
@@ -157,13 +160,12 @@ export function FamilyMemberScreen() {
             Пол: {member.gender === "male" ? "Мужской" : "Женский"}
           </Text>
         </Pressable>
+        <NutritionProfileFields value={member} onChange={update} />
         {field(
           "Дополнительно",
-          (
-            "Тренажёрный зал 3 раза в неделю по полтора часа, интенсивное кардио в основном.\n" +
+          "Тренажёрный зал 3 раза в неделю по полтора часа, интенсивное кардио в основном.\n" +
             "Аллергия на орехи\n" +
-            "Люблю сладкое"
-          ),
+            "Люблю сладкое",
           member.additionalInfo ?? "",
           (value) => update({ additionalInfo: value }),
           undefined,

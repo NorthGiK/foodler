@@ -1,8 +1,13 @@
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import type { UserProfile } from "../../types";
+import {
+  activityLevelLabels,
+  nutritionGoalLabels,
+} from "../../profileNutrition";
 import { useTheme } from "../ThemeContext";
 import { getAccountTheme } from "./accountTheme";
+import { NutritionProfileFields } from "./NutritionProfileFields";
 
 interface ProfileInfoCardProps {
   profile: UserProfile;
@@ -126,6 +131,12 @@ export function ProfileInfoCard({
               { backgroundColor: accountTheme.card, color: accountTheme.text },
             ]}
           />
+          <View style={styles.fullWidth}>
+            <NutritionProfileFields
+              value={profile}
+              onChange={(patch) => onProfileChange({ ...profile, ...patch })}
+            />
+          </View>
           <TextInput
             accessibilityLabel="Возраст"
             value={profile.age.toString()}
@@ -287,11 +298,32 @@ export function ProfileInfoCard({
         />
       </View>
       <ChipGroup
-        label="ПИТАНИЕ"
-        values={profile.dietaryPreferences}
+        label="НРАВИТСЯ В ЕДЕ"
+        values={profile.likedFoods}
         highlighted
       />
-      <ChipGroup label="ЦЕЛИ" values={profile.healthGoals} />
+      <ChipGroup label="НЕ НРАВИТСЯ В ЕДЕ" values={profile.dislikedFoods} />
+      <View
+        style={[styles.detailsCard, { backgroundColor: accountTheme.card }]}
+      >
+        <Text style={[styles.valueLabel, { color: accountTheme.muted }]}>
+          ЦЕЛЬ ПИТАНИЯ
+        </Text>
+        <Text style={[styles.details, { color: accountTheme.text }]}>
+          {nutritionGoalLabels[profile.nutritionGoal]}
+        </Text>
+        <Text
+          style={[
+            styles.valueLabel,
+            { color: accountTheme.muted, marginTop: 16 },
+          ]}
+        >
+          УРОВЕНЬ НАГРУЗКИ
+        </Text>
+        <Text style={[styles.details, { color: accountTheme.text }]}>
+          {activityLevelLabels[profile.activityLevel]}
+        </Text>
+      </View>
       <View
         style={[styles.detailsCard, { backgroundColor: accountTheme.card }]}
       >

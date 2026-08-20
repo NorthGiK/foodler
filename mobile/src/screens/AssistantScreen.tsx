@@ -25,6 +25,7 @@ import { AiActionType, AiReport } from "../ai/types";
 import { AiResultView } from "../components/AiResultView";
 import { FadeInView, useStaggeredFadeIn } from "../components/animations";
 import { loadProfile } from "../profileStorage";
+import { ownerToFamilyMember } from "../profileNutrition";
 import { useTheme } from "../components/ThemeContext";
 import { ReportCard } from "../components/ui";
 import type { FamilyMember, Receipt, ReceiptItem } from "../types";
@@ -150,16 +151,7 @@ export function AssistantScreen({ db, receipts, joinedItems }: Props) {
           const members: FamilyMember[] = [];
 
           if (profile.name) {
-            members.push({
-              name: profile.name,
-              age: profile.age,
-              heightCm: profile.heightCm,
-              weightKg: profile.weightKg,
-              gender: profile.gender,
-              dietaryPreferences: profile.dietaryPreferences,
-              healthGoals: profile.healthGoals,
-              additionalInfo: profile.additionalInfo,
-            });
+            members.push(ownerToFamilyMember(profile));
           }
 
           members.push(...profile.familyMembers);
