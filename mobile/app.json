@@ -11,7 +11,7 @@
     "userInterfaceStyle": "automatic",
     "icon": "./assets/FoodlerIcon.png",
     "android": {
-      "versionCode": 10,
+      "versionCode": 11,
       "package": "com.Foodler.chih_pih",
       "permissions": [
         "android.permission.CAMERA"

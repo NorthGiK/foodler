@@ -112,11 +112,11 @@ const ReceiptRow = memo(function ReceiptRow({
 
   // Сделать правильное окончание для Позиции
   let receiptPosition = itemsLength + " ";
-  if (itemsLength === "1") receiptPosition += "Позиция"
+  if (itemsLength.endsWith("1") && itemsLength !== "11") receiptPosition += "Позиция"
   else if (
-    itemsLength === "2" ||
-    itemsLength === "3" ||
-    itemsLength === "4"
+    (itemsLength.endsWith("2") && itemsLength !== "12") ||
+    (itemsLength.endsWith("3") && itemsLength !== "13") ||
+    (itemsLength.endsWith("4") && itemsLength !== "14")
   ) receiptPosition += "Позиции"
   else receiptPosition += "Позиций"
 

@@ -13,8 +13,8 @@ import {
   View,
 } from "react-native";
 import { getStoreDisplayName, StoreAliases } from "../../storeAliases";
-import { useTheme } from "../ThemeContext";
 import FullModalWindow from "../FullModalWindow";
+import { useTheme } from "../ThemeContext";
 
 type Props = {
   stores: string[];
@@ -188,13 +188,14 @@ export function StoreNamesSection({
                 <Text style={[styles.label, { color: theme.text }]}>
                   Показывать как
                 </Text>
+                <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
                 <TextInput
                   accessibilityLabel="Новое название магазина"
                   autoFocus
                   editable={!saving}
                   maxLength={120}
                   onChangeText={setAlias}
-                  placeholder="Например, Delivery Foods"
+                  placeholder="Продуктовый"
                   placeholderTextColor={theme.muted}
                   style={[
                     styles.input,
@@ -206,6 +207,7 @@ export function StoreNamesSection({
                   ]}
                   value={alias}
                 />
+                </KeyboardAvoidingView>
 
                 {error ? (
                   <Text style={[styles.error, { color: theme.error }]}>
