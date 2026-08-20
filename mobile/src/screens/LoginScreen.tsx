@@ -1,6 +1,6 @@
 import MaterialIcons from "@react-native-vector-icons/material-icons";
-import { useNavigation, useRoute } from "@react-navigation/native";
 import type { RouteProp } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useEffect, useState } from "react";
 import {
@@ -282,7 +282,7 @@ export function LoginScreen() {
                   <TextInput
                     value={code}
                     onChangeText={setCode}
-                    placeholder="abcd1234"
+                    placeholder="12345678"
                     placeholderTextColor={theme.muted}
                     autoCapitalize="none"
                     autoFocus
