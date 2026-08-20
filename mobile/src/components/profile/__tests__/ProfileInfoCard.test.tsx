@@ -25,6 +25,8 @@ const profile: UserProfile = {
   ...defaultProfile,
   name: "Анна",
   additionalInfo: "Без орехов",
+  dietaryPreferences: ["Овощи"],
+  healthGoals: ["Больше белка"],
 };
 
 describe("ProfileInfoCard", () => {
@@ -46,8 +48,10 @@ describe("ProfileInfoCard", () => {
     const texts = view!.root
       .findAllByType(Text)
       .map((node) => node.props.children);
-    expect(texts).toEqual(expect.arrayContaining(["Анна", "Без орехов"]));
-    expect(texts).toContainEqual([30, " лет"]);
+    expect(texts).toEqual(
+      expect.arrayContaining(["Анна", "Без орехов", "Овощи", "Больше белка"]),
+    );
+    expect(texts).toContain("30");
     expect(
       view!.root.findByProps({
         accessibilityLabel: "Изменить личную информацию",

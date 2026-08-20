@@ -1,11 +1,8 @@
-import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
-import MaterialIcons from "@react-native-vector-icons/material-icons";
-import { useTheme } from "../ThemeContext";
-import { AnimatedPressable } from "../animations";
-import { UserProfile } from "../../types";
-import { Dimensions } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
-const { width } = Dimensions.get("window");
+import type { UserProfile } from "../../types";
+import { useTheme } from "../ThemeContext";
+import { getAccountTheme } from "./accountTheme";
 
 interface ProfileInfoCardProps {
   profile: UserProfile;
@@ -16,6 +13,89 @@ interface ProfileInfoCardProps {
   onProfileChange: (profile: UserProfile) => void;
 }
 
+function ProfileValue({
+  label,
+  value,
+  onPress,
+}: {
+  label: string;
+  value: string;
+  onPress: () => void;
+}) {
+  const { theme, themeName } = useTheme();
+  const accountTheme = getAccountTheme(theme, themeName);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Изменить: ${label}`}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.valueCard,
+        { backgroundColor: accountTheme.card, opacity: pressed ? 0.78 : 1 },
+      ]}
+    >
+      <Text style={[styles.valueLabel, { color: accountTheme.muted }]}>
+        {label}
+      </Text>
+      <Text style={[styles.value, { color: accountTheme.text }]}>{value}</Text>
+    </Pressable>
+  );
+}
+
+function ChipGroup({
+  label,
+  values,
+  highlighted = false,
+}: {
+  label: string;
+  values: string[];
+  highlighted?: boolean;
+}) {
+  const { theme, themeName } = useTheme();
+  const accountTheme = getAccountTheme(theme, themeName);
+  return (
+    <View style={[styles.groupCard, { backgroundColor: accountTheme.card }]}>
+      <Text style={[styles.valueLabel, { color: accountTheme.muted }]}>
+        {label}
+      </Text>
+      <View style={styles.chips}>
+        {values.length > 0 ? (
+          values.map((value) => (
+            <View
+              key={value}
+              style={[
+                styles.chip,
+                {
+                  backgroundColor: highlighted
+                    ? accountTheme.accent
+                    : accountTheme.chip,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.chipText,
+                  {
+                    color: highlighted
+                      ? accountTheme.accentText
+                      : accountTheme.text,
+                  },
+                ]}
+              >
+                {value}
+              </Text>
+            </View>
+          ))
+        ) : (
+          <Text style={[styles.emptyValue, { color: accountTheme.muted }]}>
+            Пока не указано
+          </Text>
+        )}
+      </View>
+    </View>
+  );
+}
+
 export function ProfileInfoCard({
   profile,
   editing,
@@ -24,383 +104,287 @@ export function ProfileInfoCard({
   onSave,
   onProfileChange,
 }: ProfileInfoCardProps) {
-  const { theme } = useTheme();
+  const { theme, themeName } = useTheme();
+  const accountTheme = getAccountTheme(theme, themeName);
+
+  if (editing)
+    return (
+      <View style={styles.editing}>
+        <Text style={[styles.sectionLabel, { color: accountTheme.muted }]}>
+          ЛИЧНАЯ ИНФОРМАЦИЯ
+        </Text>
+        <View style={styles.editGrid}>
+          <TextInput
+            accessibilityLabel="Имя"
+            value={profile.name}
+            onChangeText={(name) => onProfileChange({ ...profile, name })}
+            placeholder="Ваше имя"
+            placeholderTextColor={accountTheme.muted}
+            style={[
+              styles.input,
+              styles.fullWidth,
+              { backgroundColor: accountTheme.card, color: accountTheme.text },
+            ]}
+          />
+          <TextInput
+            accessibilityLabel="Возраст"
+            value={profile.age.toString()}
+            onChangeText={(value) =>
+              onProfileChange({
+                ...profile,
+                age: Number.parseInt(value, 10) || 0,
+              })
+            }
+            keyboardType="number-pad"
+            placeholder="Возраст"
+            placeholderTextColor={accountTheme.muted}
+            style={[
+              styles.input,
+              { backgroundColor: accountTheme.card, color: accountTheme.text },
+            ]}
+          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Изменить пол"
+            onPress={() =>
+              onProfileChange({
+                ...profile,
+                gender: profile.gender === "male" ? "female" : "male",
+              })
+            }
+            style={[
+              styles.input,
+              styles.genderInput,
+              { backgroundColor: accountTheme.card },
+            ]}
+          >
+            <Text style={{ color: accountTheme.text }}>
+              {profile.gender === "male" ? "Мужской" : "Женский"}
+            </Text>
+          </Pressable>
+          <TextInput
+            accessibilityLabel="Рост"
+            value={profile.heightCm.toString()}
+            onChangeText={(value) =>
+              onProfileChange({
+                ...profile,
+                heightCm: Number.parseInt(value, 10) || 0,
+              })
+            }
+            keyboardType="number-pad"
+            placeholder="Рост, см"
+            placeholderTextColor={accountTheme.muted}
+            style={[
+              styles.input,
+              { backgroundColor: accountTheme.card, color: accountTheme.text },
+            ]}
+          />
+          <TextInput
+            accessibilityLabel="Вес"
+            value={profile.weightKg.toString()}
+            onChangeText={(value) =>
+              onProfileChange({
+                ...profile,
+                weightKg: Number.parseInt(value, 10) || 0,
+              })
+            }
+            keyboardType="number-pad"
+            placeholder="Вес, кг"
+            placeholderTextColor={accountTheme.muted}
+            style={[
+              styles.input,
+              { backgroundColor: accountTheme.card, color: accountTheme.text },
+            ]}
+          />
+          <TextInput
+            accessibilityLabel="Дополнительная информация"
+            value={profile.additionalInfo ?? ""}
+            onChangeText={(additionalInfo) =>
+              onProfileChange({ ...profile, additionalInfo })
+            }
+            multiline
+            placeholder="Аллергии, цели и особенности питания"
+            placeholderTextColor={accountTheme.muted}
+            textAlignVertical="top"
+            style={[
+              styles.input,
+              styles.fullWidth,
+              styles.textArea,
+              { backgroundColor: accountTheme.card, color: accountTheme.text },
+            ]}
+          />
+        </View>
+        <View style={styles.editActions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Отменить редактирование личной информации"
+            onPress={onCancel}
+            style={[
+              styles.secondaryButton,
+              { backgroundColor: accountTheme.chip },
+            ]}
+          >
+            <Text style={{ color: accountTheme.text }}>Отмена</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Сохранить личную информацию"
+            onPress={onSave}
+            style={[
+              styles.primaryButton,
+              { backgroundColor: accountTheme.accent },
+            ]}
+          >
+            <Text style={{ color: accountTheme.accentText }}>Сохранить</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
 
   return (
-    <View
-      style={[
-        styles.card,
-        { backgroundColor: theme.surface, borderColor: theme.border },
-      ]}
-    >
+    <View>
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>
-          Личная информация
+        <Text style={[styles.sectionLabel, { color: accountTheme.muted }]}>
+          ЛИЧНАЯ ИНФОРМАЦИЯ
         </Text>
-        {!editing ? (
-          <AnimatedPressable scaleTo={0.9} onPress={onEdit}>
-            <View
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel="Изменить личную информацию"
-              style={[
-                styles.actionButton,
-                { backgroundColor: theme.primaryContainer },
-              ]}
-            >
-              <MaterialIcons
-                name="edit"
-                size={20}
-                color={theme.onPrimaryContainer}
-              />
-            </View>
-          </AnimatedPressable>
-        ) : (
-          <View style={styles.headerActions}>
-            <AnimatedPressable
-              scaleTo={0.9}
-              onPress={onCancel}
-              accessibilityLabel="Отменить редактирование личной информации"
-            >
-              <View
-                style={[
-                  styles.actionButton,
-                  { backgroundColor: theme.surfaceElevated },
-                ]}
-              >
-                <MaterialIcons name="close" size={20} color={theme.muted} />
-              </View>
-            </AnimatedPressable>
-            <AnimatedPressable
-              scaleTo={0.9}
-              onPress={onSave}
-              accessibilityLabel="Сохранить личную информацию"
-            >
-              <View
-                style={[
-                  styles.actionButton,
-                  { backgroundColor: theme.primaryContainer },
-                ]}
-              >
-                <MaterialIcons
-                  name="check"
-                  size={20}
-                  color={theme.onPrimaryContainer}
-                />
-              </View>
-            </AnimatedPressable>
-          </View>
-        )}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Изменить личную информацию"
+          onPress={onEdit}
+        >
+          <Text style={[styles.editLink, { color: accountTheme.accent }]}>
+            Изменить
+          </Text>
+        </Pressable>
       </View>
-
-      {editing ? (
-        <View style={styles.form}>
-          <View style={styles.field}>
-            <Text style={[styles.label, { color: theme.text }]}>Имя</Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  color: theme.text,
-                  borderColor: theme.outline,
-                  backgroundColor: theme.surfaceElevated,
-                },
-              ]}
-              value={profile.name}
-              onChangeText={(text: string) =>
-                onProfileChange({ ...profile, name: text })
-              }
-              placeholder="Ваше имя"
-              placeholderTextColor={theme.muted}
-            />
-          </View>
-
-          <View style={styles.row}>
-            <View style={[styles.field, { flex: 1 }]}>
-              <Text style={[styles.label, { color: theme.text }]}>Возраст</Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    color: theme.text,
-                    borderColor: theme.outline,
-                    backgroundColor: theme.surfaceElevated,
-                  },
-                ]}
-                value={profile.age.toString()}
-                onChangeText={(text: string) =>
-                  onProfileChange({ ...profile, age: parseInt(text) || 0 })
-                }
-                keyboardType="number-pad"
-                placeholder="30"
-                placeholderTextColor={theme.muted}
-              />
-            </View>
-
-            <View style={[styles.field, { flex: 1 }]}>
-              <Text style={[styles.label, { color: theme.text }]}>Пол</Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Изменить пол"
-                style={[
-                  styles.input,
-                  {
-                    borderColor: theme.outline,
-                    backgroundColor: theme.surfaceElevated,
-                  },
-                ]}
-                onPress={() => {
-                  onProfileChange({
-                    ...profile,
-                    gender: profile.gender === "male" ? "female" : "male",
-                  });
-                }}
-              >
-                <Text style={{ color: theme.text }}>
-                  {profile.gender === "male" ? "Мужской" : "Женский"}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-
-          <View style={styles.row}>
-            <View style={[styles.field, { flex: 1 }]}>
-              <Text style={[styles.label, { color: theme.text }]}>
-                Рост (см)
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    color: theme.text,
-                    borderColor: theme.outline,
-                    backgroundColor: theme.surfaceElevated,
-                  },
-                ]}
-                value={profile.heightCm.toString()}
-                onChangeText={(text: string) =>
-                  onProfileChange({ ...profile, heightCm: parseInt(text) || 0 })
-                }
-                keyboardType="number-pad"
-                placeholder="170"
-                placeholderTextColor={theme.muted}
-              />
-            </View>
-
-            <View style={[styles.field, { flex: 1 }]}>
-              <Text style={[styles.label, { color: theme.text }]}>
-                Вес (кг)
-              </Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    color: theme.text,
-                    borderColor: theme.outline,
-                    backgroundColor: theme.surfaceElevated,
-                  },
-                ]}
-                value={profile.weightKg.toString()}
-                onChangeText={(text: string) =>
-                  onProfileChange({ ...profile, weightKg: parseInt(text) || 0 })
-                }
-                keyboardType="number-pad"
-                placeholder="70"
-                placeholderTextColor={theme.muted}
-              />
-            </View>
-          </View>
-
-          <View style={styles.field}>
-            <Text style={[styles.label, { color: theme.text }]}>
-              Дополнительная информация
-            </Text>
-            <TextInput
-              style={[
-                styles.input,
-                styles.textArea,
-                {
-                  color: theme.text,
-                  borderColor: theme.outline,
-                  backgroundColor: theme.surfaceElevated,
-                },
-              ]}
-              value={profile.additionalInfo || ""}
-              onChangeText={(text: string) =>
-                onProfileChange({ ...profile, additionalInfo: text })
-              }
-              placeholder="Аллергии, особенности здоровья, диета..."
-              placeholderTextColor={theme.muted}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-            />
-          </View>
-        </View>
-      ) : (
-        <View style={styles.infoList}>
-          {profile.name ? (
-            <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
-              <MaterialIcons name="person" size={18} color={theme.muted} />
-              <View style={styles.infoContent}>
-                <Text style={[styles.infoLabel, { color: theme.muted }]}>
-                  Имя
-                </Text>
-                <Text style={[styles.infoValue, { color: theme.text }]}>
-                  {profile.name}
-                </Text>
-              </View>
-            </View>
-          ) : null}
-
-          <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
-            <MaterialIcons name="cake" size={18} color={theme.muted} />
-            <View style={styles.infoContent}>
-              <Text style={[styles.infoLabel, { color: theme.muted }]}>
-                Возраст
-              </Text>
-              <Text style={[styles.infoValue, { color: theme.text }]}>
-                {profile.age} лет
-              </Text>
-            </View>
-          </View>
-
-          <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
-            <MaterialIcons name="wc" size={18} color={theme.muted} />
-            <View style={styles.infoContent}>
-              <Text style={[styles.infoLabel, { color: theme.muted }]}>
-                Пол
-              </Text>
-              <Text style={[styles.infoValue, { color: theme.text }]}>
-                {profile.gender === "male" ? "Мужской" : "Женский"}
-              </Text>
-            </View>
-          </View>
-
-          <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
-            <MaterialIcons name="straighten" size={18} color={theme.muted} />
-            <View style={styles.infoContent}>
-              <Text style={[styles.infoLabel, { color: theme.muted }]}>
-                Рост
-              </Text>
-              <Text style={[styles.infoValue, { color: theme.text }]}>
-                {profile.heightCm} см
-              </Text>
-            </View>
-          </View>
-
-          <View style={[styles.infoRow, { borderBottomColor: theme.border }]}>
-            <MaterialIcons
-              name="fitness-center"
-              size={18}
-              color={theme.muted}
-            />
-            <View style={styles.infoContent}>
-              <Text style={[styles.infoLabel, { color: theme.muted }]}>
-                Вес
-              </Text>
-              <Text style={[styles.infoValue, { color: theme.text }]}>
-                {profile.weightKg} кг
-              </Text>
-            </View>
-          </View>
-
-          {profile.additionalInfo ? (
-            <View style={styles.infoRow}>
-              <MaterialIcons name="info" size={18} color={theme.muted} />
-              <View style={styles.infoContent}>
-                <Text style={[styles.infoLabel, { color: theme.muted }]}>
-                  Дополнительно
-                </Text>
-                <Text style={[styles.infoValue, { color: theme.text }]}>
-                  {profile.additionalInfo}
-                </Text>
-              </View>
-            </View>
-          ) : null}
-        </View>
-      )}
+      <ProfileValue
+        label="ИМЯ"
+        value={profile.name || "Не указано"}
+        onPress={onEdit}
+      />
+      <View style={styles.pair}>
+        <ProfileValue
+          label="ВОЗРАСТ"
+          value={`${profile.age}`}
+          onPress={onEdit}
+        />
+        <ProfileValue
+          label="ПОЛ"
+          value={profile.gender === "male" ? "Мужской" : "Женский"}
+          onPress={onEdit}
+        />
+      </View>
+      <View style={styles.pair}>
+        <ProfileValue
+          label="РОСТ"
+          value={`${profile.heightCm} см`}
+          onPress={onEdit}
+        />
+        <ProfileValue
+          label="ВЕС"
+          value={`${profile.weightKg} кг`}
+          onPress={onEdit}
+        />
+      </View>
+      <ChipGroup
+        label="ПИТАНИЕ"
+        values={profile.dietaryPreferences}
+        highlighted
+      />
+      <ChipGroup label="ЦЕЛИ" values={profile.healthGoals} />
+      <View
+        style={[styles.detailsCard, { backgroundColor: accountTheme.card }]}
+      >
+        <Text style={[styles.valueLabel, { color: accountTheme.muted }]}>
+          ДОПОЛНИТЕЛЬНАЯ ИНФОРМАЦИЯ
+        </Text>
+        <Text
+          style={[
+            styles.details,
+            {
+              color: profile.additionalInfo
+                ? accountTheme.text
+                : accountTheme.muted,
+            },
+          ]}
+        >
+          {profile.additionalInfo || "Пока не указано"}
+        </Text>
+      </View>
+      <Text style={[styles.footnote, { color: accountTheme.muted }]}>
+        Данные профиля используются для персонализации рекомендаций.
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: 20,
-    padding: 18,
-    borderWidth: 1,
-    marginBottom: 16,
-  },
   sectionHeader: {
+    alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    width: (width - 16*2 - 18*2) * 0.8,
-    marginBottom: 16,
+    marginBottom: 10,
   },
-  sectionTitle: {
-    fontFamily: "serif",
-    fontSize: 23,
-    fontWeight: "700",
-  },
-  headerActions: {
-    flexDirection: "column",
-    gap: 8,
-  },
-  actionButton: {
-    alignItems: "center",
-    borderRadius: 14,
-    height: 44,
-    justifyContent: "center",
-    width: 44,
-  },
-  form: {
-    width: "100%",
-    gap: 12,
-  },
-  field: {
-    gap: 6,
-  },
-  row: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  input: {
-    borderRadius: 14,
-    borderWidth: 1,
-    minHeight: 50,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    fontSize: 16,
-  },
-  textArea: {
-    minHeight: 96,
-    paddingTop: 12,
-  },
-  infoList: {
-    width: "100%",
-  },
-  infoRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-  },
-  infoContent: {
+  sectionLabel: { fontSize: 11, fontWeight: "700", letterSpacing: 0.1 },
+  editLink: { fontSize: 13, fontWeight: "700" },
+  valueCard: {
+    borderRadius: 18,
     flex: 1,
+    marginBottom: 12,
+    minHeight: 66,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  infoLabel: {
+  valueLabel: { fontSize: 10, fontWeight: "700" },
+  value: { fontSize: 16, fontWeight: "700", marginTop: 6 },
+  pair: { flexDirection: "row", gap: 14 },
+  groupCard: { borderRadius: 20, marginBottom: 2, minHeight: 104, padding: 16 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 13 },
+  chip: {
+    borderRadius: 17,
+    justifyContent: "center",
+    minHeight: 34,
+    paddingHorizontal: 14,
+  },
+  chipText: { fontSize: 13, fontWeight: "600" },
+  emptyValue: { fontSize: 14, paddingVertical: 7 },
+  detailsCard: { borderRadius: 20, marginTop: 2, minHeight: 132, padding: 16 },
+  details: { fontSize: 14, lineHeight: 20, marginTop: 14 },
+  footnote: {
     fontSize: 12,
-    marginBottom: 3,
+    lineHeight: 16,
+    marginBottom: 24,
+    marginTop: 15,
+    paddingRight: 22,
   },
-  infoValue: {
+  editing: { marginBottom: 24 },
+  editGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 10 },
+  input: {
+    borderRadius: 18,
+    flexBasis: "45%",
+    flexGrow: 1,
     fontSize: 16,
-    fontWeight: "600",
-    lineHeight: 21,
+    minHeight: 58,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  fullWidth: { flexBasis: "100%" },
+  genderInput: { justifyContent: "center" },
+  textArea: { minHeight: 116 },
+  editActions: {
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "flex-end",
+    marginTop: 14,
+  },
+  secondaryButton: {
+    borderRadius: 23,
+    paddingHorizontal: 18,
+    paddingVertical: 13,
+  },
+  primaryButton: {
+    borderRadius: 23,
+    paddingHorizontal: 18,
+    paddingVertical: 13,
   },
 });

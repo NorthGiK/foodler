@@ -21,7 +21,6 @@ import { useAuth } from "../api/auth";
 import { api } from "../api/client";
 import { useTheme } from "../components/ThemeContext";
 import {
-  AiCreditsCard,
   AnalyticsPreferenceCard,
   ConfirmModal,
   FamilySection,
@@ -30,6 +29,7 @@ import {
   StoreNamesSection,
   SubscriptionButton,
 } from "../components/profile";
+import { getAccountTheme } from "../components/profile/accountTheme";
 import { loadProfile, saveProfile } from "../profileStorage";
 import { StoreAliases } from "../storeAliases";
 import { UserProfile, defaultProfile } from "../types";
@@ -90,7 +90,8 @@ export function ProfileScreen({
   onSaveStoreAlias,
   onRestoreStoreAlias,
 }: Props) {
-  const { theme } = useTheme();
+  const { theme, themeName } = useTheme();
+  const accountTheme = getAccountTheme(theme, themeName);
   const styles = getStyles(theme);
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -140,9 +141,7 @@ export function ProfileScreen({
     feedback: "Обратная связь",
   };
   const menu = (items: MenuItem[]) => (
-    <View
-      style={styles.menu}
-    >
+    <View style={styles.menu}>
       {items.map((item, index) => (
         <Pressable
           key={item.route}
@@ -158,9 +157,7 @@ export function ProfileScreen({
             { opacity: pressed ? 0.68 : 1 },
           ]}
         >
-          <View
-            style={styles.menuIcon}
-          >
+          <View style={styles.menuIcon}>
             <MaterialIcons
               name={item.icon}
               color={theme.onPrimaryContainer}
@@ -168,9 +165,7 @@ export function ProfileScreen({
             />
           </View>
           <View style={styles.menuCopy}>
-            <Text style={styles.menuLabel}>
-              {item.label}
-            </Text>
+            <Text style={styles.menuLabel}>{item.label}</Text>
             <Text style={[styles.menuCaption, { color: theme.muted }]}>
               {item.caption}
             </Text>
@@ -183,7 +178,13 @@ export function ProfileScreen({
   if (route !== "home")
     return (
       <SafeAreaView
-        style={[styles.page, { backgroundColor: theme.bg }]}
+        style={[
+          styles.page,
+          {
+            backgroundColor:
+              route === "account" ? accountTheme.background : theme.bg,
+          },
+        ]}
         edges={["top"]}
       >
         <View style={styles.subHeader}>
@@ -203,7 +204,12 @@ export function ProfileScreen({
           >
             <MaterialIcons name="arrow-back" size={22} color={theme.text} />
           </Pressable>
-          <Text style={styles.subTitle}>
+          <Text
+            style={[
+              styles.subTitle,
+              { color: route === "account" ? accountTheme.text : theme.text },
+            ]}
+          >
             {screenTitle[route]}
           </Text>
           <View style={styles.backSpace} />
@@ -213,11 +219,23 @@ export function ProfileScreen({
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
           <ScrollView
-            contentContainerStyle={styles.detailContent}
+            contentContainerStyle={[
+              styles.detailContent,
+              route === "account" && {
+                backgroundColor: accountTheme.background,
+              },
+            ]}
             showsVerticalScrollIndicator={false}
           >
             {route === "account" ? (
               <>
+                <Text
+                  style={[styles.accountIntro, { color: accountTheme.muted }]}
+                >
+                  Заполните профиль — рекомендации станут точнее и полезнее для
+                  вашей семьи.
+                </Text>
+                <SubscriptionButton />
                 <ProfileInfoCard
                   profile={profile}
                   editing={editing}
@@ -226,8 +244,6 @@ export function ProfileScreen({
                   onSave={() => void saveAccount()}
                   onProfileChange={setProfile}
                 />
-                <SubscriptionButton />
-                <AiCreditsCard />
               </>
             ) : null}
             {route === "family" ? (
@@ -386,132 +402,145 @@ export function ProfileScreen({
   );
 }
 
-const getStyles = (theme: Theme) => StyleSheet.create({
-  page: { flex: 1 },
-  content: { paddingBottom: 108, paddingHorizontal: 24, paddingTop: 27 },
-  title: {
-    fontFamily: "serif",
-    fontSize: 42,
-    fontWeight: "500",
-    letterSpacing: -1.1,
-    lineHeight: 58,
-    marginBottom: 15,
-  },
-  identity: {
-    alignItems: "center",
-    borderRadius: 26,
-    borderWidth: 1,
-    flexDirection: "row",
-    padding: 18,
-  },
-  avatar: {
-    alignItems: "center",
-    borderRadius: 25,
-    height: 50,
-    justifyContent: "center",
-    width: 50,
-  },
-  avatarText: { fontFamily: "serif", fontSize: 23, fontWeight: "700" },
-  identityText: { flex: 1, marginLeft: 13 },
-  email: { fontSize: 16, fontWeight: "700" },
-  status: { fontSize: 13, marginTop: 3 },
-  section: {
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1.15,
-    marginBottom: 10,
-    marginTop: 28,
-  },
-  menu: { backgroundColor: theme.surface, borderColor: theme.border, borderRadius: 24, borderWidth: 1, overflow: "hidden" },
-  menuRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    minHeight: 78,
-    paddingHorizontal: 16,
-  },
-  menuIcon: {
-    backgroundColor: theme.primaryContainer,
-    alignItems: "center",
-    borderRadius: 14,
-    height: 44,
-    justifyContent: "center",
-    width: 44,
-  },
-  menuCopy: { flex: 1, marginHorizontal: 13 },
-  menuLabel: { color: theme.text, fontSize: 17, fontWeight: "700" },
-  menuCaption: { fontSize: 12, lineHeight: 17, marginTop: 2 },
-  logout: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 9,
-    justifyContent: "center",
-    marginTop: 22,
-    padding: 17,
-  },
-  logoutText: { fontSize: 15, fontWeight: "700" },
-  guestHero: {
-    borderRadius: 28,
-    marginTop: 2,
-    overflow: "hidden",
-    padding: 24,
-  },
-  tomato: {
-    height: 170,
-    opacity: 0.34,
-    position: "absolute",
-    right: -53,
-    top: -42,
-    width: 170,
-  },
-  guestEyebrow: {
-    color: "#F7D8B0",
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 1.1,
-  },
-  guestTitle: {
-    color: "#FFF8EC",
-    fontFamily: "serif",
-    fontSize: 29,
-    fontWeight: "700",
-    letterSpacing: -0.6,
-    lineHeight: 34,
-    marginTop: 8,
-  },
-  guestCopy: {
-    color: "#E0E7D9",
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 11,
-    paddingRight: 25,
-  },
-  guestButton: {
-    alignItems: "center",
-    alignSelf: "flex-start",
-    borderRadius: 14,
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 13,
-  },
-  guestButtonText: { fontSize: 15, fontWeight: "800" },
-  subHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 14,
-    paddingHorizontal: 24,
-    paddingTop: 18,
-    paddingBottom: 8,
-  },
-  backButton: {
-    alignItems: "center",
-    borderRadius: 20,
-    height: 40,
-    justifyContent: "center",
-    width: 40,
-  },
-  subTitle: { fontFamily:"serif", fontSize: 28, fontWeight: "600" },
-  backSpace: { flex: 1 },
-  detailContent: { padding: 24, paddingBottom: 108, paddingTop: 18 },
-});
+const getStyles = (theme: Theme) =>
+  StyleSheet.create({
+    page: { flex: 1 },
+    content: { paddingBottom: 108, paddingHorizontal: 24, paddingTop: 27 },
+    title: {
+      fontFamily: "serif",
+      fontSize: 42,
+      fontWeight: "500",
+      letterSpacing: -1.1,
+      lineHeight: 58,
+      marginBottom: 15,
+    },
+    identity: {
+      alignItems: "center",
+      borderRadius: 26,
+      borderWidth: 1,
+      flexDirection: "row",
+      padding: 18,
+    },
+    avatar: {
+      alignItems: "center",
+      borderRadius: 25,
+      height: 50,
+      justifyContent: "center",
+      width: 50,
+    },
+    avatarText: { fontFamily: "serif", fontSize: 23, fontWeight: "700" },
+    identityText: { flex: 1, marginLeft: 13 },
+    email: { fontSize: 16, fontWeight: "700" },
+    status: { fontSize: 13, marginTop: 3 },
+    section: {
+      fontSize: 11,
+      fontWeight: "800",
+      letterSpacing: 1.15,
+      marginBottom: 10,
+      marginTop: 28,
+    },
+    menu: {
+      backgroundColor: theme.surface,
+      borderColor: theme.border,
+      borderRadius: 24,
+      borderWidth: 1,
+      overflow: "hidden",
+    },
+    menuRow: {
+      alignItems: "center",
+      flexDirection: "row",
+      minHeight: 78,
+      paddingHorizontal: 16,
+    },
+    menuIcon: {
+      backgroundColor: theme.primaryContainer,
+      alignItems: "center",
+      borderRadius: 14,
+      height: 44,
+      justifyContent: "center",
+      width: 44,
+    },
+    menuCopy: { flex: 1, marginHorizontal: 13 },
+    menuLabel: { color: theme.text, fontSize: 17, fontWeight: "700" },
+    menuCaption: { fontSize: 12, lineHeight: 17, marginTop: 2 },
+    logout: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 9,
+      justifyContent: "center",
+      marginTop: 22,
+      padding: 17,
+    },
+    logoutText: { fontSize: 15, fontWeight: "700" },
+    guestHero: {
+      borderRadius: 28,
+      marginTop: 2,
+      overflow: "hidden",
+      padding: 24,
+    },
+    tomato: {
+      height: 170,
+      opacity: 0.34,
+      position: "absolute",
+      right: -53,
+      top: -42,
+      width: 170,
+    },
+    guestEyebrow: {
+      color: "#F7D8B0",
+      fontSize: 10,
+      fontWeight: "800",
+      letterSpacing: 1.1,
+    },
+    guestTitle: {
+      color: "#FFF8EC",
+      fontFamily: "serif",
+      fontSize: 29,
+      fontWeight: "700",
+      letterSpacing: -0.6,
+      lineHeight: 34,
+      marginTop: 8,
+    },
+    guestCopy: {
+      color: "#E0E7D9",
+      fontSize: 14,
+      lineHeight: 20,
+      marginTop: 11,
+      paddingRight: 25,
+    },
+    guestButton: {
+      alignItems: "center",
+      alignSelf: "flex-start",
+      borderRadius: 14,
+      flexDirection: "row",
+      gap: 10,
+      marginTop: 20,
+      paddingHorizontal: 16,
+      paddingVertical: 13,
+    },
+    guestButtonText: { fontSize: 15, fontWeight: "800" },
+    subHeader: {
+      alignItems: "center",
+      flexDirection: "row",
+      gap: 14,
+      paddingHorizontal: 24,
+      paddingTop: 18,
+      paddingBottom: 8,
+    },
+    backButton: {
+      alignItems: "center",
+      borderRadius: 20,
+      height: 40,
+      justifyContent: "center",
+      width: 40,
+    },
+    subTitle: { fontSize: 34, fontWeight: "600", letterSpacing: -0.6 },
+    backSpace: { flex: 1 },
+    detailContent: { padding: 24, paddingBottom: 108, paddingTop: 18 },
+    accountIntro: {
+      fontSize: 14,
+      lineHeight: 19,
+      marginBottom: 12,
+      maxWidth: 340,
+    },
+  });

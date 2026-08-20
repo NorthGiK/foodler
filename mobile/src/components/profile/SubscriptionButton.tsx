@@ -1,4 +1,3 @@
-import MaterialIcons from "@react-native-vector-icons/material-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { StyleSheet, Text, View } from "react-native";
@@ -7,9 +6,11 @@ import type { RootStackParamList } from "../../../App";
 import { useAuth } from "@/api/auth";
 import { useTheme } from "../ThemeContext";
 import { AnimatedPressable } from "../animations";
+import { getAccountTheme } from "./accountTheme";
 
 export function SubscriptionButton() {
-  const { theme } = useTheme();
+  const { theme, themeName } = useTheme();
+  const accountTheme = getAccountTheme(theme, themeName);
   const { isAuthenticated } = useAuth();
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -23,28 +24,20 @@ export function SubscriptionButton() {
       }
       style={({ pressed }) => [styles.wrapper, { opacity: pressed ? 0.86 : 1 }]}
     >
-      <View
-        style={[
-          styles.button,
-          { backgroundColor: theme.accent, borderColor: theme.primary },
-        ]}
-      >
-        <View
-          style={[styles.icon, { backgroundColor: theme.primaryContainer }]}
-        >
-          <MaterialIcons
-            name="auto-awesome"
-            size={22}
-            color={theme.onPrimaryContainer}
-          />
-        </View>
+      <View style={[styles.button, { backgroundColor: accountTheme.proCard }]}>
         <View style={styles.copy}>
-          <Text style={[styles.title, { color: theme.white }]}>Подписка</Text>
-          <Text style={[styles.caption, { color: theme.white }]}>
-            Больше возможностей Foodler
+          <Text style={[styles.title, { color: accountTheme.text }]}>
+            Подписка PRO
+          </Text>
+          <Text style={[styles.caption, { color: accountTheme.muted }]}>
+            Расширенная аналитика и персональные советы
           </Text>
         </View>
-        <MaterialIcons name="arrow-forward" size={22} color={theme.white} />
+        <View style={[styles.cta, { backgroundColor: accountTheme.accent }]}>
+          <Text style={[styles.ctaText, { color: accountTheme.accentText }]}>
+            Подписаться
+          </Text>
+        </View>
       </View>
     </AnimatedPressable>
   );
@@ -65,25 +58,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
-  icon: {
-    alignItems: "center",
-    borderRadius: 14,
-    height: 46,
-    justifyContent: "center",
-    width: 46,
-  },
   copy: {
     flex: 1,
   },
   title: {
-    fontFamily: "serif",
-    fontSize: 19,
+    fontSize: 21,
     fontWeight: "700",
   },
   caption: {
-    fontSize: 12,
+    fontSize: 13,
     lineHeight: 17,
     marginTop: 2,
-    opacity: 0.86,
+    maxWidth: 195,
   },
+  cta: {
+    borderRadius: 23,
+    minHeight: 46,
+    justifyContent: "center",
+    paddingHorizontal: 12,
+  },
+  ctaText: { fontSize: 14, fontWeight: "700" },
 });
