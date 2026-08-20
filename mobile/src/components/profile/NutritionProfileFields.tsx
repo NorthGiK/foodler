@@ -113,7 +113,7 @@ export function NutritionProfileFields({ value, onChange }: Props) {
   const title = picker === "goal" ? "Цель питания" : "Уровень нагрузки";
 
   return (
-    <>
+    <View style={styles.content}>
       {foodEditor(
         "Нравится в еде",
         value.likedFoods,
@@ -199,11 +199,12 @@ export function NutritionProfileFields({ value, onChange }: Props) {
           </Pressable>
         </Pressable>
       </Modal>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  content: { gap: 16 },
   field: { gap: 6 },
   label: { fontSize: 13, fontWeight: "600" },
   foodInputRow: { flexDirection: "row", gap: 8 },
