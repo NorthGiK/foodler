@@ -79,17 +79,17 @@ export const themes: Record<ThemeName, Theme> = {
     card: "#3C3836",
     card2: "#433E3C",
     border: "#665C54",
-    text: "#EBDBB2",
-    muted: "#A89984",
+    text: "#F9F5D7",
+    muted: "#D5C4A1",
 
     primary: "#D79921",
     primaryContainer: "#504945",
-    onPrimaryContainer: "#EBDBB2",
+    onPrimaryContainer: "#F9F5D7",
 
     secondary: "#98971A",
 
-    error: "#CC241D",
-    danger: "#CC241D",
+    error: "#9D0006",
+    danger: "#9D0006",
 
     outline: "#7C6F64",
     shadow: "#1D2021",

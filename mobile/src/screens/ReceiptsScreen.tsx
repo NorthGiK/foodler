@@ -1,4 +1,3 @@
-import React from "react";
 import MaterialIcons from "@react-native-vector-icons/material-icons";
 import {
   memo,
@@ -38,7 +37,6 @@ import { useTheme } from "../components/ThemeContext";
 import FullModalWindow from "@/components/FullModalWindow";
 import ScanQrButton from "@/components/ui/ScanQrButton";
 import type { Theme } from "../themes";
-import LogoBrand from "@/components/ui/LogoBrand";
 
 const basket = require("../assets/ProductBasket.png") as number;
 const EMPTY_ITEMS: ReceiptItem[] = [];
@@ -101,6 +99,7 @@ const ReceiptRow = memo(function ReceiptRow({
   storeAliases,
 }: ReceiptRowProps) {
   const { theme } = useTheme();
+  const styles = getStyles(theme);
   const storeName = getStoreDisplayName(receipt.organization, storeAliases);
 
   return (
@@ -110,25 +109,23 @@ const ReceiptRow = memo(function ReceiptRow({
       onPress={() => onPress(receipt)}
       style={({ pressed }) => [
         styles.receiptRow,
-        { borderBottomColor: theme.border, opacity: pressed ? 0.7 : 1 },
+        { opacity: pressed ? 0.7 : 1 },
       ]}
     >
-      <ReceiptPreview
-        items={items}
-        storeName={storeName}
-        totalRub={receipt.totalSumRub}
-      />
+      <View style={{flex: 1,}} >
+      <Text style={styles.semiTitle}>{receipt.ticketDate}</Text>
       <View style={styles.receiptContent}>
         <Text
           numberOfLines={1}
-          style={[styles.storeName, { color: theme.text }]}
+          style={styles.storeName}
         >
           {storeName}
         </Text>
-        <Text style={[styles.receiptSum, { color: theme.text }]}>
-          {fmtRub(receipt.totalSumRub)}
-        </Text>
       </View>
+      </View>
+      <Text style={styles.receiptSum}>
+        {fmtRub(receipt.totalSumRub, false)}
+      </Text>
       <MaterialIcons name="chevron-right" size={25} color={theme.muted} />
     </Pressable>
   );
@@ -144,6 +141,7 @@ export function ReceiptsScreen({
   scanRequestId = 0,
 }: Props) {
   const { theme } = useTheme();
+  const styles = getStyles(theme);
   const [refreshing, setRefreshing] = useState(false);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [capturing, setCapturing] = useState(false);
@@ -284,7 +282,7 @@ export function ReceiptsScreen({
   );
 
   return (
-    <View style={[styles.screen, { backgroundColor: theme.bg }]}>
+    <View style={styles.screen}>
       <FlatList
         data={listItems}
         keyExtractor={(item) => item.key}
@@ -295,9 +293,11 @@ export function ReceiptsScreen({
         ]}
         ListHeaderComponent={
           <View>
-            <LogoBrand />
             <Text style={[styles.title, { color: theme.text }]}>
-              Ваши покупки
+              Покупки
+            </Text>
+            <Text style={styles.semiTitle} >
+              Сохраняйте покупки и следите за расходами
             </Text>
             <ScanQrButton
               onPress={() => {
@@ -359,7 +359,7 @@ export function ReceiptsScreen({
               />
             ) : (
               <>
-                <Text style={[styles.sheetTitle, { color: theme.text }]}>
+                <Text style={styles.sheetTitle}>
                   Загрузить QR
                 </Text>
                 <Text style={[styles.sheetCopy, { color: theme.muted }]}>
@@ -402,6 +402,9 @@ function CaptureButton({
   onPress: () => void;
   themeColor: string;
 }) {
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -434,6 +437,7 @@ function QrErrorState({
   onClose: () => void;
   theme: Theme;
 }) {
+  const styles = getStyles(theme);
   return (
     <View>
       <MaterialIcons
@@ -490,37 +494,45 @@ function QrErrorState({
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1 },
+const getStyles = (theme: Theme) => StyleSheet.create({
+  screen: { flex: 1, backgroundColor: theme.bg },
   list: { paddingBottom: 100, paddingHorizontal: 24, paddingTop: 26 },
   emptyList: { flexGrow: 1 },
   brand: { fontSize: 16, fontWeight: "700", letterSpacing: -0.4 },
   title: {
-    fontFamily: "serif",
-    fontSize: 42,
-    fontWeight: "500",
-    letterSpacing: -2.1,
-    lineHeight: 58,
+    fontSize: 34,
+    fontWeight: "700",
+    letterSpacing: 0,
     marginTop: 4,
+  },
+  semiTitle: {
+    fontSize: 14,
+    color: theme.muted,
   },
   dayTitle: { fontSize: 16, fontWeight: "700", marginBottom: 7, marginTop: 3 },
   receiptRow: {
     alignItems: "center",
     borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.border,
+    borderRadius: 20,
+    backgroundColor: theme.primaryContainer,
     flexDirection: "row",
-    minHeight: 137,
     paddingBottom: 17,
     paddingTop: 12,
   },
   receiptContent: { flex: 1, justifyContent: "center" },
   storeName: {
-    fontFamily: "serif",
-    fontSize: 23,
+    fontSize: 17,
+    marginLeft: 17,
     fontWeight: "700",
-    letterSpacing: -0.8,
     marginBottom: 4,
+    color: theme.text
   },
-  receiptSum: { fontFamily: "serif", fontSize: 27, letterSpacing: -1.3 },
+  receiptSum: {
+    fontSize: 23,
+    letterSpacing: -1.3,
+    color: theme.text,
+  },
   empty: {
     alignItems: "center",
     flex: 1,
@@ -557,8 +569,9 @@ const styles = StyleSheet.create({
   sheetHandle: { alignSelf: "center", borderRadius: 4, height: 5, width: 48 },
   sheetTitle: {
     fontFamily: "serif",
-    fontSize: 35,
+    fontSize: 16,
     fontWeight: "600",
+    color: theme.text,
     letterSpacing: -1.2,
     marginTop: 27,
     textAlign: "center",
