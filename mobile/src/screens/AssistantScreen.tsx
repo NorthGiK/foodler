@@ -30,6 +30,7 @@ import { useTheme } from "../components/ThemeContext";
 import { ReportCard } from "../components/ui";
 import type { FamilyMember, Receipt, ReceiptItem } from "../types";
 import { useAuth } from "@/api/auth";
+import { getAvaibleCredits } from "@/api/client";
 import { analyticsEvents } from "@/analytics/facade";
 import type { MaterialIconName } from "../components/icons";
 import FullModalWindow from "@/components/FullModalWindow";
@@ -53,6 +54,11 @@ interface AssistantAction {
   action: AiActionType;
 }
 
+interface CreditsBalance {
+  remaining: number;
+  limit: number;
+}
+
 export function AssistantScreen({ db, receipts, joinedItems }: Props) {
   const { theme } = useTheme();
   const { isAuthenticated } = useAuth();
@@ -67,10 +73,36 @@ export function AssistantScreen({ db, receipts, joinedItems }: Props) {
   const [showAuthSheet, setShowAuthSheet] = useState(false);
   const [errorKind, setErrorKind] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [credits, setCredits] = useState<CreditsBalance | null>(null);
+  const [creditsLoading, setCreditsLoading] = useState(true);
+  const [creditsLoadError, setCreditsLoadError] = useState(false);
 
   useEffect(() => {
     void analyticsEvents.aiScreenViewed();
   }, []);
+
+  const loadCredits = useCallback(async () => {
+    if (!isAuthenticated) {
+      setCredits(null);
+      setCreditsLoading(false);
+      setCreditsLoadError(false);
+      return;
+    }
+
+    setCreditsLoading(true);
+    setCreditsLoadError(false);
+    try {
+      setCredits(await getAvaibleCredits());
+    } catch {
+      setCreditsLoadError(true);
+    } finally {
+      setCreditsLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    void loadCredits();
+  }, [loadCredits]);
 
   const loadRecentReports = useCallback(async () => {
     if (!db) return;
@@ -174,6 +206,7 @@ export function AssistantScreen({ db, receipts, joinedItems }: Props) {
 
         openReport(report);
         await loadRecentReports();
+        void loadCredits();
         void analyticsEvents.ai("ai_action_succeeded", action, startedAt);
       } catch (error: unknown) {
         void analyticsEvents.ai("ai_action_failed", action, startedAt, error);
@@ -185,7 +218,15 @@ export function AssistantScreen({ db, receipts, joinedItems }: Props) {
         setLoading(false);
       }
     },
-    [db, receipts, joinedItems, isAuthenticated, loadRecentReports, openReport],
+    [
+      db,
+      receipts,
+      joinedItems,
+      isAuthenticated,
+      loadCredits,
+      loadRecentReports,
+      openReport,
+    ],
   );
 
   const handleActionPress = useCallback(
@@ -289,7 +330,7 @@ export function AssistantScreen({ db, receipts, joinedItems }: Props) {
     },
   ];
 
-  const cardStyles = useStaggeredFadeIn(4, 60);
+  const cardStyles = useStaggeredFadeIn(5, 60);
 
   if (viewMode === "result") {
     return (
@@ -361,6 +402,18 @@ export function AssistantScreen({ db, receipts, joinedItems }: Props) {
       </Animated.View>
 
       <Animated.View style={cardStyles[1]}>
+        {isAuthenticated && (
+          <AiCreditsSummary
+            balance={credits}
+            loading={creditsLoading}
+            loadError={creditsLoadError}
+            onRetry={() => void loadCredits()}
+            theme={theme}
+          />
+        )}
+      </Animated.View>
+
+      <Animated.View style={cardStyles[2]}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Общий анализ"
@@ -391,7 +444,7 @@ export function AssistantScreen({ db, receipts, joinedItems }: Props) {
         </Pressable>
       </Animated.View>
 
-      <Animated.View style={[cardStyles[2], { marginTop: 22 }]}>
+      <Animated.View style={[cardStyles[3], { marginTop: 22 }]}>
         <View style={styles.actionList}>
           {actions.map((action) => (
             <ActionRow
@@ -406,7 +459,7 @@ export function AssistantScreen({ db, receipts, joinedItems }: Props) {
         </View>
       </Animated.View>
 
-      <Animated.View style={cardStyles[3]}>
+      <Animated.View style={cardStyles[4]}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={
@@ -515,6 +568,93 @@ export function AssistantScreen({ db, receipts, joinedItems }: Props) {
         theme={theme}
       />
     </ScrollView>
+  );
+}
+
+function AiCreditsSummary({
+  balance,
+  loading,
+  loadError,
+  onRetry,
+  theme,
+}: {
+  balance: CreditsBalance | null;
+  loading: boolean;
+  loadError: boolean;
+  onRetry: () => void;
+  theme: ReturnType<typeof useTheme>["theme"];
+}) {
+  const remaining = balance?.remaining ?? 0;
+  const limit = balance?.limit ?? 0;
+  const isEmpty = !loading && !loadError && remaining === 0;
+  const accent = isEmpty ? theme.error : theme.primary;
+  const progress = limit > 0 ? Math.min(remaining / limit, 1) : 0;
+
+  return (
+    <View
+      accessibilityLabel="Доступные AI-действия"
+      style={[
+        styles.creditsCard,
+        {
+          backgroundColor: theme.primary + "0D",
+          borderColor: theme.primary + "2B",
+        },
+      ]}
+    >
+      <View style={styles.creditsHeader}>
+        <View style={[styles.creditsIcon, { backgroundColor: accent + "18" }]}>
+          <MaterialIcons name="auto-awesome" size={23} color={accent} />
+        </View>
+        <View style={styles.creditsCopy}>
+          <Text style={[styles.creditsLabel, { color: theme.text }]}>
+            Доступные действия
+          </Text>
+          {loading ? (
+            <Text style={[styles.creditsHint, { color: theme.muted }]}>
+              Обновляем баланс…
+            </Text>
+          ) : loadError ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Повторить загрузку AI-действий"
+              onPress={onRetry}
+              hitSlop={8}
+            >
+              <Text style={[styles.creditsRetry, { color: theme.primary }]}>
+                Не удалось обновить · Повторить
+              </Text>
+            </Pressable>
+          ) : (
+            <Text style={[styles.creditsHint, { color: theme.muted }]}>
+              из {limit} за текущий период
+            </Text>
+          )}
+        </View>
+        {!loading && !loadError && (
+          <View
+            style={[styles.creditsBadge, { backgroundColor: accent + "18" }]}
+          >
+            <Text style={[styles.creditsNumber, { color: accent }]}>
+              {remaining}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {!loading && !loadError && (
+        <View
+          accessibilityLabel={`${remaining} из ${limit} AI-действий доступно`}
+          style={[styles.creditsTrack, { backgroundColor: theme.border }]}
+        >
+          <View
+            style={[
+              styles.creditsFill,
+              { backgroundColor: accent, width: `${progress * 100}%` },
+            ]}
+          />
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -682,6 +822,69 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     paddingHorizontal: 22,
     paddingTop: 0,
+  },
+  creditsCard: {
+    borderRadius: 22,
+    borderWidth: 1,
+    marginBottom: 16,
+    marginTop: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+  },
+  creditsHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+  },
+  creditsIcon: {
+    alignItems: "center",
+    borderRadius: 20,
+    height: 40,
+    justifyContent: "center",
+    marginRight: 12,
+    width: 40,
+  },
+  creditsCopy: {
+    flex: 1,
+  },
+  creditsLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    lineHeight: 21,
+  },
+  creditsHint: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 1,
+  },
+  creditsRetry: {
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 18,
+    marginTop: 1,
+  },
+  creditsBadge: {
+    alignItems: "center",
+    borderRadius: 18,
+    height: 36,
+    justifyContent: "center",
+    minWidth: 42,
+    paddingHorizontal: 10,
+  },
+  creditsNumber: {
+    fontSize: 20,
+    fontWeight: "700",
+    letterSpacing: -0.4,
+  },
+  creditsTrack: {
+    borderRadius: 2,
+    height: 4,
+    marginLeft: 52,
+    marginTop: 12,
+    overflow: "hidden",
+  },
+  creditsFill: {
+    borderRadius: 2,
+    height: "100%",
   },
   heroImage: {
     alignSelf: "center",

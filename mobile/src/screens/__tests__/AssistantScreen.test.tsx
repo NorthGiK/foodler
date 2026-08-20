@@ -5,13 +5,18 @@ import { AssistantScreen } from "../AssistantScreen";
 
 const mockNavigate = jest.fn();
 const mockAiScreenViewed = jest.fn().mockResolvedValue(undefined);
+const mockGetAvaibleCredits = jest.fn();
+const mockAuth = { isAuthenticated: false };
 
 jest.mock("@react-native-vector-icons/material-icons", () => () => null);
 jest.mock("@react-navigation/native", () => ({
   useNavigation: () => ({ navigate: mockNavigate }),
 }));
 jest.mock("@/api/auth", () => ({
-  useAuth: () => ({ isAuthenticated: false }),
+  useAuth: () => mockAuth,
+}));
+jest.mock("@/api/client", () => ({
+  getAvaibleCredits: () => mockGetAvaibleCredits(),
 }));
 jest.mock("@/analytics/facade", () => ({
   analyticsEvents: {
@@ -64,8 +69,10 @@ jest.mock("../../ai/storage", () => ({
 
 describe("AssistantScreen", () => {
   beforeEach(() => {
+    mockAuth.isAuthenticated = false;
     mockNavigate.mockClear();
     mockAiScreenViewed.mockClear();
+    mockGetAvaibleCredits.mockReset();
   });
 
   async function renderScreen() {
@@ -95,6 +102,45 @@ describe("AssistantScreen", () => {
     expect(
       view.root.findAllByProps({ accessibilityLabel: "Оценить покупки" }),
     ).toHaveLength(0);
+    expect(
+      view.root.findAllByProps({ accessibilityLabel: "Доступные AI-действия" }),
+    ).toHaveLength(0);
+  });
+
+  it("shows the authenticated user's available AI actions before general analysis", async () => {
+    mockAuth.isAuthenticated = true;
+    mockGetAvaibleCredits.mockResolvedValue({ remaining: 7, limit: 10 });
+
+    const view = await renderScreen();
+
+    expect(mockGetAvaibleCredits).toHaveBeenCalledTimes(1);
+    expect(
+      view.root.findByProps({
+        accessibilityLabel: "7 из 10 AI-действий доступно",
+      }),
+    ).toBeTruthy();
+  });
+
+  it("retries loading the authenticated user's AI actions after an error", async () => {
+    mockAuth.isAuthenticated = true;
+    mockGetAvaibleCredits
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({ remaining: 4, limit: 10 });
+
+    const view = await renderScreen();
+
+    await act(async () => {
+      view.root
+        .findByProps({ accessibilityLabel: "Повторить загрузку AI-действий" })
+        .props.onPress();
+    });
+
+    expect(mockGetAvaibleCredits).toHaveBeenCalledTimes(2);
+    expect(
+      view.root.findByProps({
+        accessibilityLabel: "4 из 10 AI-действий доступно",
+      }),
+    ).toBeTruthy();
   });
 
   it("opens the login sheet for a guest and closes it without navigation", async () => {
