@@ -133,13 +133,6 @@ export function ProfileScreen({
     await api.sendFeedback(email, text, images);
     void analyticsEvents.feedbackSubmitted();
   };
-  const screenTitle: Record<Exclude<Route, "home">, string> = {
-    account: "Аккаунт",
-    family: "Семья",
-    privacy: "Приватность и данные",
-    stores: "Настройки чеков",
-    feedback: "Обратная связь",
-  };
   const menu = (items: MenuItem[]) => (
     <View style={styles.menu}>
       {items.map((item, index) => (
@@ -187,33 +180,22 @@ export function ProfileScreen({
         ]}
         edges={["top"]}
       >
-        <View style={styles.subHeader}>
-          <Pressable
-            accessibilityLabel="Назад к профилю"
-            onPress={() => {
-              setEditing(false);
-              setRoute("home");
-            }}
-            style={({ pressed }) => [
-              styles.backButton,
-              {
-                backgroundColor: theme.surfaceElevated,
-                opacity: pressed ? 0.68 : 1,
-              },
-            ]}
-          >
-            <MaterialIcons name="arrow-back" size={22} color={theme.text} />
-          </Pressable>
-          <Text
-            style={[
-              styles.subTitle,
-              { color: route === "account" ? accountTheme.text : theme.text },
-            ]}
-          >
-            {screenTitle[route]}
-          </Text>
-          <View style={styles.backSpace} />
-        </View>
+        <Pressable
+          accessibilityLabel="Назад к профилю"
+          onPress={() => {
+            setEditing(false);
+            setRoute("home");
+          }}
+          style={({ pressed }) => [
+            styles.backButton,
+            {
+              backgroundColor: theme.surfaceElevated,
+              opacity: pressed ? 0.68 : 1,
+            },
+          ]}
+        >
+          <MaterialIcons name="arrow-back" size={22} color={theme.text} />
+        </Pressable>
         <KeyboardAvoidingView
           style={styles.page}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -519,24 +501,16 @@ const getStyles = (theme: Theme) =>
       paddingVertical: 13,
     },
     guestButtonText: { fontSize: 15, fontWeight: "800" },
-    subHeader: {
-      alignItems: "center",
-      flexDirection: "row",
-      gap: 14,
-      paddingHorizontal: 24,
-      paddingTop: 18,
-      paddingBottom: 8,
-    },
     backButton: {
       alignItems: "center",
       borderRadius: 20,
       height: 40,
       justifyContent: "center",
+      marginLeft: 24,
+      marginTop: 10,
       width: 40,
     },
-    subTitle: { fontSize: 34, fontWeight: "600", letterSpacing: -0.6 },
-    backSpace: { flex: 1 },
-    detailContent: { padding: 24, paddingBottom: 108, paddingTop: 18 },
+    detailContent: { padding: 24, paddingBottom: 108, paddingTop: 12 },
     accountIntro: {
       fontSize: 14,
       lineHeight: 19,

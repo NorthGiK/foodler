@@ -1,5 +1,6 @@
 import { act, create } from "react-test-renderer";
 import React from "react";
+import { Text } from "react-native";
 
 import { ProfileScreen } from "../ProfileScreen";
 
@@ -112,5 +113,10 @@ describe("ProfileScreen menu", () => {
     expect(
       view!.root.findByProps({ accessibilityLabel: "Назад к профилю" }),
     ).toBeTruthy();
+    expect(
+      view!.root
+        .findAllByType(Text)
+        .filter((node) => node.props.children === "Аккаунт"),
+    ).toHaveLength(0);
   });
 });
