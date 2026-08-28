@@ -1,16 +1,14 @@
 {
   "version": 2,
   "workspace": "/home/vld/shet/foodler",
-  "createdAt": "2026-08-28T16:34:21.666Z",
+  "createdAt": "2026-08-28T16:35:00.974Z",
   "git": {
     "available": true,
     "branch": "main",
     "status": [
       " M .gitignore",
-      "?? .lattice/index/index.json",
-      "?? .lattice/sidecar/sidecar.lock",
-      "?? .lattice/sidecar/state.json",
-      "?? .lattice/sidecar/telemetry.json"
+      " M .lattice/sidecar/state.json",
+      " M .lattice/sidecar/telemetry.json"
     ]
   },
   "files": [
