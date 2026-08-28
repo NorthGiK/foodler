@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "protocolVersion": 1,
+  "repositoryId": "repo:6088c33622d41883ce267eae2a18b48177bf4718e0ac793f9373149f835c59d9",
+  "workspace": "/home/vld/shet/foodler",
+  "pid": 218248,
+  "status": "ready",
+  "updatedAt": "2026-08-28T16:34:45.055Z",
+  "indexedFiles": 185,
+  "mode": "mcp-assisted-context",
+  "telemetry": {
+    "startupMs": 6,
+    "attachCount": 1,
+    "lastAttachMs": 1.2035159999999223,
+    "initialIndexMs": 2828,
+    "incrementalInvalidationMs": 2545,
+    "nativeCodexProcessLifetimeMs": null,
+    "bridgeRequestCount": 1,
+    "bridgeInitializeCount": 1,
+    "contextBytesSupplied": 5609,
+    "contextEstimatedTokensSupplied": 1403,
+    "contextGrantCount": 1,
+    "activeContextGrantCount": 1,
+    "errors": []
+  }
+}

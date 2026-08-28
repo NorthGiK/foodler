@@ -4,6 +4,7 @@
 *.log
 
 # Local environments and secrets
+.latice
 **/.env
 **/.env.*
 !**/.env.example
