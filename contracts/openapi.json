@@ -430,6 +430,78 @@
         "title": "AnalyticsEventsRequest",
         "type": "object"
       },
+      "AnalyticsIdentityMode": {
+        "enum": [
+          "identified",
+          "anonymous"
+        ],
+        "title": "AnalyticsIdentityMode",
+        "type": "string"
+      },
+      "AnalyticsIdentityModeRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/AnalyticsIdentityMode"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "title": "AnalyticsIdentityModeRequest",
+        "type": "object"
+      },
+      "AnalyticsIdentityResolveRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "deviceId": {
+            "maxLength": 128,
+            "minLength": 16,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Deviceid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "deviceId"
+        ],
+        "title": "AnalyticsIdentityResolveRequest",
+        "type": "object"
+      },
+      "AnalyticsIdentityResponse": {
+        "properties": {
+          "accountAnalyticsId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accountanalyticsid"
+          },
+          "deviceAnalyticsId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deviceanalyticsid"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/AnalyticsIdentityMode"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "title": "AnalyticsIdentityResponse",
+        "type": "object"
+      },
       "AnalyticsIngestResponse": {
         "properties": {
           "accepted": {
@@ -2405,6 +2477,9 @@
             "title": "Analyticsenabled",
             "type": "boolean"
           },
+          "analyticsIdentityMode": {
+            "$ref": "#/components/schemas/AnalyticsIdentityMode"
+          },
           "createdAt": {
             "format": "date-time",
             "title": "Createdat",
@@ -2440,6 +2515,7 @@
           "email",
           "premium",
           "analyticsEnabled",
+          "analyticsIdentityMode",
           "createdAt"
         ],
         "title": "UserResponse",
@@ -3438,6 +3514,7 @@
     },
     "/api/product-analytics/events": {
       "post": {
+        "description": "Deprecated: Firebase SDKs deliver telemetry directly to Firebase.",
         "operationId": "ingest_events_api_product_analytics_events_post",
         "requestBody": {
           "content": {
@@ -3482,8 +3559,101 @@
         ]
       }
     },
+    "/api/product-analytics/identity-mode": {
+      "put": {
+        "operationId": "set_identity_mode_api_product_analytics_identity_mode_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalyticsIdentityModeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsIdentityResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Identity Mode",
+        "tags": [
+          "Product Analytics"
+        ]
+      }
+    },
+    "/api/product-analytics/identity/resolve": {
+      "post": {
+        "operationId": "resolve_identity_api_product_analytics_identity_resolve_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalyticsIdentityResolveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsIdentityResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Resolve Identity",
+        "tags": [
+          "Product Analytics"
+        ]
+      }
+    },
     "/api/product-analytics/preference": {
       "put": {
+        "description": "Deprecated boolean preference mapped to the account identity mode.\n\nGuests are permanently anonymous and this endpoint no longer stores a\nper-installation preference.",
         "operationId": "set_preference_api_product_analytics_preference_put",
         "requestBody": {
           "content": {

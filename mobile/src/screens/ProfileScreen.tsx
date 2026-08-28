@@ -237,7 +237,8 @@ export function ProfileScreen({
             ) : null}
             {route === "privacy" ? (
               <AnalyticsPreferenceCard
-                accountEnabled={user?.analyticsEnabled}
+                accountMode={user?.analyticsIdentityMode}
+                isAuthenticated={isAuthenticated}
                 onSynced={refreshUser}
               />
             ) : null}
@@ -366,6 +367,10 @@ export function ProfileScreen({
               НАСТРОЙКИ ПРИЛОЖЕНИЯ
             </Text>
             {menu(commonMenu)}
+            <Text style={[styles.section, { color: theme.secondary }]}>
+              ПРИВАТНОСТЬ
+            </Text>
+            <AnalyticsPreferenceCard isAuthenticated={false} />
           </>
         )}
       </ScrollView>

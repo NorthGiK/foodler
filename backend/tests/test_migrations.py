@@ -136,14 +136,14 @@ def test_hardening_migrations_upgrade_previous_schema_and_data(tmp_path):
     assert {
         "ai_credit_balances",
         "rate_limit_buckets",
-        "analytics_installations",
-        "analytics_events",
     } <= set(inspector.get_table_names())
     assert "code_hash" in {c["name"] for c in inspector.get_columns("email_codes_storage")}
     assert "token_hash" in {c["name"] for c in inspector.get_columns("refresh_tokens")}
     assert "auth_version" in {c["name"] for c in inspector.get_columns("users")}
     assert "provider" in {c["name"] for c in inspector.get_columns("subscriptions")}
-    assert "analytics_enabled" in {c["name"] for c in inspector.get_columns("users")}
+    user_columns = {c["name"] for c in inspector.get_columns("users")}
+    assert "analytics_enabled" not in user_columns
+    assert "analytics_identity_mode" in user_columns
     receipt_date = next(c for c in inspector.get_columns("receipts") if c["name"] == "date")
     assert receipt_date["nullable"] is False
     subscription_indexes = {index["name"] for index in inspector.get_indexes("subscriptions")}
@@ -165,8 +165,8 @@ def test_hardening_migrations_upgrade_previous_schema_and_data(tmp_path):
         legacy_subscription = connection.execute(
             sa.text("SELECT provider FROM subscriptions WHERE user_id = 'u1'")
         ).scalar_one()
-        analytics_enabled = connection.execute(
-            sa.text("SELECT analytics_enabled FROM users WHERE id = 'u1'")
+        analytics_identity_mode = connection.execute(
+            sa.text("SELECT analytics_identity_mode FROM users WHERE id = 'u1'")
         ).scalar_one()
         user_created_at = connection.execute(
             sa.text("SELECT created_at FROM users WHERE id = 'u1'")
@@ -174,7 +174,7 @@ def test_hardening_migrations_upgrade_previous_schema_and_data(tmp_path):
     assert receipt == ("2026-01-02", 1234, "2024-02-03 04:05:06")
     assert item == ("kg", 456)
     assert legacy_subscription == "legacy"
-    assert analytics_enabled == 1
+    assert analytics_identity_mode == "identified"
     assert user_created_at == "2024-01-02 03:04:05"
     engine.dispose()
 
@@ -196,12 +196,10 @@ def test_migrations_create_schema_for_empty_database(tmp_path):
         "ai_credit_usage",
         "ai_credit_balances",
         "rate_limit_buckets",
-        "analytics_installations",
-        "analytics_events",
     } <= set(inspector.get_table_names())
     with engine.connect() as connection:
         assert connection.execute(sa.text("SELECT version_num FROM alembic_version")).scalar_one() == (
-            "e7f8a9b0c123"  # pragma: allowlist secret
+            "f8a9b0c1d234"  # pragma: allowlist secret
         )
     assert {"action", "snapshot", "response"} <= {
         column["name"] for column in inspector.get_columns("ai_reports")
@@ -209,13 +207,56 @@ def test_migrations_create_schema_for_empty_database(tmp_path):
     assert {"response", "created_at"} <= {
         column["name"] for column in inspector.get_columns("ai_cache")
     }
-    analytics_event_indexes = {index["name"] for index in inspector.get_indexes("analytics_events")}
-    assert {
-        "ix_analytics_events_name_occurred",
-        "ix_analytics_events_user_occurred",
-        "ix_analytics_events_installation_occurred",
-        "ix_analytics_events_session_occurred",
-    } <= analytics_event_indexes
+    assert "analytics_identity_mode" in {c["name"] for c in inspector.get_columns("users")}
+    assert "analytics_installations" not in inspector.get_table_names()
+    assert "analytics_events" not in inspector.get_table_names()
+    engine.dispose()
+
+
+def test_firebase_analytics_migration_preserves_preference_and_downgrades(tmp_path):
+    database = tmp_path / "analytics-identity.sqlite"
+    url = f"sqlite:///{database}"
+    config = Config("alembic.ini")
+    config.attributes["database_url"] = url
+    command.upgrade(config, "e7f8a9b0c123")
+    engine = create_engine(url)
+    with engine.begin() as connection:
+        connection.execute(
+            sa.text(
+                "INSERT INTO users (id, email, password_hash, premium, analytics_enabled, created_at) "
+                "VALUES ('identified', 'identified@example.invalid', 'hash', 0, 1, CURRENT_TIMESTAMP), "
+                "('anonymous', 'anonymous@example.invalid', 'hash', 0, 0, CURRENT_TIMESTAMP)"
+            )
+        )
+
+    command.upgrade(config, "head")
+    inspector = inspect(engine)
+    assert "analytics_enabled" not in {column["name"] for column in inspector.get_columns("users")}
+    assert "analytics_events" not in inspector.get_table_names()
+    assert "analytics_installations" not in inspector.get_table_names()
+    with engine.connect() as connection:
+        modes = {
+            row.id: row.analytics_identity_mode
+            for row in connection.execute(
+                sa.text("SELECT id, analytics_identity_mode FROM users")
+            )
+        }
+    assert modes == {"identified": "identified", "anonymous": "anonymous"}
+
+    command.downgrade(config, "e7f8a9b0c123")
+    inspector = inspect(engine)
+    assert {"analytics_installations", "analytics_events"} <= set(inspector.get_table_names())
+    assert "analytics_identity_mode" not in {column["name"] for column in inspector.get_columns("users")}
+    with engine.connect() as connection:
+        preferences = {
+            row.id: row.analytics_enabled
+            for row in connection.execute(
+                sa.text("SELECT id, analytics_enabled FROM users")
+            )
+        }
+        event_count = connection.execute(sa.text("SELECT COUNT(*) FROM analytics_events")).scalar_one()
+    assert preferences == {"identified": 1, "anonymous": 0}
+    assert event_count == 0
     engine.dispose()
 
 

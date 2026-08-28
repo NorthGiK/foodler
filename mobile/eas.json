@@ -6,20 +6,23 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": { "EXPO_PUBLIC_BUILD_CHANNEL": "development" }
     },
     "preview": {
       "android": {
         "buildType": "apk"
       },
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": { "EXPO_PUBLIC_BUILD_CHANNEL": "preview" }
     },
     "production": {
       "autoIncrement": true,
       "android": {
         "autoIncrement": "version",
         "buildType": "apk"
-      }
+      },
+      "env": { "EXPO_PUBLIC_BUILD_CHANNEL": "production" }
     }
   }
 }

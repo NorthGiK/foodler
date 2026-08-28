@@ -24,3 +24,4 @@ landing/
 mobile/dist/
 mobile/android/
 backend/*.db
+mobile/google-services.json

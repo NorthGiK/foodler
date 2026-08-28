@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isLoading) {
-      void analyticsTriggers.resolvedAuth(user?.analyticsEnabled);
+      void analyticsTriggers.resolvedAuth(user?.analyticsIdentityMode);
     }
   }, [isLoading, user]);
 
@@ -160,6 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(async () => {
+    await analyticsTriggers.resolvedAuth();
     await clearTokens();
     setUser(null);
     void analyticsEvents.auth("logout");

@@ -10,24 +10,27 @@ Mobile — Expo/React Native приложение с локальной SQLite �
 AsyncStorage, а Foodler API вызывается через единый типизированный transport.
 
 Backend — FastAPI-приложение с async SQLAlchemy. Оно отвечает за аккаунты,
-серверную копию чеков, подписки, базу продуктов, аналитику и AI-запросы.
+серверную копию чеков, подписки, базу продуктов, Firebase identity и AI-запросы.
 Внешние сервисы (проверка чеков, LLM, email и YooKassa) находятся за отдельными
 адаптерами с timeout и явным преобразованием ошибок. HTTP-вызовы проверки чеков
 и LLM используют общий process-local connection pool; SMTP и YooKassa
 используют собственные клиенты. Все адаптеры подменяются в тестах.
 
-Product analytics is a separate minimised event stream. Mobile queues events
-only after policy consent; backend hashes installation IDs and enforces
-account-wide opt-out/anonymization. Aggregate reporting is read-only and must
-not expose raw identifiers or complete event properties; reports may aggregate
-only specifically allowlisted scalar dimensions such as tab, action and plan.
+После принятия политики mobile отправляет минимизированную телеметрию напрямую
+в Firebase Analytics и Crashlytics. Гость всегда anonymous. Авторизованный
+пользователь выбирает, связывать ли телеметрию с аккаунтом: backend возвращает
+только domain-separated HMAC идентификаторы аккаунта и Foodler-устройства в
+identified-режиме. В anonymous-режиме Foodler identifiers очищаются, но Firebase
+installation/app-instance identifiers и технический сбор остаются.
 
 ```text
-consented mobile queue -> generated SDK -> API validation/storage -> read-only SQL aggregates
+policy consent -> Firebase adapter -> Analytics / Crashlytics
+                       |
+authenticated identity -> generated SDK -> FastAPI HMAC identity resolver
 ```
 
-`app_backgrounded` is an AppState inactive/background proxy: it is first queued
-locally, but a hard kill or process close is not guaranteed to deliver it.
+События и crash keys проходят allowlist; суммы, товары, QR, email, AI/feedback
+text, токены, URL запросов и платёжные сведения не передаются.
 
 ```text
 UI -> transaction SQLite -> observable state -> sync queue -> typed client -> FastAPI

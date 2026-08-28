@@ -83,11 +83,12 @@ npx expo install --check
   ответа backend. При гостевом, ручном или офлайн-сценарии остаётся локальная
   классификация распространённых продуктов; неизвестное значение безопасно
   попадает в «Прочее».
-- Product analytics begins only after policy acceptance, uses a bounded local
-  queue, and respects the account preference returned after login. Opt-out stops
-  local collection immediately; a failed offline preference update is retried.
-  Guests and signed-in users manage it from the Profile analytics card. Events
-  use the generated Foodler client and no third-party analytics SDK.
+- After policy acceptance, Firebase Analytics and Crashlytics collect only
+  allowlisted technical events and crash reports. Guests are always anonymous.
+  An authenticated user may link pseudonymous Foodler account/device IDs or
+  remove that link; technical telemetry continues anonymously. Offline
+  anonymization is immediate and the account preference is retried later.
+  `GOOGLE_SERVICES_JSON` is an EAS file variable; never commit its local file.
 
 Для изменения Foodler API сначала меняют FastAPI/Pydantic, затем из корня
 выполняют `make contract`. Прямой `fetch` к Foodler API и ручные копии backend

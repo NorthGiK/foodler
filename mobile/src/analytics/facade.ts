@@ -1,7 +1,5 @@
 import type { AiActionType } from "@/ai/types";
 import { ApiError } from "@/api/transport";
-import type { AnalyticsEventName } from "@/api/generated/types.gen";
-
 import { analyticsTriggers } from "./triggers";
 
 export type AnalyticsFailureCode =
@@ -15,7 +13,7 @@ export class AnalyticsCancelledError extends Error {
 }
 
 type AuthEvent = Extract<
-  AnalyticsEventName,
+  import("@/api/generated/types.gen").AnalyticsEventName,
   | "registration_started"
   | "registration_succeeded"
   | "registration_failed"
@@ -25,13 +23,13 @@ type AuthEvent = Extract<
   | "logout"
 >;
 type ReceiptCaptureEvent = Extract<
-  AnalyticsEventName,
+  import("@/api/generated/types.gen").AnalyticsEventName,
   | "receipt_capture_started"
   | "receipt_capture_succeeded"
   | "receipt_capture_failed"
 >;
 type AiEvent = Extract<
-  AnalyticsEventName,
+  import("@/api/generated/types.gen").AnalyticsEventName,
   "ai_action_started" | "ai_action_succeeded" | "ai_action_failed"
 >;
 
@@ -56,14 +54,48 @@ export function analyticsFailureCode(error: unknown): AnalyticsFailureCode {
   return "unknown";
 }
 
+const allowedParams = new Set([
+  "screen_name",
+  "source",
+  "failure_code",
+  "action_id",
+  "plan_id",
+  "period",
+  "entry_mode",
+  "duration_ms",
+  "build_channel",
+]);
+function firebaseParams(
+  properties: Record<string, unknown>,
+): Record<string, string | number> {
+  const params: Record<string, string | number> = {};
+  const aliases: Record<string, string> = {
+    failureCode: "failure_code",
+    actionId: "action_id",
+    durationMs: "duration_ms",
+    plan: "plan_id",
+    tab: "screen_name",
+  };
+  for (const [key, value] of Object.entries(properties)) {
+    const name = aliases[key] ?? key;
+    if (
+      allowedParams.has(name) &&
+      (typeof value === "string" || typeof value === "number")
+    )
+      params[name] = value;
+  }
+  const channel = process.env.EXPO_PUBLIC_BUILD_CHANNEL;
+  if (channel === "preview" || channel === "production")
+    params.build_channel = channel;
+  return params;
+}
 async function event(
-  eventName: AnalyticsEventName,
+  eventName: import("@/api/generated/types.gen").AnalyticsEventName,
   properties: Record<string, unknown> = {},
 ): Promise<void> {
   await analyticsTriggers.enqueueAndMaybeFlush({
-    eventName,
-    occurredAt: new Date().toISOString(),
-    properties,
+    name: eventName,
+    params: firebaseParams(properties),
   });
 }
 

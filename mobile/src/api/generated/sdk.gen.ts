@@ -109,6 +109,9 @@ import type {
   RemoveDeviceApiDevicesDeviceIdDeleteData,
   RemoveDeviceApiDevicesDeviceIdDeleteErrors,
   RemoveDeviceApiDevicesDeviceIdDeleteResponses,
+  ResolveIdentityApiProductAnalyticsIdentityResolvePostData,
+  ResolveIdentityApiProductAnalyticsIdentityResolvePostErrors,
+  ResolveIdentityApiProductAnalyticsIdentityResolvePostResponses,
   RunAiApiAiRunPostData,
   RunAiApiAiRunPostErrors,
   RunAiApiAiRunPostResponses,
@@ -121,6 +124,9 @@ import type {
   SendFeedbackApiUsersSendFeedbackPostData,
   SendFeedbackApiUsersSendFeedbackPostErrors,
   SendFeedbackApiUsersSendFeedbackPostResponses,
+  SetIdentityModeApiProductAnalyticsIdentityModePutData,
+  SetIdentityModeApiProductAnalyticsIdentityModePutErrors,
+  SetIdentityModeApiProductAnalyticsIdentityModePutResponses,
   SetPreferenceApiProductAnalyticsPreferencePutData,
   SetPreferenceApiProductAnalyticsPreferencePutErrors,
   SetPreferenceApiProductAnalyticsPreferencePutResponses,
@@ -623,6 +629,8 @@ export class Sdk extends HeyApiClient {
 
   /**
    * Ingest Events
+   *
+   * Deprecated: Firebase SDKs deliver telemetry directly to Firebase.
    */
   public ingestEventsApiProductAnalyticsEventsPost<
     ThrowOnError extends boolean = false,
@@ -648,7 +656,64 @@ export class Sdk extends HeyApiClient {
   }
 
   /**
+   * Set Identity Mode
+   */
+  public setIdentityModeApiProductAnalyticsIdentityModePut<
+    ThrowOnError extends boolean = false,
+  >(
+    options: Options<
+      SetIdentityModeApiProductAnalyticsIdentityModePutData,
+      ThrowOnError
+    >,
+  ) {
+    return (options.client ?? this.client).put<
+      SetIdentityModeApiProductAnalyticsIdentityModePutResponses,
+      SetIdentityModeApiProductAnalyticsIdentityModePutErrors,
+      ThrowOnError
+    >({
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/product-analytics/identity-mode",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Resolve Identity
+   */
+  public resolveIdentityApiProductAnalyticsIdentityResolvePost<
+    ThrowOnError extends boolean = false,
+  >(
+    options: Options<
+      ResolveIdentityApiProductAnalyticsIdentityResolvePostData,
+      ThrowOnError
+    >,
+  ) {
+    return (options.client ?? this.client).post<
+      ResolveIdentityApiProductAnalyticsIdentityResolvePostResponses,
+      ResolveIdentityApiProductAnalyticsIdentityResolvePostErrors,
+      ThrowOnError
+    >({
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/product-analytics/identity/resolve",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Set Preference
+   *
+   * Deprecated boolean preference mapped to the account identity mode.
+   *
+   * Guests are permanently anonymous and this endpoint no longer stores a
+   * per-installation preference.
    */
   public setPreferenceApiProductAnalyticsPreferencePut<
     ThrowOnError extends boolean = false,

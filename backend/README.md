@@ -47,19 +47,22 @@ uv run alembic upgrade head
 Backend владеет API-контрактом. После изменения route/schema выполните из корня
 `make contract`, проверьте generated diff и обновите route test.
 
-## Product analytics
+## Firebase analytics identity
 
-Analytics stores a domain-separated installation hash, approved event dimensions
-and small allowlisted properties, never the raw ID, IP identity, email, QR or
-receipt payload, token, payment payload or AI text. It is default-enabled only
-after policy acceptance/consent resolution. `POST /api/product-analytics/events`
-accepts optional authentication, at most 50 events and 64 KiB with a 24-hour
-clock-skew bound; `PUT /api/product-analytics/preference` controls the guest
-installation or the authenticated account. Account-wide opt-out disables linked
-installations and irreversibly anonymizes historical links. Storage and
-reporting stay inside the Foodler backend; no external analytics provider is
-used. There is no automatic analytics retention; use read-only aggregates in
-[`docs/analytics-reporting.sql`](../docs/analytics-reporting.sql).
+The backend does not ingest or store product-analytics events. Firebase
+Analytics and Crashlytics are configured by the mobile application. An
+authenticated client calls `POST /api/product-analytics/identity/resolve` with
+its Foodler device ID; in `identified` mode the response contains stable,
+domain-separated HMAC-SHA256 pseudonyms for the account and device. In
+`anonymous` mode both IDs are `null`. The account mode is changed through
+`PUT /api/product-analytics/identity-mode`.
+
+`POST /api/product-analytics/events` and
+`PUT /api/product-analytics/preference` remain only for older mobile builds.
+Event ingestion always returns `accepted=false, inserted=0`; an authenticated
+legacy preference maps `enabled=true` to `identified` and `false` to
+`anonymous`. Guests always remain anonymous. Raw account UUIDs and Foodler
+device IDs are never returned to Firebase.
 
 ## Внешние сервисы
 

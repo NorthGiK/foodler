@@ -40,7 +40,7 @@ make dev
 ## Как устроен проект
 
 ```text
-backend/                 FastAPI, SQLAlchemy, Alembic, локальная аналитика и AI
+backend/                 FastAPI, SQLAlchemy, identity API и AI
 mobile/                  Expo/React Native, SQLite и пользовательский интерфейс
 landing/                 Отдельный Vite-лендинг Foodler для Android-приложения
 contracts/openapi.json   generated API-контракт; вручную не редактировать
@@ -59,7 +59,6 @@ SQLite, а авторизованный пользователь синхрон�
 Подробности:
 
 - [Архитектура](docs/architecture.md)
-- [Примеры read-only product analytics reporting](docs/analytics-reporting.sql)
 - [Разработка и проверки](docs/development.md)
 - [Известные проблемы](docs/known-issues.md)
 - [Решение об API-контракте](docs/adr/0001-monorepo-and-api-contract.md)

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Replaced backend product-event storage with Firebase identity controls.
+  Authenticated clients can select identified or anonymous telemetry; only
+  stable HMAC pseudonyms are supplied in identified mode. Legacy ingestion is
+  retained as a non-storing compatibility endpoint.
+
 - Password reset now confirms the email code in a separate request and uses a
   short-lived signed reset token to set the new password; existing sessions are
   revoked after the reset.

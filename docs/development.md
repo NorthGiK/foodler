@@ -37,6 +37,21 @@ Release APK собирается командой `make build-apk`. Готовы
 
 Generated-файлы коммитятся, чтобы изменение контракта было видно в review.
 
+## Firebase release configuration
+
+Android app `com.Foodler.chih_pih` использует corporate Firebase project.
+`google-services.json` не хранится в Git: EAS file variable
+`GOOGLE_SERVICES_JSON` должна указывать на файл сборочного профиля. Preview и
+production передают `build_channel`; debug collection остаётся выключенным по
+умолчанию. Перед релизом в Firebase Console нужно отметить key events
+`policy_accepted`, `sign_up`, успешное добавление чека, успешное AI-действие,
+открытие checkout и feedback. Advertising integrations и BigQuery export не
+включаются.
+
+Release verification включает `npx expo install --check`, Android release
+build, Analytics DebugView в контролируемой тестовой сборке и контролируемый
+Crashlytics crash без сохранения test-crash кода.
+
 Любое изменение кода также требует проверки README, changelog, guides,
 `.env.example`, ADR/known issues и legal-текстов. Документацию обновляют в том
 же коммите. Если изменение документа не требуется, причина фиксируется в

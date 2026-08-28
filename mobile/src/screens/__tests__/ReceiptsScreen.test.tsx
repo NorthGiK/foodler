@@ -1,12 +1,12 @@
 import { act, create } from "react-test-renderer";
 import type { ReactNode } from "react";
-import { PermissionStatus } from "expo-modules-core";
 
 import { getReceiptByRawQR } from "../../api/client";
 import {
   launchImageLibraryAsync,
   requestMediaLibraryPermissionsAsync,
 } from "expo-image-picker";
+import type { PermissionStatus } from "expo-image-picker";
 import { normalizeReceiptResponse, saveReceipt } from "../../storage";
 import { ReceiptsScreen } from "../ReceiptsScreen";
 
@@ -60,7 +60,7 @@ const grantedPermission = {
   canAskAgain: true,
   expires: "never" as const,
   granted: true,
-  status: PermissionStatus.GRANTED,
+  status: "granted" as PermissionStatus,
 };
 const selectedImage = {
   height: 100,

@@ -234,6 +234,43 @@ export type AnalyticsEventsRequest = {
 };
 
 /**
+ * AnalyticsIdentityMode
+ */
+export type AnalyticsIdentityMode = "identified" | "anonymous";
+
+/**
+ * AnalyticsIdentityModeRequest
+ */
+export type AnalyticsIdentityModeRequest = {
+  mode: AnalyticsIdentityMode;
+};
+
+/**
+ * AnalyticsIdentityResolveRequest
+ */
+export type AnalyticsIdentityResolveRequest = {
+  /**
+   * Deviceid
+   */
+  deviceId: string;
+};
+
+/**
+ * AnalyticsIdentityResponse
+ */
+export type AnalyticsIdentityResponse = {
+  /**
+   * Accountanalyticsid
+   */
+  accountAnalyticsId?: string | null;
+  /**
+   * Deviceanalyticsid
+   */
+  deviceAnalyticsId?: string | null;
+  mode: AnalyticsIdentityMode;
+};
+
+/**
  * AnalyticsIngestResponse
  */
 export type AnalyticsIngestResponse = {
@@ -1352,6 +1389,7 @@ export type UserResponse = {
    * Analyticsenabled
    */
   analyticsEnabled: boolean;
+  analyticsIdentityMode: AnalyticsIdentityMode;
   /**
    * Createdat
    */
@@ -2018,6 +2056,60 @@ export type IngestEventsApiProductAnalyticsEventsPostResponses = {
 
 export type IngestEventsApiProductAnalyticsEventsPostResponse =
   IngestEventsApiProductAnalyticsEventsPostResponses[keyof IngestEventsApiProductAnalyticsEventsPostResponses];
+
+export type SetIdentityModeApiProductAnalyticsIdentityModePutData = {
+  body: AnalyticsIdentityModeRequest;
+  path?: never;
+  query?: never;
+  url: "/api/product-analytics/identity-mode";
+};
+
+export type SetIdentityModeApiProductAnalyticsIdentityModePutErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetIdentityModeApiProductAnalyticsIdentityModePutError =
+  SetIdentityModeApiProductAnalyticsIdentityModePutErrors[keyof SetIdentityModeApiProductAnalyticsIdentityModePutErrors];
+
+export type SetIdentityModeApiProductAnalyticsIdentityModePutResponses = {
+  /**
+   * Successful Response
+   */
+  200: AnalyticsIdentityResponse;
+};
+
+export type SetIdentityModeApiProductAnalyticsIdentityModePutResponse =
+  SetIdentityModeApiProductAnalyticsIdentityModePutResponses[keyof SetIdentityModeApiProductAnalyticsIdentityModePutResponses];
+
+export type ResolveIdentityApiProductAnalyticsIdentityResolvePostData = {
+  body: AnalyticsIdentityResolveRequest;
+  path?: never;
+  query?: never;
+  url: "/api/product-analytics/identity/resolve";
+};
+
+export type ResolveIdentityApiProductAnalyticsIdentityResolvePostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ResolveIdentityApiProductAnalyticsIdentityResolvePostError =
+  ResolveIdentityApiProductAnalyticsIdentityResolvePostErrors[keyof ResolveIdentityApiProductAnalyticsIdentityResolvePostErrors];
+
+export type ResolveIdentityApiProductAnalyticsIdentityResolvePostResponses = {
+  /**
+   * Successful Response
+   */
+  200: AnalyticsIdentityResponse;
+};
+
+export type ResolveIdentityApiProductAnalyticsIdentityResolvePostResponse =
+  ResolveIdentityApiProductAnalyticsIdentityResolvePostResponses[keyof ResolveIdentityApiProductAnalyticsIdentityResolvePostResponses];
 
 export type SetPreferenceApiProductAnalyticsPreferencePutData = {
   body: AnalyticsPreferenceRequest;

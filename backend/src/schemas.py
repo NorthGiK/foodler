@@ -70,11 +70,17 @@ class AuthResponse(BaseModel):
     user: "UserResponse"
 
 
+class AnalyticsIdentityMode(StrEnum):
+    IDENTIFIED = "identified"
+    ANONYMOUS = "anonymous"
+
+
 class UserResponse(BaseModel):
     id: str
     email: str
     premium: bool
     analyticsEnabled: bool
+    analyticsIdentityMode: AnalyticsIdentityMode
     subscriptionExpires: datetime | None = None
     createdAt: datetime
 
@@ -362,6 +368,24 @@ class AnalyticsIngestResponse(BaseModel):
 
 class AnalyticsPreferenceResponse(BaseModel):
     enabled: bool
+
+
+class AnalyticsIdentityResolveRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    deviceId: str = Field(min_length=16, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")
+
+
+class AnalyticsIdentityModeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mode: AnalyticsIdentityMode
+
+
+class AnalyticsIdentityResponse(BaseModel):
+    mode: AnalyticsIdentityMode
+    accountAnalyticsId: str | None = None
+    deviceAnalyticsId: str | None = None
 
 
 # ====

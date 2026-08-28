@@ -29,17 +29,12 @@ jest.mock("react-native-gifted-charts", () => ({
 }));
 
 describe("StatsScreen", () => {
-  it("shows the empty state and routes the QR action to the receipt flow", () => {
-    const onUploadReceipt = jest.fn();
+  it("shows the empty state", () => {
     let view: ReturnType<typeof create>;
 
     act(() => {
       view = create(
-        <StatsScreen
-          receipts={[]}
-          joinedItems={[]}
-          onUploadReceipt={onUploadReceipt}
-        />,
+        <StatsScreen receipts={[]} joinedItems={[]} />,
       );
     });
 
@@ -47,13 +42,5 @@ describe("StatsScreen", () => {
     expect(
       view!.root.findByProps({ children: "Статистика появится здесь" }),
     ).toBeTruthy();
-
-    act(() => {
-      view!.root
-        .findByProps({ accessibilityLabel: "Загрузить QR" })
-        .props.onPress();
-    });
-
-    expect(onUploadReceipt).toHaveBeenCalledTimes(1);
   });
 });

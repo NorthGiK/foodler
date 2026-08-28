@@ -25,7 +25,8 @@ async def get_me(
         id=user.id,
         email=user.email,
         premium=entitlement.active,
-        analyticsEnabled=user.analytics_enabled,
+        analyticsEnabled=user.analytics_identity_mode == "identified",
+        analyticsIdentityMode=user.analytics_identity_mode,
         subscriptionExpires=entitlement.expires_at,
         createdAt=user.created_at,
     )

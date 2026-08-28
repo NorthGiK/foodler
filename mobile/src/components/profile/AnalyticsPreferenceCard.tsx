@@ -10,16 +10,22 @@ import {
 } from "react-native";
 
 import { analytics } from "@/analytics/service";
+import type { AnalyticsIdentityMode } from "@/api/generated/types.gen";
 import { useTheme } from "@/components/ThemeContext";
 
 type PreferenceStatus = "loading" | "success" | "pending" | "error";
 
 type Props = {
-  accountEnabled?: boolean;
+  accountMode?: AnalyticsIdentityMode;
+  isAuthenticated: boolean;
   onSynced?: () => Promise<void>;
 };
 
-export function AnalyticsPreferenceCard({ accountEnabled, onSynced }: Props) {
+export function AnalyticsPreferenceCard({
+  accountMode,
+  isAuthenticated,
+  onSynced,
+}: Props) {
   const { theme } = useTheme();
   const [enabled, setEnabled] = useState(false);
   const [status, setStatus] = useState<PreferenceStatus>("loading");
@@ -29,17 +35,17 @@ export function AnalyticsPreferenceCard({ accountEnabled, onSynced }: Props) {
     setStatus("loading");
     try {
       const state = await analytics.preferenceState();
-      setPendingTarget(state.pendingPreference);
+      setPendingTarget(state.pendingMode === "identified");
       setEnabled(
-        state.pendingPreference === null
-          ? (accountEnabled ?? state.enabled)
+        state.pendingMode === null
+          ? (accountMode ?? state.mode) === "identified"
           : false,
       );
-      setStatus(state.pendingPreference === null ? "success" : "pending");
+      setStatus(state.pendingMode === null ? "success" : "pending");
     } catch {
       setStatus("error");
     }
-  }, [accountEnabled]);
+  }, [accountMode]);
 
   useEffect(() => {
     void load();
@@ -51,7 +57,9 @@ export function AnalyticsPreferenceCard({ accountEnabled, onSynced }: Props) {
       setStatus("loading");
       if (!nextEnabled) setEnabled(false);
       try {
-        const result = await analytics.setPreference(nextEnabled);
+        const result = await analytics.setPreference(
+          nextEnabled ? "identified" : "anonymous",
+        );
         const state = await analytics.preferenceState();
         if (result === "pending") {
           setEnabled(false);
@@ -59,7 +67,7 @@ export function AnalyticsPreferenceCard({ accountEnabled, onSynced }: Props) {
           setStatus("pending");
           return;
         }
-        setEnabled(state.enabled);
+        setEnabled(state.mode === "identified");
         setPendingTarget(null);
         setStatus("success");
         await onSynced?.();
@@ -74,13 +82,15 @@ export function AnalyticsPreferenceCard({ accountEnabled, onSynced }: Props) {
   const subtitle =
     status === "loading"
       ? "Сохраняем настройку…"
-      : status === "pending"
-        ? "Изменение сохранено и будет отправлено при подключении"
-        : status === "error"
-          ? "Не удалось прочитать или сохранить настройку"
-          : enabled
-            ? "Помогает улучшать Foodler"
-            : "Новые события не собираются";
+      : !isAuthenticated
+        ? "Гостевой режим: события и отчёты о сбоях собираются без связи с аккаунтом"
+        : status === "pending"
+          ? "Анонимный режим уже включён; изменение будет отправлено при подключении"
+          : status === "error"
+            ? "Не удалось прочитать или сохранить настройку"
+            : enabled
+              ? "Аккаунт и устройство связаны с технической телеметрией"
+              : "События и отчёты о сбоях продолжаются без связи с аккаунтом";
 
   return (
     <View
@@ -94,17 +104,23 @@ export function AnalyticsPreferenceCard({ accountEnabled, onSynced }: Props) {
           <MaterialIcons name="insights" size={24} color={theme.primary} />
         </View>
         <View style={styles.copy}>
-          <Text style={[styles.title, { color: theme.text }]}>Аналитика</Text>
+          <Text style={[styles.title, { color: theme.text }]}>
+            Связь аналитики с аккаунтом
+          </Text>
           <Text style={[styles.subtitle, { color: theme.muted }]}>
             {subtitle}
           </Text>
         </View>
         {status === "loading" ? (
           <ActivityIndicator color={theme.primary} />
+        ) : !isAuthenticated ? (
+          <Text style={[styles.readOnly, { color: theme.muted }]}>
+            Анонимно
+          </Text>
         ) : (
           <Switch
-            accessibilityLabel="Разрешить продуктовую аналитику"
-            accessibilityHint="Управляет сбором обезличенных событий использования"
+            accessibilityLabel="Связать аналитику с аккаунтом"
+            accessibilityHint="Отключение удаляет Foodler-идентификаторы, но не останавливает техническую телеметрию"
             disabled={status === "pending" || status === "error"}
             value={enabled}
             onValueChange={(value) => void update(value)}
@@ -152,4 +168,5 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 13, lineHeight: 18, marginTop: 3 },
   retry: { alignSelf: "flex-start", marginLeft: 62, paddingTop: 10 },
   retryText: { fontSize: 14, fontWeight: "700" },
+  readOnly: { fontSize: 13, fontWeight: "700" },
 });

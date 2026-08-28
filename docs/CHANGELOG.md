@@ -35,6 +35,10 @@
 
 ### changed
 
+- Product telemetry migrated from Foodler event storage to Firebase Analytics
+  and Crashlytics. Guests remain anonymous; signed-in users can remove Foodler
+  account/device linkage while anonymous technical telemetry continues.
+
 - Added consent-gated privacy-preserving product analytics and read-only
   aggregate reporting examples; account opt-out anonymizes historical links.
 - Product category keys and legacy display aliases are matched
