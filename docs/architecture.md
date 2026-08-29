@@ -10,24 +10,29 @@ Mobile — Expo/React Native приложение с локальной SQLite �
 AsyncStorage, а Foodler API вызывается через единый типизированный transport.
 
 Backend — FastAPI-приложение с async SQLAlchemy. Оно отвечает за аккаунты,
-серверную копию чеков, подписки, базу продуктов, аналитику и AI-запросы.
+серверную копию чеков, подписки, базу продуктов и AI-запросы.
 Внешние сервисы (проверка чеков, LLM, email и YooKassa) находятся за отдельными
 адаптерами с timeout и явным преобразованием ошибок. HTTP-вызовы проверки чеков
 и LLM используют общий process-local connection pool; SMTP и YooKassa
 используют собственные клиенты. Все адаптеры подменяются в тестах.
 
-Product analytics is a separate minimised event stream. Mobile queues events
-only after policy consent; backend hashes installation IDs and enforces
-account-wide opt-out/anonymization. Aggregate reporting is read-only and must
-not expose raw identifiers or complete event properties; reports may aggregate
-only specifically allowlisted scalar dimensions such as tab, action and plan.
+Product analytics is sent directly from the consented Android application to
+MyTracker. Tracer receives native and Java/Kotlin crashes, ANRs, crash-free
+sessions and scrubbed JavaScript errors. Neither SDK starts before the current
+legal consent is accepted. Foodler never sends email, account ID, tokens, QR or
+receipt/AI content to either provider.
 
 ```text
-consented mobile queue -> generated SDK -> API validation/storage -> read-only SQL aggregates
+consent -> mobile event adapter -> MyTracker
+        -> native crash SDK / scrubbed JS transport -> Tracer
 ```
 
-`app_backgrounded` is an AppState inactive/background proxy: it is first queued
-locally, but a hard kill or process close is not guaranteed to deliver it.
+Guests keep the analytics identity preference locally. Authenticated users
+synchronize an account-wide preference through the generated Foodler API. A
+disabled identity immediately clears MyTracker `customUserId` without stopping
+anonymous SDK events; enabling identity is applied only after backend
+confirmation. The backend returns a stable pseudonymous external ID only while
+the account link is enabled.
 
 ```text
 UI -> transaction SQLite -> observable state -> sync queue -> typed client -> FastAPI
@@ -92,3 +97,5 @@ UI -> transaction SQLite -> observable state -> sync queue -> typed client -> Fa
 - Любое изменение модели БД поставляется с Alembic migration; `create_all` не
   используется при runtime-запуске.
 - Логи структурированы и не содержат чувствительные payload.
+- Backend не принимает и не хранит поток product analytics. Миграция удаляет
+  прежнюю analytics history; downgrade восстанавливает только пустые таблицы.

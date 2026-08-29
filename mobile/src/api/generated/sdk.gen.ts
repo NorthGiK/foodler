@@ -77,9 +77,6 @@ import type {
   GetSubstitutesApiProductsProductIdSubstitutesGetResponses,
   HealthHealthGetData,
   HealthHealthGetResponses,
-  IngestEventsApiProductAnalyticsEventsPostData,
-  IngestEventsApiProductAnalyticsEventsPostErrors,
-  IngestEventsApiProductAnalyticsEventsPostResponses,
   IsPremiumApiSubscriptionIsPremiumGetData,
   IsPremiumApiSubscriptionIsPremiumGetResponses,
   ListDevicesApiDevicesGetData,
@@ -121,9 +118,9 @@ import type {
   SendFeedbackApiUsersSendFeedbackPostData,
   SendFeedbackApiUsersSendFeedbackPostErrors,
   SendFeedbackApiUsersSendFeedbackPostResponses,
-  SetPreferenceApiProductAnalyticsPreferencePutData,
-  SetPreferenceApiProductAnalyticsPreferencePutErrors,
-  SetPreferenceApiProductAnalyticsPreferencePutResponses,
+  SetAnalyticsIdentityPreferenceApiUsersMeAnalyticsIdentityPutData,
+  SetAnalyticsIdentityPreferenceApiUsersMeAnalyticsIdentityPutErrors,
+  SetAnalyticsIdentityPreferenceApiUsersMeAnalyticsIdentityPutResponses,
   SpendingAnalysisApiAnalyticsSpendingGetData,
   SpendingAnalysisApiAnalyticsSpendingGetErrors,
   SpendingAnalysisApiAnalyticsSpendingGetResponses,
@@ -622,58 +619,6 @@ export class Sdk extends HeyApiClient {
   }
 
   /**
-   * Ingest Events
-   */
-  public ingestEventsApiProductAnalyticsEventsPost<
-    ThrowOnError extends boolean = false,
-  >(
-    options: Options<
-      IngestEventsApiProductAnalyticsEventsPostData,
-      ThrowOnError
-    >,
-  ) {
-    return (options.client ?? this.client).post<
-      IngestEventsApiProductAnalyticsEventsPostResponses,
-      IngestEventsApiProductAnalyticsEventsPostErrors,
-      ThrowOnError
-    >({
-      security: [{ scheme: "bearer", type: "http" }],
-      url: "/api/product-analytics/events",
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    });
-  }
-
-  /**
-   * Set Preference
-   */
-  public setPreferenceApiProductAnalyticsPreferencePut<
-    ThrowOnError extends boolean = false,
-  >(
-    options: Options<
-      SetPreferenceApiProductAnalyticsPreferencePutData,
-      ThrowOnError
-    >,
-  ) {
-    return (options.client ?? this.client).put<
-      SetPreferenceApiProductAnalyticsPreferencePutResponses,
-      SetPreferenceApiProductAnalyticsPreferencePutErrors,
-      ThrowOnError
-    >({
-      security: [{ scheme: "bearer", type: "http" }],
-      url: "/api/product-analytics/preference",
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    });
-  }
-
-  /**
    * Create Product
    *
    * Создание нового продукта (вручную).
@@ -1140,6 +1085,34 @@ export class Sdk extends HeyApiClient {
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/users/me",
       ...options,
+    });
+  }
+
+  /**
+   * Set Analytics Identity Preference
+   *
+   * Update the account-wide external analytics identity preference.
+   */
+  public setAnalyticsIdentityPreferenceApiUsersMeAnalyticsIdentityPut<
+    ThrowOnError extends boolean = false,
+  >(
+    options: Options<
+      SetAnalyticsIdentityPreferenceApiUsersMeAnalyticsIdentityPutData,
+      ThrowOnError
+    >,
+  ) {
+    return (options.client ?? this.client).put<
+      SetAnalyticsIdentityPreferenceApiUsersMeAnalyticsIdentityPutResponses,
+      SetAnalyticsIdentityPreferenceApiUsersMeAnalyticsIdentityPutErrors,
+      ThrowOnError
+    >({
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/users/me/analytics-identity",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 

@@ -77,7 +77,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isLoading) {
-      void analyticsTriggers.resolvedAuth(user?.analyticsEnabled);
+      void analyticsTriggers.resolvedAuth(
+        user?.analyticsIdentityEnabled,
+        user?.analyticsExternalId ?? null,
+      );
     }
   }, [isLoading, user]);
 

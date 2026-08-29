@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Replaced Foodler analytics ingestion with consent-gated MyTracker and the
+  account identity endpoint; consent is re-requested for policy version 1.2.
+- Added consent-gated Tracer boundary and strict JS payload scrubbing.
+
 - Исправлена анкета в разделе «Аккаунт»: активное поле остаётся над клавиатурой,
   а после её закрытия снова доступны поля и действия ниже «Цели питания».
 

@@ -83,11 +83,20 @@ npx expo install --check
   ответа backend. При гостевом, ручном или офлайн-сценарии остаётся локальная
   классификация распространённых продуктов; неизвестное значение безопасно
   попадает в «Прочее».
-- Product analytics begins only after policy acceptance, uses a bounded local
-  queue, and respects the account preference returned after login. Opt-out stops
-  local collection immediately; a failed offline preference update is retried.
-  Guests and signed-in users manage it from the Profile analytics card. Events
-  use the generated Foodler client and no third-party analytics SDK.
+- MyTracker analytics and Tracer start only after accepting policy version 1.2.
+  Events are sent by the Android SDK, not queued or posted to Foodler. Account
+  identity uses only an opaque backend external ID: offline opt-out clears it
+  immediately, while opt-in waits for backend confirmation. Tracer payloads
+  scrub IDs, email, tokens, QR/receipt and AI context.
+
+Observability release builds require public ingestion values
+`EXPO_PUBLIC_MYTRACKER_API_KEY` and `EXPO_PUBLIC_TRACER_DSN`, plus non-public
+build values `TRACER_APP_TOKEN`, `TRACER_PLUGIN_TOKEN`,
+`TRACER_VERSION_NAME` and `TRACER_VERSION_CODE`. Validate them with
+`npm run release:validate-observability`. Upload the directory containing the
+matching JavaScript source maps with `npm run release:upload-sourcemap -- PATH`;
+the script creates the multipart ZIP expected by Tracer and never stores a
+token in the repository.
 
 Для изменения Foodler API сначала меняют FastAPI/Pydantic, затем из корня
 выполняют `make contract`. Прямой `fetch` к Foodler API и ручные копии backend

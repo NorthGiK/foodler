@@ -139,132 +139,23 @@ export type AiSection = {
 };
 
 /**
- * AnalyticsEventName
+ * AnalyticsIdentityPreferenceRequest
  */
-export type AnalyticsEventName =
-  | "app_opened"
-  | "app_backgrounded"
-  | "tab_viewed"
-  | "policy_accepted"
-  | "registration_started"
-  | "registration_succeeded"
-  | "registration_failed"
-  | "login_started"
-  | "login_succeeded"
-  | "login_failed"
-  | "logout"
-  | "receipt_capture_started"
-  | "receipt_capture_succeeded"
-  | "receipt_capture_failed"
-  | "receipt_manual_created"
-  | "receipt_detail_viewed"
-  | "receipt_deleted"
-  | "ai_screen_viewed"
-  | "ai_action_started"
-  | "ai_action_succeeded"
-  | "ai_action_failed"
-  | "subscription_screen_viewed"
-  | "subscription_plan_selected"
-  | "subscription_terms_viewed"
-  | "subscription_checkout_opened"
-  | "subscription_checkout_failed"
-  | "feedback_submitted";
-
-/**
- * AnalyticsEventRequest
- */
-export type AnalyticsEventRequest = {
-  /**
-   * Eventid
-   */
-  eventId: string;
-  eventName: AnalyticsEventName;
-  /**
-   * Occurredat
-   */
-  occurredAt: string;
-  /**
-   * Properties
-   */
-  properties?: {
-    [key: string]: unknown;
-  };
-  /**
-   * Sessionid
-   */
-  sessionId?: string | null;
-};
-
-/**
- * AnalyticsEventsRequest
- */
-export type AnalyticsEventsRequest = {
-  /**
-   * Appbuild
-   */
-  appBuild: string;
-  /**
-   * Appversion
-   */
-  appVersion: string;
-  /**
-   * Events
-   */
-  events: Array<AnalyticsEventRequest>;
-  /**
-   * Installationid
-   */
-  installationId: string;
-  /**
-   * Locale
-   */
-  locale: string;
-  /**
-   * Osversion
-   */
-  osVersion: string;
-  /**
-   * Platform
-   */
-  platform: "ios" | "android";
-  /**
-   * Timezone
-   */
-  timezone: string;
-};
-
-/**
- * AnalyticsIngestResponse
- */
-export type AnalyticsIngestResponse = {
-  /**
-   * Accepted
-   */
-  accepted: boolean;
-  /**
-   * Inserted
-   */
-  inserted: number;
-};
-
-/**
- * AnalyticsPreferenceRequest
- */
-export type AnalyticsPreferenceRequest = {
+export type AnalyticsIdentityPreferenceRequest = {
   /**
    * Enabled
    */
   enabled: boolean;
-  /**
-   * Installationid
-   */
-  installationId: string;
 };
 
 /**
- * AnalyticsPreferenceResponse
+ * AnalyticsIdentityPreferenceResponse
  */
-export type AnalyticsPreferenceResponse = {
+export type AnalyticsIdentityPreferenceResponse = {
+  /**
+   * Analyticsexternalid
+   */
+  analyticsExternalId: string | null;
   /**
    * Enabled
    */
@@ -1349,9 +1240,13 @@ export type SubscriptionStatusResponse = {
  */
 export type UserResponse = {
   /**
-   * Analyticsenabled
+   * Analyticsexternalid
    */
-  analyticsEnabled: boolean;
+  analyticsExternalId: string | null;
+  /**
+   * Analyticsidentityenabled
+   */
+  analyticsIdentityEnabled: boolean;
   /**
    * Createdat
    */
@@ -1991,60 +1886,6 @@ export type FridgeStatusApiFridgeGetResponses = {
 
 export type FridgeStatusApiFridgeGetResponse =
   FridgeStatusApiFridgeGetResponses[keyof FridgeStatusApiFridgeGetResponses];
-
-export type IngestEventsApiProductAnalyticsEventsPostData = {
-  body: AnalyticsEventsRequest;
-  path?: never;
-  query?: never;
-  url: "/api/product-analytics/events";
-};
-
-export type IngestEventsApiProductAnalyticsEventsPostErrors = {
-  /**
-   * Validation Error
-   */
-  422: HttpValidationError;
-};
-
-export type IngestEventsApiProductAnalyticsEventsPostError =
-  IngestEventsApiProductAnalyticsEventsPostErrors[keyof IngestEventsApiProductAnalyticsEventsPostErrors];
-
-export type IngestEventsApiProductAnalyticsEventsPostResponses = {
-  /**
-   * Successful Response
-   */
-  200: AnalyticsIngestResponse;
-};
-
-export type IngestEventsApiProductAnalyticsEventsPostResponse =
-  IngestEventsApiProductAnalyticsEventsPostResponses[keyof IngestEventsApiProductAnalyticsEventsPostResponses];
-
-export type SetPreferenceApiProductAnalyticsPreferencePutData = {
-  body: AnalyticsPreferenceRequest;
-  path?: never;
-  query?: never;
-  url: "/api/product-analytics/preference";
-};
-
-export type SetPreferenceApiProductAnalyticsPreferencePutErrors = {
-  /**
-   * Validation Error
-   */
-  422: HttpValidationError;
-};
-
-export type SetPreferenceApiProductAnalyticsPreferencePutError =
-  SetPreferenceApiProductAnalyticsPreferencePutErrors[keyof SetPreferenceApiProductAnalyticsPreferencePutErrors];
-
-export type SetPreferenceApiProductAnalyticsPreferencePutResponses = {
-  /**
-   * Successful Response
-   */
-  200: AnalyticsPreferenceResponse;
-};
-
-export type SetPreferenceApiProductAnalyticsPreferencePutResponse =
-  SetPreferenceApiProductAnalyticsPreferencePutResponses[keyof SetPreferenceApiProductAnalyticsPreferencePutResponses];
 
 export type CreateProductApiProductsPostData = {
   body: ProductCreateSchema;
@@ -2709,6 +2550,35 @@ export type GetMeApiUsersMeGetResponses = {
 
 export type GetMeApiUsersMeGetResponse =
   GetMeApiUsersMeGetResponses[keyof GetMeApiUsersMeGetResponses];
+
+export type SetAnalyticsIdentityPreferenceApiUsersMeAnalyticsIdentityPutData = {
+  body: AnalyticsIdentityPreferenceRequest;
+  path?: never;
+  query?: never;
+  url: "/api/users/me/analytics-identity";
+};
+
+export type SetAnalyticsIdentityPreferenceApiUsersMeAnalyticsIdentityPutErrors =
+  {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+  };
+
+export type SetAnalyticsIdentityPreferenceApiUsersMeAnalyticsIdentityPutError =
+  SetAnalyticsIdentityPreferenceApiUsersMeAnalyticsIdentityPutErrors[keyof SetAnalyticsIdentityPreferenceApiUsersMeAnalyticsIdentityPutErrors];
+
+export type SetAnalyticsIdentityPreferenceApiUsersMeAnalyticsIdentityPutResponses =
+  {
+    /**
+     * Successful Response
+     */
+    200: AnalyticsIdentityPreferenceResponse;
+  };
+
+export type SetAnalyticsIdentityPreferenceApiUsersMeAnalyticsIdentityPutResponse =
+  SetAnalyticsIdentityPreferenceApiUsersMeAnalyticsIdentityPutResponses[keyof SetAnalyticsIdentityPreferenceApiUsersMeAnalyticsIdentityPutResponses];
 
 export type SendFeedbackApiUsersSendFeedbackPostData = {
   body: FeedbackRequest;

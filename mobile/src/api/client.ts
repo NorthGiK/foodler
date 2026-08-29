@@ -8,8 +8,7 @@ import type { ApiReceiptResponse } from "@/types";
 import { Sdk } from "./generated/sdk.gen";
 import type {
   AiRequestParameters,
-  AnalyticsEventsRequest,
-  AnalyticsPreferenceRequest,
+  AnalyticsIdentityPreferenceRequest,
   ReceiptCreateSchema,
   SubscriptionStatusResponse,
 } from "./generated/types.gen";
@@ -162,12 +161,12 @@ export async function getDeviceId(): Promise<string> {
 }
 
 export const api = {
-  ingestAnalyticsEvents(body: AnalyticsEventsRequest) {
-    return unwrap(sdk.ingestEventsApiProductAnalyticsEventsPost({ body }));
-  },
-
-  setAnalyticsPreference(body: AnalyticsPreferenceRequest) {
-    return unwrap(sdk.setPreferenceApiProductAnalyticsPreferencePut({ body }));
+  setAnalyticsIdentityPreference(body: AnalyticsIdentityPreferenceRequest) {
+    return unwrap(
+      sdk.setAnalyticsIdentityPreferenceApiUsersMeAnalyticsIdentityPut({
+        body,
+      }),
+    );
   },
 
   login(email: string, password: string) {

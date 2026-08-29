@@ -136,14 +136,13 @@ def test_hardening_migrations_upgrade_previous_schema_and_data(tmp_path):
     assert {
         "ai_credit_balances",
         "rate_limit_buckets",
-        "analytics_installations",
-        "analytics_events",
     } <= set(inspector.get_table_names())
     assert "code_hash" in {c["name"] for c in inspector.get_columns("email_codes_storage")}
     assert "token_hash" in {c["name"] for c in inspector.get_columns("refresh_tokens")}
     assert "auth_version" in {c["name"] for c in inspector.get_columns("users")}
     assert "provider" in {c["name"] for c in inspector.get_columns("subscriptions")}
-    assert "analytics_enabled" in {c["name"] for c in inspector.get_columns("users")}
+    user_columns = {column["name"] for column in inspector.get_columns("users")}
+    assert {"analytics_identity_enabled", "analytics_external_id"} <= user_columns
     receipt_date = next(c for c in inspector.get_columns("receipts") if c["name"] == "date")
     assert receipt_date["nullable"] is False
     subscription_indexes = {index["name"] for index in inspector.get_indexes("subscriptions")}
@@ -165,16 +164,20 @@ def test_hardening_migrations_upgrade_previous_schema_and_data(tmp_path):
         legacy_subscription = connection.execute(
             sa.text("SELECT provider FROM subscriptions WHERE user_id = 'u1'")
         ).scalar_one()
-        analytics_enabled = connection.execute(
-            sa.text("SELECT analytics_enabled FROM users WHERE id = 'u1'")
-        ).scalar_one()
+        analytics_identity_enabled, analytics_external_id = connection.execute(
+            sa.text(
+                "SELECT analytics_identity_enabled, analytics_external_id FROM users WHERE id = 'u1'"
+            )
+        ).one()
         user_created_at = connection.execute(
             sa.text("SELECT created_at FROM users WHERE id = 'u1'")
         ).scalar_one()
     assert receipt == ("2026-01-02", 1234, "2024-02-03 04:05:06")
     assert item == ("kg", 456)
     assert legacy_subscription == "legacy"
-    assert analytics_enabled == 1
+    assert analytics_identity_enabled == 1
+    assert isinstance(analytics_external_id, str)
+    assert len(analytics_external_id) == 32
     assert user_created_at == "2024-01-02 03:04:05"
     engine.dispose()
 
@@ -196,12 +199,10 @@ def test_migrations_create_schema_for_empty_database(tmp_path):
         "ai_credit_usage",
         "ai_credit_balances",
         "rate_limit_buckets",
-        "analytics_installations",
-        "analytics_events",
     } <= set(inspector.get_table_names())
     with engine.connect() as connection:
         assert connection.execute(sa.text("SELECT version_num FROM alembic_version")).scalar_one() == (
-            "e7f8a9b0c123"  # pragma: allowlist secret
+            "f8a9b0c1d234"  # pragma: allowlist secret
         )
     assert {"action", "snapshot", "response"} <= {
         column["name"] for column in inspector.get_columns("ai_reports")
@@ -209,13 +210,36 @@ def test_migrations_create_schema_for_empty_database(tmp_path):
     assert {"response", "created_at"} <= {
         column["name"] for column in inspector.get_columns("ai_cache")
     }
-    analytics_event_indexes = {index["name"] for index in inspector.get_indexes("analytics_events")}
-    assert {
-        "ix_analytics_events_name_occurred",
-        "ix_analytics_events_user_occurred",
-        "ix_analytics_events_installation_occurred",
-        "ix_analytics_events_session_occurred",
-    } <= analytics_event_indexes
+    user_columns = {column["name"] for column in inspector.get_columns("users")}
+    assert {"analytics_identity_enabled", "analytics_external_id"} <= user_columns
+    assert "analytics_enabled" not in user_columns
+    assert "analytics_events" not in inspector.get_table_names()
+    assert "analytics_installations" not in inspector.get_table_names()
+    assert "ux_users_analytics_external_id" in {
+        index["name"] for index in inspector.get_indexes("users")
+    }
+    engine.dispose()
+
+
+def test_mytracker_identity_migration_downgrade_recreates_empty_legacy_tables(tmp_path):
+    database = tmp_path / "migration-downgrade.sqlite"
+    url = f"sqlite:///{database}"
+    config = Config("alembic.ini")
+    config.attributes["database_url"] = url
+
+    command.upgrade(config, "head")
+    command.downgrade(config, "e7f8a9b0c123")  # pragma: allowlist secret
+
+    engine = create_engine(url)
+    inspector = inspect(engine)
+    user_columns = {column["name"] for column in inspector.get_columns("users")}
+    assert "analytics_enabled" in user_columns
+    assert "analytics_identity_enabled" not in user_columns
+    assert "analytics_external_id" not in user_columns
+    assert {"analytics_installations", "analytics_events"} <= set(inspector.get_table_names())
+    with engine.connect() as connection:
+        assert connection.execute(sa.text("SELECT COUNT(*) FROM analytics_events")).scalar_one() == 0
+        assert connection.execute(sa.text("SELECT COUNT(*) FROM analytics_installations")).scalar_one() == 0
     engine.dispose()
 
 

@@ -35,8 +35,11 @@
 
 ### changed
 
-- Added consent-gated privacy-preserving product analytics and read-only
-  aggregate reporting examples; account opt-out anonymizes historical links.
+- Product analytics is delivered from the consented Android app to MyTracker;
+  backend event storage and ingestion routes were removed. Account identity is
+  an optional pseudonymous link managed through `/users/me/analytics-identity`.
+- Tracer now receives consent-gated Android crashes/ANRs/crash-free sessions and
+  scrubbed JavaScript errors without Foodler account or receipt/AI context.
 - Product category keys and legacy display aliases are matched
   case-insensitively across backend and mobile, including normalization of
   existing local receipt rows.

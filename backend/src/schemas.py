@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
-from enum import StrEnum
 from typing import Annotated, Any, Literal, TypedDict
 
 from pydantic import (
@@ -9,9 +8,7 @@ from pydantic import (
     ConfigDict,
     EmailStr,
     Field,
-    StrictBool,
     field_validator,
-    model_validator,
 )
 
 
@@ -74,11 +71,23 @@ class UserResponse(BaseModel):
     id: str
     email: str
     premium: bool
-    analyticsEnabled: bool
+    analyticsIdentityEnabled: bool
+    analyticsExternalId: str | None
     subscriptionExpires: datetime | None = None
     createdAt: datetime
 
     _created_at_utc = field_validator("createdAt")(_as_utc)
+
+
+class AnalyticsIdentityPreferenceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool
+
+
+class AnalyticsIdentityPreferenceResponse(BaseModel):
+    enabled: bool
+    analyticsExternalId: str | None
 
 
 class ForgotPassword(BaseModel):
@@ -204,164 +213,6 @@ class ReceiptCreateArraySchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     receipts: list[ReceiptCreateSchema] | None = None
-
-
-# --- Product analytics ---
-
-
-class AnalyticsEventName(StrEnum):
-    APP_OPENED = "app_opened"
-    APP_BACKGROUNDED = "app_backgrounded"
-    TAB_VIEWED = "tab_viewed"
-    POLICY_ACCEPTED = "policy_accepted"
-    REGISTRATION_STARTED = "registration_started"
-    REGISTRATION_SUCCEEDED = "registration_succeeded"
-    REGISTRATION_FAILED = "registration_failed"
-    LOGIN_STARTED = "login_started"
-    LOGIN_SUCCEEDED = "login_succeeded"
-    LOGIN_FAILED = "login_failed"
-    LOGOUT = "logout"
-    RECEIPT_CAPTURE_STARTED = "receipt_capture_started"
-    RECEIPT_CAPTURE_SUCCEEDED = "receipt_capture_succeeded"
-    RECEIPT_CAPTURE_FAILED = "receipt_capture_failed"
-    RECEIPT_MANUAL_CREATED = "receipt_manual_created"
-    RECEIPT_DETAIL_VIEWED = "receipt_detail_viewed"
-    RECEIPT_DELETED = "receipt_deleted"
-    AI_SCREEN_VIEWED = "ai_screen_viewed"
-    AI_ACTION_STARTED = "ai_action_started"
-    AI_ACTION_SUCCEEDED = "ai_action_succeeded"
-    AI_ACTION_FAILED = "ai_action_failed"
-    SUBSCRIPTION_SCREEN_VIEWED = "subscription_screen_viewed"
-    SUBSCRIPTION_PLAN_SELECTED = "subscription_plan_selected"
-    SUBSCRIPTION_TERMS_VIEWED = "subscription_terms_viewed"
-    SUBSCRIPTION_CHECKOUT_OPENED = "subscription_checkout_opened"
-    SUBSCRIPTION_CHECKOUT_FAILED = "subscription_checkout_failed"
-    FEEDBACK_SUBMITTED = "feedback_submitted"
-
-
-class _AnalyticsProperties(BaseModel):
-    model_config = ConfigDict(extra="forbid", strict=True)
-
-
-class _EmptyAnalyticsProperties(_AnalyticsProperties):
-    pass
-
-
-class _TabProperties(_AnalyticsProperties):
-    tab: Literal["scan", "stats", "types", "receipts", "profile", "assistant"]
-
-
-class _PolicyProperties(_AnalyticsProperties):
-    policy: Literal["privacy", "terms"]
-    version: str = Field(min_length=1, max_length=32, pattern=r"^[A-Za-z0-9._-]+$")
-
-
-class _AiActionProperties(_AnalyticsProperties):
-    actionId: Literal[
-        "analysis", "save_money", "health", "recipe", "cart", "ingredients", "habits", "diet", "ask"
-    ]
-
-
-class _AiTimedProperties(_AiActionProperties):
-    durationMs: int | None = Field(default=None, ge=0, le=600_000)
-
-
-class _PlanProperties(_AnalyticsProperties):
-    plan: Literal["budget_monthly", "premium_monthly"]
-
-
-class _FailureProperties(_AnalyticsProperties):
-    failureCode: Literal["network", "validation", "unavailable", "cancelled", "unknown"]
-
-
-class _AiFailureProperties(_AiTimedProperties):
-    failureCode: Literal["network", "validation", "unavailable", "cancelled", "unknown"]
-
-
-class _ReceiptCaptureProperties(_AnalyticsProperties):
-    source: Literal["qr", "image"]
-    durationMs: int | None = Field(default=None, ge=0, le=600_000)
-
-
-class _ReceiptCaptureFailureProperties(_ReceiptCaptureProperties):
-    failureCode: Literal["network", "validation", "unavailable", "cancelled", "unknown"]
-
-
-class _CheckoutFailureProperties(_PlanProperties):
-    failureCode: Literal["network", "validation", "unavailable", "cancelled", "unknown"]
-
-
-_ANALYTICS_PROPERTY_MODELS: dict[AnalyticsEventName, type[_AnalyticsProperties]] = {
-    AnalyticsEventName.TAB_VIEWED: _TabProperties,
-    AnalyticsEventName.POLICY_ACCEPTED: _PolicyProperties,
-    AnalyticsEventName.AI_ACTION_STARTED: _AiActionProperties,
-    AnalyticsEventName.AI_ACTION_SUCCEEDED: _AiTimedProperties,
-    AnalyticsEventName.AI_ACTION_FAILED: _AiFailureProperties,
-    AnalyticsEventName.SUBSCRIPTION_PLAN_SELECTED: _PlanProperties,
-    AnalyticsEventName.SUBSCRIPTION_CHECKOUT_OPENED: _PlanProperties,
-    AnalyticsEventName.REGISTRATION_FAILED: _FailureProperties,
-    AnalyticsEventName.LOGIN_FAILED: _FailureProperties,
-    AnalyticsEventName.RECEIPT_CAPTURE_STARTED: _ReceiptCaptureProperties,
-    AnalyticsEventName.RECEIPT_CAPTURE_SUCCEEDED: _ReceiptCaptureProperties,
-    AnalyticsEventName.RECEIPT_CAPTURE_FAILED: _ReceiptCaptureFailureProperties,
-    AnalyticsEventName.SUBSCRIPTION_CHECKOUT_FAILED: _CheckoutFailureProperties,
-}
-
-
-class AnalyticsEventRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    eventId: str = Field(min_length=8, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")
-    eventName: AnalyticsEventName
-    occurredAt: datetime
-    sessionId: str | None = Field(default=None, max_length=96, pattern=r"^[A-Za-z0-9_-]+$")
-    properties: dict[str, Any] = Field(default_factory=dict, max_length=4)
-
-    @field_validator("occurredAt")
-    @classmethod
-    def _occurred_at_utc(cls, value: datetime) -> datetime:
-        if value.tzinfo is None:
-            raise ValueError("occurredAt must include a UTC offset")
-        return value.astimezone(timezone.utc)
-
-    @model_validator(mode="after")
-    def _validate_properties(self):
-        model = _ANALYTICS_PROPERTY_MODELS.get(self.eventName, _EmptyAnalyticsProperties)
-        self.properties = model.model_validate(self.properties).model_dump()
-        return self
-
-
-class AnalyticsEventsRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    installationId: str = Field(min_length=16, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")
-    platform: Literal["ios", "android"]
-    appVersion: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9._+-]+$")
-    appBuild: str = Field(min_length=1, max_length=32, pattern=r"^[A-Za-z0-9._-]+$")
-    osVersion: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9._ -]+$")
-    locale: str = Field(min_length=2, max_length=16, pattern=r"^[a-z]{2,3}(?:-[A-Z]{2})?$")
-    timezone: str = Field(
-        min_length=1,
-        max_length=64,
-        pattern=r"^(?:UTC|[A-Za-z0-9_.+-]+(?:/[A-Za-z0-9_.+-]+){1,2})$",
-    )
-    events: list[AnalyticsEventRequest] = Field(min_length=1, max_length=50)
-
-
-class AnalyticsPreferenceRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    installationId: str = Field(min_length=16, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")
-    enabled: StrictBool
-
-
-class AnalyticsIngestResponse(BaseModel):
-    accepted: bool
-    inserted: int
-
-
-class AnalyticsPreferenceResponse(BaseModel):
-    enabled: bool
 
 
 # ====

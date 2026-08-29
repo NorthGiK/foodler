@@ -8,6 +8,8 @@ import { analyticsEvents } from "./src/analytics/facade";
 import { analyticsTriggers } from "./src/analytics/triggers";
 import { AuthProvider } from "./src/api/auth";
 import { ThemeProvider, useTheme } from "./src/components/ThemeContext";
+import { TracerErrorBoundary } from "./src/components/TracerErrorBoundary";
+import { tracer } from "./src/tracer";
 import { MainTabs } from "./src/navigation/MainTabs";
 import { createNavigationTheme } from "./src/navigationTheme";
 import { AskScreen } from "./src/screens/AskScreen";
@@ -35,6 +37,8 @@ export type RootStackParamList = {
 };
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const POLICIES_ACCEPTED_KEY = "@policies_accepted";
+const CONSENT_VERSION_KEY = "@foodler_consent_version";
+const CONSENT_VERSION = "1.2";
 
 function AppNavigator() {
   const { theme, themeName } = useTheme();
@@ -56,9 +60,11 @@ function AppNavigator() {
     void (async () => {
       try {
         const accepted =
-          (await AsyncStorage.getItem(POLICIES_ACCEPTED_KEY)) === "true";
+          (await AsyncStorage.getItem(POLICIES_ACCEPTED_KEY)) === "true" &&
+          (await AsyncStorage.getItem(CONSENT_VERSION_KEY)) === CONSENT_VERSION;
         setPoliciesAccepted(accepted);
         await analyticsTriggers.resolvedConsent(accepted);
+        await tracer.start(accepted);
         if (accepted) trackOpenedOnce();
       } catch {
         setPoliciesAccepted(false);
@@ -67,10 +73,12 @@ function AppNavigator() {
     })();
   }, [trackOpenedOnce]);
   const handlePoliciesAccepted = async () => {
+    await AsyncStorage.setItem(CONSENT_VERSION_KEY, CONSENT_VERSION);
     await analyticsTriggers.resolvedConsent(true);
+    await tracer.start(true);
     await Promise.all([
-      analyticsEvents.policyAccepted("privacy", "1.1"),
-      analyticsEvents.policyAccepted("terms", "1.1"),
+      analyticsEvents.policyAccepted("privacy", "1.2"),
+      analyticsEvents.policyAccepted("terms", "1.2"),
     ]);
     trackOpenedOnce();
   };
@@ -135,7 +143,7 @@ export default function App() {
     <SafeAreaProvider>
       <ThemeProvider>
         <QrRequestProvider>
-          <AppNavigator />
+          <TracerErrorBoundary><AppNavigator /></TracerErrorBoundary>
         </QrRequestProvider>
       </ThemeProvider>
     </SafeAreaProvider>

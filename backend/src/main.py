@@ -7,14 +7,12 @@ from uuid import uuid4
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import (
     CORS_ORIGINS,
     METRICS_TOKEN,
-    PRODUCT_ANALYTICS_MAX_PAYLOAD_BYTES,
     RECEIPT_CLEANUP_INTERVAL_SECONDS,
 )
 from .database import async_session, check_database, get_db
@@ -78,17 +76,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-@app.middleware("http")
-async def analytics_request_size_limit(request: Request, call_next):
-    if request.url.path == "/api/product-analytics/events":
-        content_length = request.headers.get("content-length")
-        if content_length is not None and content_length.isdigit() and int(content_length) > PRODUCT_ANALYTICS_MAX_PAYLOAD_BYTES:
-            return JSONResponse(status_code=413, content={"detail": "Payload too large"})
-        body = await request.body()
-        if len(body) > PRODUCT_ANALYTICS_MAX_PAYLOAD_BYTES:
-            return JSONResponse(status_code=413, content={"detail": "Payload too large"})
-    return await call_next(request)
 
 for router in ROUTERS:
     app.include_router(router, prefix="/api")

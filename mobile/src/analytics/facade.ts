@@ -1,6 +1,5 @@
 import type { AiActionType } from "@/ai/types";
 import { ApiError } from "@/api/transport";
-import type { AnalyticsEventName } from "@/api/generated/types.gen";
 
 import { analyticsTriggers } from "./triggers";
 
@@ -14,8 +13,7 @@ export class AnalyticsCancelledError extends Error {
   override name = "AnalyticsCancelledError";
 }
 
-type AuthEvent = Extract<
-  AnalyticsEventName,
+type AuthEvent =
   | "registration_started"
   | "registration_succeeded"
   | "registration_failed"
@@ -23,17 +21,15 @@ type AuthEvent = Extract<
   | "login_succeeded"
   | "login_failed"
   | "logout"
->;
-type ReceiptCaptureEvent = Extract<
-  AnalyticsEventName,
+;
+type ReceiptCaptureEvent =
   | "receipt_capture_started"
   | "receipt_capture_succeeded"
   | "receipt_capture_failed"
->;
-type AiEvent = Extract<
-  AnalyticsEventName,
+;
+type AiEvent =
   "ai_action_started" | "ai_action_succeeded" | "ai_action_failed"
->;
+;
 
 function durationMs(startedAt: number): number {
   return Math.min(600_000, Math.max(0, Date.now() - startedAt));
@@ -57,7 +53,7 @@ export function analyticsFailureCode(error: unknown): AnalyticsFailureCode {
 }
 
 async function event(
-  eventName: AnalyticsEventName,
+  eventName: string,
   properties: Record<string, unknown> = {},
 ): Promise<void> {
   await analyticsTriggers.enqueueAndMaybeFlush({
@@ -70,7 +66,7 @@ async function event(
 export const analyticsEvents = {
   appOpened: () => event("app_opened"),
   tabViewed: (tab: AnalyticsTab) => event("tab_viewed", { tab }),
-  policyAccepted: (policy: "privacy" | "terms", version: "1.1") =>
+  policyAccepted: (policy: "privacy" | "terms", version: "1.2") =>
     event("policy_accepted", { policy, version }),
   auth: (name: AuthEvent, error?: unknown) =>
     event(

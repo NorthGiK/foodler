@@ -144,7 +144,10 @@ async def verify_code(body: VerifyCodeRequest, db: AsyncSession = Depends(get_db
             id=user.id,
             email=user.email,
             premium=user.premium or False,
-            analyticsEnabled=user.analytics_enabled,
+            analyticsIdentityEnabled=user.analytics_identity_enabled,
+            analyticsExternalId=(
+                user.analytics_external_id if user.analytics_identity_enabled else None
+            ),
             subscriptionExpires=user.subscription_expires,
             createdAt=user.created_at,
         ),
@@ -172,7 +175,10 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
             id=user.id,
             email=user.email,
             premium=user.premium or False,
-            analyticsEnabled=user.analytics_enabled,
+            analyticsIdentityEnabled=user.analytics_identity_enabled,
+            analyticsExternalId=(
+                user.analytics_external_id if user.analytics_identity_enabled else None
+            ),
             subscriptionExpires=user.subscription_expires,
             createdAt=user.created_at,
         ),
@@ -394,7 +400,10 @@ async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
             id=user.id,
             email=user.email,
             premium=user.premium or False,
-            analyticsEnabled=user.analytics_enabled,
+            analyticsIdentityEnabled=user.analytics_identity_enabled,
+            analyticsExternalId=(
+                user.analytics_external_id if user.analytics_identity_enabled else None
+            ),
             subscriptionExpires=user.subscription_expires,
             createdAt=user.created_at,
         ),

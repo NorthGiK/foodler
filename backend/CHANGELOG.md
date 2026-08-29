@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Replaced backend product-analytics ingestion with the account-level MyTracker
+  identity preference. Users receive a stable opaque external ID only while
+  identity binding is enabled; the migration irreversibly deletes legacy
+  analytics event and installation history.
+
 - Password reset now confirms the email code in a separate request and uses a
   short-lived signed reset token to set the new password; existing sessions are
   revoked after the reset.

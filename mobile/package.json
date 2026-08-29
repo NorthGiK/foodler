@@ -13,7 +13,9 @@
     "format:check": "prettier --check \"{src/api/**/*.{ts,tsx},*.{js,json,ts}}\"",
     "format": "prettier --write \"{App.tsx,src/**/*.{ts,tsx},*.{js,json,ts}}\"",
     "test": "jest",
-    "audit:prod": "npm audit --omit=dev"
+    "audit:prod": "npm audit --omit=dev",
+    "release:validate-observability": "node scripts/validate-observability-release.js",
+    "release:upload-sourcemap": "node scripts/upload-tracer-sourcemaps.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~56.0.19",

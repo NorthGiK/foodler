@@ -237,7 +237,7 @@ export function ProfileScreen({
             ) : null}
             {route === "privacy" ? (
               <AnalyticsPreferenceCard
-                accountEnabled={user?.analyticsEnabled}
+                accountEnabled={user?.analyticsIdentityEnabled}
                 onSynced={refreshUser}
               />
             ) : null}
