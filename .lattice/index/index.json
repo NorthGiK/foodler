@@ -1,12 +1,13 @@
 {
   "version": 2,
   "workspace": "/home/vld/shet/foodler",
-  "createdAt": "2026-08-28T16:35:00.974Z",
+  "createdAt": "2026-09-01T12:24:03.729Z",
   "git": {
     "available": true,
     "branch": "main",
     "status": [
       " M .gitignore",
+      " M .lattice/index/index.json",
       " M .lattice/sidecar/state.json",
       " M .lattice/sidecar/telemetry.json"
     ]
