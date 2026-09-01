@@ -5,7 +5,7 @@
   "workspace": "/home/vld/shet/foodler",
   "pid": 47718,
   "status": "ready",
-  "updatedAt": "2026-09-01T12:24:20.020Z",
+  "updatedAt": "2026-09-01T12:25:10.233Z",
   "indexedFiles": 185,
   "mode": "passive-index-only",
   "telemetry": {
@@ -13,7 +13,7 @@
     "attachCount": 4,
     "lastAttachMs": 0.15250999992713332,
     "initialIndexMs": 3129,
-    "incrementalInvalidationMs": 8634,
+    "incrementalInvalidationMs": 6194,
     "nativeCodexProcessLifetimeMs": null,
     "bridgeRequestCount": 0,
     "bridgeInitializeCount": 4,
